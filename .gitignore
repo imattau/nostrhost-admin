@@ -25,3 +25,5 @@ src/css/style.css
 src/dist
 
 vite.config.local.ts
+
+app/.yarn/

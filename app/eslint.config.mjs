@@ -23,6 +23,17 @@ export default [
   skipFormatting,
 
   {
+    // shadcn-vue style primitives (`Button`, `Card`, `Badge`, ...): single-word
+    // names are the convention across that ecosystem and match how every
+    // other shadcn-based codebase names them.
+    name: 'app/ui-primitives',
+    files: ['src/components/ui/**/*.vue'],
+    rules: {
+      'vue/multi-word-component-names': 'off',
+    },
+  },
+
+  {
     rules: {
       'vue/no-v-html': 'off',
       'no-unused-vars': 'off',

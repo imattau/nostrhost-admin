@@ -11,6 +11,7 @@ import i18n from './i18n'
 import router from './router'
 
 import '@/scss/main.scss'
+import '@/assets/tailwind.css'
 
 type Module = { default: Component }
 

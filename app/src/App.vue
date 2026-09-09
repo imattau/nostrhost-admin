@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useToastController } from 'bootstrap-vue-next'
+import { LogOut, User } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 
+import { Button } from '@/components/ui/button'
 import { useAutoToast } from '@/composables/useAutoToast'
 import { useInfos } from '@/composables/useInfos'
 import { useRequests } from '@/composables/useRequests'
@@ -81,51 +83,57 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="app" class="container">
+  <div id="app">
     <!-- HEADER -->
-    <header>
-      <BNavbar>
-        <BNavbarBrand
+    <header
+      class="tw:border-b tw:border-border-subtle tw:dark:border-border-subtle-dark"
+    >
+      <div
+        class="tw:mx-auto tw:flex tw:max-w-6xl tw:items-center tw:gap-4 tw:px-4 tw:py-3"
+      >
+        <RouterLink
           :to="{ name: 'home' }"
-          :disabled="locked"
-          exact-active-class="active"
+          :aria-disabled="locked"
+          class="tw:shrink-0"
+          :class="{ 'tw:pointer-events-none tw:opacity-50': locked }"
         >
-          <span v-if="dark">
-            <img alt="YunoHost logo" src="./assets/logo_light.png" width="40" />
-          </span>
-          <span v-else>
-            <img alt="YunoHost logo" src="./assets/logo_dark.png" width="40" />
-          </span>
-        </BNavbarBrand>
+          <img
+            v-if="dark"
+            alt="YunoHost logo"
+            src="./assets/logo_light.png"
+            width="36"
+          />
+          <img
+            v-else
+            alt="YunoHost logo"
+            src="./assets/logo_dark.png"
+            width="36"
+          />
+        </RouterLink>
 
-        <BNavbarNav class="ms-auto">
-          <li class="nav-item">
-            <BButton
-              :href="ssoLink"
-              variant="primary"
-              size="sm"
-              class="d-block"
-            >
-              {{ $t('user_interface_link') }} <YIcon iname="user" />
-            </BButton>
-          </li>
+        <div class="tw:ml-auto tw:flex tw:items-center tw:gap-2">
+          <Button as="a" :href="ssoLink" size="sm">
+            <User class="tw:size-4" />
+            {{ $t('user_interface_link') }}
+          </Button>
 
-          <li v-show="connected" class="nav-item">
-            <BButton
-              variant="outline-dark"
-              block
-              size="sm"
-              @click.prevent="logout"
-            >
-              {{ $t('logout') }} <YIcon iname="sign-out" />
-            </BButton>
-          </li>
-        </BNavbarNav>
-      </BNavbar>
+          <Button
+            v-show="connected"
+            variant="outline"
+            size="sm"
+            @click.prevent="logout"
+          >
+            <LogOut class="tw:size-4" />
+            {{ $t('logout') }}
+          </Button>
+        </div>
+      </div>
     </header>
 
     <!-- MAIN -->
-    <MainLayout v-if="ready" />
+    <div class="container">
+      <MainLayout v-if="ready" />
+    </div>
 
     <BModalOrchestrator />
     <BToastOrchestrator />
@@ -134,96 +142,49 @@ onMounted(() => {
     <HistoryConsole />
 
     <!-- FOOTER -->
-    <div class="mt-4" />
-    <footer class="py-3 mt-auto">
-      <nav>
-        <BNav class="justify-content-center">
-          <BNavItem
-            href="https://doc.yunohost.org/admin"
-            target="_blank"
-            link-classes="text-secondary"
-          >
-            <YIcon iname="book" /> {{ $t('footer.documentation') }}
-          </BNavItem>
-          <BNavItem
-            href="https://doc.yunohost.org/community/help/"
-            target="_blank"
-            link-classes="text-secondary"
-          >
-            <YIcon iname="life-ring" /> {{ $t('footer.help') }}
-          </BNavItem>
-          <BNavItem
-            href="https://doc.yunohost.org/community/terms_of_services/"
-            target="_blank"
-            link-classes="text-secondary"
-          >
-            <YIcon iname="legal" /> {{ $t('footer.tos') }}
-          </BNavItem>
-          <BNavItem
-            href="https://yunohost.org/donate.html"
-            target="_blank"
-            link-classes="text-secondary"
-          >
-            <YIcon iname="heart" /> {{ $t('footer.donate') }}
-          </BNavItem>
+    <footer
+      class="tw:mt-auto tw:border-t tw:border-border-subtle tw:py-4 tw:text-sm tw:text-slate-500 tw:dark:border-border-subtle-dark tw:dark:text-slate-400"
+    >
+      <nav
+        class="tw:mx-auto tw:flex tw:max-w-6xl tw:flex-wrap tw:items-center tw:justify-center tw:gap-x-6 tw:gap-y-2 tw:px-4"
+      >
+        <a
+          href="https://doc.yunohost.org/admin"
+          target="_blank"
+          class="tw:hover:text-brand-600"
+          >{{ $t('footer.documentation') }}</a
+        >
+        <a
+          href="https://doc.yunohost.org/community/help/"
+          target="_blank"
+          class="tw:hover:text-brand-600"
+          >{{ $t('footer.help') }}</a
+        >
+        <a
+          href="https://doc.yunohost.org/community/terms_of_services/"
+          target="_blank"
+          class="tw:hover:text-brand-600"
+          >{{ $t('footer.tos') }}</a
+        >
+        <a
+          href="https://yunohost.org/donate.html"
+          target="_blank"
+          class="tw:hover:text-brand-600"
+          >{{ $t('footer.donate') }}</a
+        >
 
-          <BNavText
-            v-if="yunohost"
-            id="yunohost-version"
-            class="ms-md-auto text-center"
-          >
-            <span v-html="$t('footer_version', yunohost)" />
-          </BNavText>
-        </BNav>
+        <span v-if="yunohost" id="yunohost-version" class="tw:ml-auto">
+          <span v-html="$t('footer_version', yunohost)" />
+        </span>
       </nav>
     </footer>
   </div>
 </template>
 
 <style lang="scss" scoped>
-// generic style for <html>, <body> and <#app> is in `scss/main.scss`
-header {
-  border-bottom: $thin-border;
-  padding-top: 1rem;
-  margin-bottom: 1rem;
-
-  .navbar {
-    padding: 1rem 0;
-
-    img {
-      width: 70px;
-    }
-
-    .navbar-nav {
-      flex-direction: column;
-
-      li {
-        margin: 0.2rem 0;
-      }
-    }
-  }
-}
-
 #console {
-  // Allows the console to be tabbed before the footer links while remaining visually
-  // the last element of the page
+  // HistoryConsole is rendered before the footer in the DOM (so tab order
+  // stays main-content -> footer -> console), but visually belongs after it.
   order: 3;
-}
-
-footer {
-  border-top: $thin-border;
-  font-size: $font-size-sm;
-
-  .nav-item {
-    & + .nav-item a::before {
-      content: '•';
-      width: 1rem;
-      display: inline-block;
-      margin-left: -1.15rem;
-    }
-    &:first-child {
-      margin-left: -1rem;
-    }
-  }
 }
 </style>

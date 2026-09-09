@@ -2,6 +2,7 @@ import { fileURLToPath, URL } from 'url'
 import { defineConfig, loadEnv, UserConfig } from 'vite'
 import fs from 'fs'
 import createVuePlugin from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import Components from 'unplugin-vue-components/vite'
 import { BootstrapVueNextResolver } from 'bootstrap-vue-next'
 
@@ -57,6 +58,7 @@ export default defineConfig(async ({ mode }) => {
     },
     plugins: [
       createVuePlugin(),
+      tailwindcss(),
       Components({
         resolvers: [BootstrapVueNextResolver()],
       }),

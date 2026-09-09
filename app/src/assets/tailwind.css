@@ -1,0 +1,53 @@
+/*
+ * Tailwind entrypoint for the in-progress UI redesign.
+ *
+ * Two things keep this safe to run side-by-side with the existing Bootstrap
+ * styles while the migration is incomplete:
+ *
+ * 1. Preflight is NOT imported — this app still ships Bootstrap's
+ *    reboot/reset (see `src/scss/main.scss`) for all not-yet-migrated views,
+ *    and Tailwind's preflight would fight it.
+ * 2. Every Tailwind utility is emitted with a `tw:` prefix (`tw:flex`,
+ *    `tw:p-4`, ...) instead of Tailwind's bare names, because Bootstrap
+ *    already defines many of those bare names (`.p-4`, `.border`, `.rounded`,
+ *    `.shadow`, ...) with different values — without the prefix the two
+ *    frameworks silently clobber each other.
+ *
+ * Once every view has migrated off Bootstrap: drop `src/scss/main.scss`'s
+ * bootstrap imports, drop the `prefix(tw)` below, and add
+ * `@import "tailwindcss/preflight.css" layer(base);`.
+ */
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' layer(utilities) prefix(tw);
+
+/*
+ * Dark mode is already toggled app-wide by `useSettings` setting
+ * `data-bs-theme="dark"` on <html> (for Bootstrap). Reuse that single
+ * source of truth instead of introducing a second dark-mode mechanism.
+ */
+@custom-variant dark (&:where([data-bs-theme='dark'], [data-bs-theme='dark'] *));
+
+@theme {
+  --font-sans: 'FiraGO', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, monospace;
+
+  /* Shared with the existing SCSS palette (src/scss/_variables.scss) so
+     migrated and not-yet-migrated views still look like one product. */
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #dbebff;
+  --color-brand-200: #b8d6ff;
+  --color-brand-300: #85b8ff;
+  --color-brand-400: #4a8cff;
+  --color-brand-500: #1a67f0;
+  --color-brand-600: #0d4fc7;
+  --color-brand-700: #0c3fa0;
+  --color-brand-800: #103682;
+  --color-brand-900: #12306c;
+
+  --color-surface: #ffffff;
+  --color-surface-dark: #14161a;
+  --color-surface-muted: #f6f7f9;
+  --color-surface-muted-dark: #1c1f26;
+  --color-border-subtle: #e4e7ec;
+  --color-border-subtle-dark: #2b2f38;
+}

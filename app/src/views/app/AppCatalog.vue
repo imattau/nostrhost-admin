@@ -19,13 +19,13 @@ const props = withDefaults(
   defineProps<{
     search?: string
     quality?: 'all' | 'highQuality' | 'decentQuality' | 'working'
-    category?: 'all' | string | null
+    category?: 'all' | string
     subtag?: 'all' | 'others' | string
   }>(),
   {
     search: '',
     quality: 'decentQuality',
-    category: null,
+    category: 'all',
     subtag: 'all',
   },
 )
@@ -33,6 +33,10 @@ const props = withDefaults(
 const { t } = useI18n()
 const router = useRouter()
 const modalConfirm = useAutoModal()
+
+// Category tiles are an optional way to browse the catalog, not a gate:
+// the app list is shown right away so the catalog stays usable as it grows.
+const showCategoryBrowser = ref(false)
 
 const [apps, categories] = await api
   .get<Catalog>({
@@ -66,7 +70,6 @@ const [apps, categories] = await api
 
     // CATEGORIES
     const categories = [
-      { text: t('app_choose_category'), value: null, subtags: [] },
       { text: t('all_apps'), value: 'all', icon: 'search', subtags: [] },
       ...catalog.categories.map(({ title, id, ...rest }) => {
         return { text: title, value: id, ...rest }
@@ -81,9 +84,7 @@ const {
   category,
   subtag,
   search: externalSearch,
-} = useFormQuery(props, () => {
-  if (props.category === null) return { ...props, category: 'all' }
-})
+} = useFormQuery(props)
 
 const [search, filteredApps] = useSearch(
   apps,
@@ -109,7 +110,6 @@ const [search, filteredApps] = useSearch(
     externalSearch,
     filterIfNoSearch: true,
     filterAllFn(s) {
-      if (props.category === null) return false
       if (props.quality === 'all' && props.category === 'all' && s === '') {
         return true
       }
@@ -149,7 +149,7 @@ const qualityOptions = [
 
 const subtags = computed(() => {
   // build an options array for subtags v-model/options
-  if (props.category && categories.length > 2) {
+  if (props.category !== 'all' && categories.length > 1) {
     const category = categories.find((cat) => cat.value === props.category)!
     if (category.subtags.length) {
       const subtags = [{ text: t('all'), value: 'all' }]
@@ -162,6 +162,16 @@ const subtags = computed(() => {
   }
   return null
 })
+
+// ADVANCED: INSTALL CUSTOM APP is a developer feature, hidden by default
+// so it doesn't clutter the catalog for regular end users.
+const showCustomInstall = ref(false)
+
+// CATEGORY TILE BROWSER
+function onCategoryTileClick(value: string) {
+  category.value = value
+  showCategoryBrowser.value = false
+}
 
 // INSTALL CUSTOM APP
 const onCustomInstallClick = onSubmit(async () => {
@@ -180,37 +190,47 @@ const onCustomInstallClick = onSubmit(async () => {
   <ViewSearch :items="filteredApps" items-name="apps">
     <template #top-bar>
       <div id="view-top-bar">
-        <!-- APP SEARCH -->
-        <BInputGroup>
-          <BInputGroupText>
-            <YIcon iname="search" />
-          </BInputGroupText>
+        <!-- FILTERS: search + quality + category are all facets on the same
+             list, so apps stay visible while filters narrow them down. -->
+        <div class="filter-row">
+          <BInputGroup class="search-group">
+            <BInputGroupText>
+              <YIcon iname="search" />
+            </BInputGroupText>
 
-          <BFormInput
-            id="search-input"
-            v-model="search"
-            :placeholder="$t('search.for', { items: $t('items.apps', 2) })"
-          />
+            <BFormInput
+              id="search-input"
+              v-model="search"
+              :placeholder="$t('search.for', { items: $t('items.apps', 2) })"
+            />
+          </BInputGroup>
 
-          <BFormSelect v-model="quality" :options="qualityOptions" />
-        </BInputGroup>
+          <BInputGroup class="quality-group">
+            <BInputGroupText>
+              <YIcon iname="star" />
+            </BInputGroupText>
+            <BFormSelect v-model="quality" :options="qualityOptions" />
+          </BInputGroup>
 
-        <!-- CATEGORY SELECT -->
-        <BInputGroup class="mt-3">
-          <BInputGroupText>
-            <YIcon iname="filter" />
-          </BInputGroupText>
-
-          <BFormSelect v-model="category" :options="categories" />
+          <BInputGroup class="category-group">
+            <BInputGroupText>
+              <YIcon iname="filter" />
+            </BInputGroupText>
+            <BFormSelect v-model="category" :options="categories" />
+          </BInputGroup>
 
           <BButton
-            variant="primary"
-            :disabled="category === null"
-            @click="category = null"
+            variant="outline-secondary"
+            :aria-pressed="showCategoryBrowser"
+            @click="showCategoryBrowser = !showCategoryBrowser"
           >
-            {{ $t('app_show_categories') }}
+            {{
+              showCategoryBrowser
+                ? $t('app_hide_categories')
+                : $t('app_show_categories')
+            }}
           </BButton>
-        </BInputGroup>
+        </div>
 
         <!-- CATEGORIES SUBTAGS -->
         <BInputGroup v-if="subtags" class="mt-3 subtags">
@@ -234,9 +254,15 @@ const onCustomInstallClick = onSubmit(async () => {
       </div>
     </template>
 
-    <!-- CATEGORIES CARDS -->
+    <!-- CATEGORIES CARDS: an optional browsing aid, not a gate — the app
+         list below is always shown regardless of this being open. -->
     <template #forced-default="{ noItemsMessage }">
-      <BCardGroup v-if="category === null" deck tag="ul" class="p-0 m-0">
+      <BCardGroup
+        v-if="showCategoryBrowser"
+        deck
+        tag="ul"
+        class="p-0 m-0 mb-4 category-grid"
+      >
         <BCard
           v-for="cat in categories.slice(1)"
           :key="cat.text"
@@ -244,7 +270,10 @@ const onCustomInstallClick = onSubmit(async () => {
           class="category-card"
         >
           <BCardTitle>
-            <BLink class="card-link" @click.prevent="category = cat.value">
+            <BLink
+              class="card-link"
+              @click.prevent="onCategoryTileClick(cat.value)"
+            >
               <YIcon v-if="cat.icon" :iname="cat.icon" /> {{ cat.text }}
             </BLink>
           </BCardTitle>
@@ -254,7 +283,7 @@ const onCustomInstallClick = onSubmit(async () => {
         </BCard>
       </BCardGroup>
 
-      <CardDeckFeed v-else-if="filteredApps">
+      <CardDeckFeed v-if="filteredApps">
         <BCard
           v-for="(app, i) in filteredApps"
           :key="app.id"
@@ -364,15 +393,28 @@ const onCustomInstallClick = onSubmit(async () => {
     </template>
 
     <template #bot>
-      <!-- INSTALL CUSTOM APP -->
+      <!-- INSTALL CUSTOM APP: an advanced/developer feature, tucked behind
+           a toggle so it doesn't compete with the catalog for attention. -->
+      <div class="mt-5 text-center">
+        <BButton
+          variant="link"
+          size="sm"
+          @click="showCustomInstall = !showCustomInstall"
+        >
+          <YIcon iname="code" />
+          {{ $t('custom_app_install') }}
+        </BButton>
+      </div>
+
       <CardForm
+        v-if="showCustomInstall"
         v-model="form"
         icon="download"
         :fields="fields"
         :submit-text="$t('install')"
         :title="$t('custom_app_install')"
         :validations="v"
-        class="mt-5"
+        class="mt-3"
         @submit.prevent="onCustomInstallClick"
       >
         <template #disclaimer>
@@ -389,6 +431,27 @@ const onCustomInstallClick = onSubmit(async () => {
 <style lang="scss" scoped>
 #view-top-bar {
   margin-bottom: 2rem;
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+
+    > .input-group {
+      flex: 1 1 auto;
+      width: auto;
+    }
+
+    .search-group {
+      flex-grow: 2;
+      min-width: 12rem;
+    }
+
+    .quality-group,
+    .category-group {
+      min-width: 10rem;
+    }
+  }
 
   #search-input {
     min-width: 8rem;

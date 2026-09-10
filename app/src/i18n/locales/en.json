@@ -165,9 +165,10 @@
         "upvote": "If you'd like to draw attention to this application, you can vote for it on its [catalog page](https://apps.yunohost.org/app/{id})."
     },
     "app_choose_category": "Choose a category",
+    "app_hide_categories": "Hide categories",
     "app_install_custom_no_manifest": "No manifest.json file",
     "app_install_parameters": "Install settings",
-    "app_show_categories": "Show categories",
+    "app_show_categories": "Browse by category",
     "app_state_broken": "broken",
     "app_state_broken_explanation": "This application is currently broken and not installable according to YunoHost's automatic tests",
     "app_state_highquality_explanation": "This app is well-integrated with YunoHost since at least a year.",

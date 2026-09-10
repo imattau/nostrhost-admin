@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import {
+  CodeXml,
+  Filter,
+  LayoutGrid,
+  Search,
+  Star,
+  TriangleAlert,
+} from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -6,6 +14,12 @@ import { VueShowdown } from 'vue-showdown'
 
 import api from '@/api'
 import CardDeckFeed from '@/components/CardDeckFeed.vue'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useForm, useFormQuery } from '@/composables/form'
 import { useAutoModal } from '@/composables/useAutoModal'
 import { useSearch } from '@/composables/useSearch'
@@ -192,187 +206,174 @@ const onCustomInstallClick = onSubmit(async () => {
       <div id="view-top-bar">
         <!-- FILTERS: search + quality + category are all facets on the same
              list, so apps stay visible while filters narrow them down. -->
-        <div class="filter-row">
-          <BInputGroup class="search-group">
-            <BInputGroupText>
-              <YIcon iname="search" />
-            </BInputGroupText>
-
-            <BFormInput
+        <div class="tw:flex tw:flex-wrap tw:gap-3">
+          <div class="tw:relative tw:min-w-48 tw:flex-[2_1_auto]">
+            <Search
+              class="tw:pointer-events-none tw:absolute tw:top-1/2 tw:left-3 tw:size-4 tw:-translate-y-1/2 tw:text-slate-400"
+            />
+            <Input
               id="search-input"
               v-model="search"
+              class="tw:pl-9"
               :placeholder="$t('search.for', { items: $t('items.apps', 2) })"
             />
-          </BInputGroup>
+          </div>
 
-          <BInputGroup class="quality-group">
-            <BInputGroupText>
-              <YIcon iname="star" />
-            </BInputGroupText>
-            <BFormSelect v-model="quality" :options="qualityOptions" />
-          </BInputGroup>
+          <div class="tw:relative tw:min-w-40">
+            <Star
+              class="tw:pointer-events-none tw:absolute tw:top-1/2 tw:left-3 tw:size-4 tw:-translate-y-1/2 tw:text-slate-400"
+            />
+            <Select
+              v-model="quality"
+              class="tw:pl-9"
+              :options="qualityOptions"
+            />
+          </div>
 
-          <BInputGroup class="category-group">
-            <BInputGroupText>
-              <YIcon iname="filter" />
-            </BInputGroupText>
-            <BFormSelect v-model="category" :options="categories" />
-          </BInputGroup>
+          <div class="tw:relative tw:min-w-40">
+            <Filter
+              class="tw:pointer-events-none tw:absolute tw:top-1/2 tw:left-3 tw:size-4 tw:-translate-y-1/2 tw:text-slate-400"
+            />
+            <Select v-model="category" class="tw:pl-9" :options="categories" />
+          </div>
 
-          <BButton
-            variant="outline-secondary"
+          <Button
+            variant="outline"
             :aria-pressed="showCategoryBrowser"
             @click="showCategoryBrowser = !showCategoryBrowser"
           >
+            <LayoutGrid class="tw:size-4" />
             {{
               showCategoryBrowser
                 ? $t('app_hide_categories')
                 : $t('app_show_categories')
             }}
-          </BButton>
+          </Button>
         </div>
 
         <!-- CATEGORIES SUBTAGS -->
-        <BInputGroup v-if="subtags" class="mt-3 subtags">
-          <BInputGroupText>Subtags</BInputGroupText>
-
-          <BFormRadioGroup
-            id="subtags-radio"
-            v-model="subtag"
-            name="subtags"
-            :options="subtags"
-            buttons
-            button-variant="outline-secondary"
-          />
-
-          <BFormSelect
-            id="subtags-select"
-            v-model="subtag"
-            :options="subtags"
-          />
-        </BInputGroup>
+        <div v-if="subtags" class="tw:mt-3 tw:max-w-64">
+          <Select v-model="subtag" :options="subtags" />
+        </div>
       </div>
     </template>
 
     <!-- CATEGORIES CARDS: an optional browsing aid, not a gate — the app
          list below is always shown regardless of this being open. -->
     <template #forced-default="{ noItemsMessage }">
-      <BCardGroup
+      <ul
         v-if="showCategoryBrowser"
-        deck
-        tag="ul"
-        class="p-0 m-0 mb-4 category-grid"
+        class="tw:m-0 tw:mb-6 tw:grid tw:list-none tw:grid-cols-1 tw:gap-3 tw:p-0 tw:sm:grid-cols-2 tw:lg:grid-cols-3"
       >
-        <BCard
-          v-for="cat in categories.slice(1)"
-          :key="cat.text"
-          tag="li"
-          class="category-card"
-        >
-          <BCardTitle>
-            <BLink
-              class="card-link"
-              @click.prevent="onCategoryTileClick(cat.value)"
+        <li v-for="cat in categories.slice(1)" :key="cat.text">
+          <Card
+            as="button"
+            type="button"
+            class="tw:h-full tw:w-full tw:cursor-pointer tw:appearance-none tw:text-center tw:font-sans tw:hover:border-brand-300 tw:hover:shadow-md"
+            @click="onCategoryTileClick(cat.value)"
+          >
+            <h4
+              class="tw:m-0 tw:flex tw:items-center tw:justify-center tw:gap-2 tw:text-base tw:font-medium tw:text-slate-900 tw:dark:text-slate-100"
             >
               <YIcon v-if="cat.icon" :iname="cat.icon" /> {{ cat.text }}
-            </BLink>
-          </BCardTitle>
-          <BCardText v-if="'description' in cat">{{
-            cat.description
-          }}</BCardText>
-        </BCard>
-      </BCardGroup>
+            </h4>
+            <p
+              v-if="'description' in cat"
+              class="tw:mt-1 tw:mb-0 tw:text-sm tw:text-slate-500 tw:dark:text-slate-400"
+            >
+              {{ cat.description }}
+            </p>
+          </Card>
+        </li>
+      </ul>
 
       <CardDeckFeed v-if="filteredApps">
-        <BCard
+        <article
           v-for="(app, i) in filteredApps"
           :key="app.id"
-          tag="article"
           :aria-labelledby="`${app.id}-title`"
           :aria-describedby="`${app.id}-desc`"
-          tabindex="0"
           :aria-posinset="i + 1"
           :aria-setsize="filteredApps.length"
-          no-body
-          class="app-card"
+          class="app-tile"
         >
-          <BCardBody class="d-flex">
-            <BImg
+          <!-- The app name is a "stretched link" covering the whole card
+               (::after below); the quality/orphaned badges stay separately
+               focusable/clickable on top of it via tw:relative. -->
+          <Card class="tw:relative tw:flex tw:h-full tw:gap-3">
+            <img
               v-if="app.logoHash"
-              class="app-logo rounded"
+              class="tw:h-14 tw:w-14 tw:shrink-0 tw:self-start tw:rounded-md tw:bg-white tw:object-contain"
               :src="`./applogos/${app.logoHash}.png`"
+              alt=""
             />
 
-            <div :id="`${app.id}-card`">
-              <BCardTitle :id="`${app.id}-title`" class="d-flex mb-2">
-                <BLink
+            <div
+              :id="`${app.id}-card`"
+              class="tw:flex tw:min-w-0 tw:flex-1 tw:flex-col"
+            >
+              <h3
+                :id="`${app.id}-title`"
+                class="tw:m-0 tw:mb-2 tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:text-base tw:font-medium tw:text-slate-900 tw:dark:text-slate-100"
+              >
+                <RouterLink
                   :to="{ name: 'app-install', params: { id: app.id } }"
-                  class="card-link"
+                  class="tw:no-underline tw:after:absolute tw:after:inset-0 tw:after:content-[''] tw:hover:underline"
                 >
                   {{ app.name }}
-                </BLink>
+                </RouterLink>
 
-                <small
-                  v-if="app.quality.state !== 'working' || app.highQuality"
-                  class="d-flex align-items-center ms-2 position-relative"
+                <Tooltip
+                  v-if="app.quality.state !== 'working'"
+                  :text="$t(`app_state_${app.quality.state}_explanation`)"
+                  class="tw:relative"
                 >
-                  <BPopover
-                    v-if="app.quality.state !== 'working'"
-                    :click="false"
-                    strategy="fixed"
-                  >
-                    <!--
-                    i18n: app_state_broken
-                    i18n: app_state_broken_explanation
-                    i18n: app_state_inprogress
-                    i18n: app_state_inprogress_explanation
-                    i18n: app_state_lowquality
-                    i18n: app_state_lowquality_explanation
-                    -->
-                    <template #target>
-                      <BBadge :variant="app.quality.variant" tabindex="0">
-                        {{ $t(`app_state_${app.quality.state}`) }}
-                      </BBadge>
-                    </template>
+                  <!--
+                  i18n: app_state_broken
+                  i18n: app_state_broken_explanation
+                  i18n: app_state_inprogress
+                  i18n: app_state_inprogress_explanation
+                  i18n: app_state_lowquality
+                  i18n: app_state_lowquality_explanation
+                  -->
+                  <Badge :variant="app.quality.variant" tabindex="0">
+                    {{ $t(`app_state_${app.quality.state}`) }}
+                  </Badge>
+                </Tooltip>
 
-                    {{ $t(`app_state_${app.quality.state}_explanation`) }}
-                  </BPopover>
+                <Tooltip
+                  v-if="app.highQuality"
+                  :text="$t('app_state_highquality_explanation')"
+                  class="tw:relative"
+                >
+                  <Star
+                    class="tw:size-4 tw:fill-amber-400 tw:text-amber-400"
+                    tabindex="0"
+                  />
+                </Tooltip>
+              </h3>
 
-                  <BPopover
-                    v-if="app.highQuality"
-                    :click="false"
-                    strategy="fixed"
-                  >
-                    <template #target>
-                      <YIcon iname="star" class="star" tabindex="0" />
-                    </template>
-
-                    {{ $t(`app_state_highquality_explanation`) }}
-                  </BPopover>
-                </small>
-              </BCardTitle>
-
-              <BCardText :id="`${app.id}-desc`">
-                {{ app.description }}
-              </BCardText>
-
-              <BCardText
-                v-if="!app.maintained"
-                class="align-self-end position-relative mt-auto"
+              <p
+                :id="`${app.id}-desc`"
+                class="tw:m-0 tw:text-sm tw:text-slate-600 tw:dark:text-slate-300"
               >
-                <BPopover :click="false" strategy="fixed">
-                  <template #target>
-                    <span class="alert-warning p-1">
-                      <YIcon iname="warning" /> {{ $t('orphaned') }}
-                    </span>
-                  </template>
+                {{ app.description }}
+              </p>
 
-                  {{ $t('orphaned_details') }}
-                </BPopover>
-              </BCardText>
+              <div
+                v-if="!app.maintained"
+                class="tw:relative tw:mt-auto tw:self-start tw:pt-2"
+              >
+                <Tooltip :text="$t('orphaned_details')">
+                  <Badge variant="warning" tabindex="0">
+                    <TriangleAlert class="tw:size-3" />
+                    {{ $t('orphaned') }}
+                  </Badge>
+                </Tooltip>
+              </div>
             </div>
-          </BCardBody>
-        </BCard>
+          </Card>
+        </article>
       </CardDeckFeed>
 
       <template v-else>
@@ -395,15 +396,15 @@ const onCustomInstallClick = onSubmit(async () => {
     <template #bot>
       <!-- INSTALL CUSTOM APP: an advanced/developer feature, tucked behind
            a toggle so it doesn't compete with the catalog for attention. -->
-      <div class="mt-5 text-center">
-        <BButton
-          variant="link"
+      <div class="tw:mt-8 tw:text-center">
+        <Button
+          variant="ghost"
           size="sm"
           @click="showCustomInstall = !showCustomInstall"
         >
-          <YIcon iname="code" />
+          <CodeXml class="tw:size-4" />
           {{ $t('custom_app_install') }}
-        </BButton>
+        </Button>
       </div>
 
       <CardForm
@@ -431,139 +432,23 @@ const onCustomInstallClick = onSubmit(async () => {
 <style lang="scss" scoped>
 #view-top-bar {
   margin-bottom: 2rem;
-
-  .filter-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-
-    > .input-group {
-      flex: 1 1 auto;
-      width: auto;
-    }
-
-    .search-group {
-      flex-grow: 2;
-      min-width: 12rem;
-    }
-
-    .quality-group,
-    .category-group {
-      min-width: 10rem;
-    }
-  }
-
-  #search-input {
-    min-width: 8rem;
-  }
-
-  select {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-  }
-
-  .subtags {
-    #subtags-radio {
-      display: none;
-    }
-    @include media-breakpoint-up(md) {
-      #subtags-radio {
-        display: inline-flex;
-      }
-      #subtags-select {
-        display: none;
-      }
-    }
-  }
 }
 
-.card-deck {
-  .card {
-    flex-basis: 100%;
-    outline: none;
+// CardDeckFeed still renders its root as Bootstrap's `.card-deck` (a plain
+// flex-wrap container used purely for the feed/infinite-scroll behavior at
+// catalog scale) — size the tw-styled `.app-tile` children within it here,
+// since Tailwind utilities can't be handed to that component from outside.
+.card-deck .app-tile {
+  flex-basis: 100%;
 
-    @include media-breakpoint-up(md) {
-      flex-basis: 50%;
-      max-width: calc(50% - 0.75rem);
-    }
-
-    @include media-breakpoint-up(lg) {
-      flex-basis: 33%;
-      max-width: calc(33.3% - 1rem);
-    }
-
-    &:hover {
-      color: $white;
-      background-color: $dark;
-      border-color: $dark;
-    }
-    &:focus {
-      box-shadow: 0 0 0 $btn-focus-width rgba($dark, 0.5);
-    }
-
-    :deep(.card-link) {
-      color: inherit;
-      text-decoration: none;
-
-      &::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-      }
-    }
-
-    // not maintained info
-    .alert-warning {
-      font-size: 0.75em;
-    }
-
-    .star {
-      color: goldenrod;
-    }
+  @include media-breakpoint-up(md) {
+    flex-basis: 50%;
+    max-width: calc(50% - 0.75rem);
   }
 
-  .category-card {
-    @include media-breakpoint-up(sm) {
-      min-height: 10rem;
-    }
-
-    flex-basis: 90%;
-
-    :deep(.card-body) {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      text-align: center;
-    }
-
-    .card-link {
-      outline: none;
-
-      &::after {
-        border: $btn-border-width solid transparent;
-        @include transition($btn-transition);
-        @include border-radius($btn-border-radius, 0);
-      }
-
-      &:focus::after {
-        box-shadow: 0 0 0 $btn-focus-width rgba($dark, 0.5);
-      }
-    }
-  }
-
-  .app-card {
-    min-height: 125px;
-    text-align: start;
-
-    .app-logo {
-      align-self: flex-start;
-      background-color: white;
-      max-width: 91px;
-      margin-right: 1rem;
-    }
+  @include media-breakpoint-up(lg) {
+    flex-basis: 33%;
+    max-width: calc(33.3% - 1rem);
   }
 }
 </style>

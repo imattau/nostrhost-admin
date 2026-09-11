@@ -62,7 +62,14 @@ const [apps, categories] = await api
       .map((app) => {
         const working = app.state === 'working'
         return {
-          ...pick(app, ['id', 'category', 'subtags', 'maintained']),
+          ...pick(app, [
+            'id',
+            'category',
+            'subtags',
+            'maintained',
+            'repository',
+            'source',
+          ]),
           ...pick(app.manifest, ['name', 'description']),
           quality: formatAppQuality({ level: app.level, state: app.state }),
           working,
@@ -322,6 +329,14 @@ const onCustomInstallClick = onSubmit(async () => {
                 >
                   {{ app.name }}
                 </RouterLink>
+
+                <Badge
+                  v-if="app.source === 'nostr'"
+                  variant="brand"
+                  class="tw:ms-1"
+                >
+                  Nostr
+                </Badge>
 
                 <Tooltip
                   v-if="app.quality.state !== 'working'"

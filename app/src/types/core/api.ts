@@ -86,6 +86,7 @@ type CatalogApp = {
   state: AppState
   subtags: string[]
   repository: string
+  source?: string
   installed: boolean
 }
 

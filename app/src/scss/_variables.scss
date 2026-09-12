@@ -43,14 +43,14 @@ $gray-800: #3b3b3b;
 $gray-900: #262626;
 $black: #202020;
 
-$blue: #60a5fa;
-$indigo: #6812f3;
-$purple: #cf76fc;
+$blue: #7541db;
+$indigo: #6134bb;
+$purple: #7541db;
 $pink: #e93f8e;
 $red: #fd6666;
 $orange: #fd7e17;
 $yellow: #ffd452;
-$green: #70ea8d;
+$green: #10b981;
 $teal: #20cb98;
 $cyan: #7dd3fc;
 
@@ -81,16 +81,19 @@ $theme-colors: (
 
 $spacer: 1rem;
 
-$body-bg-dark: $black;
+$body-bg: #f8f7fc;
+$body-color: #201b2e;
+$body-bg-dark: #0c0c14;
+$body-color-dark: #f1f5f9;
 
-$border-color: $gray-400;
-$border-color-dark: $gray-800;
+$border-color: #e5e1ef;
+$border-color-dark: #2a2a47;
 $hr-border-color: var(--#{$prefix}border-color);
 
 $link-color: shift-color($primary, 40%);
 $code-color: $black;
 $code-color-dark: $black;
-$component-active-color: $black;
+$component-active-color: $white;
 
 // Adapt font-weight based on fira
 $font-weight-light: 200;
@@ -105,6 +108,7 @@ $font-size-base: 0.9rem;
 
 // Set fonts
 $font-family-sans-serif:
+  'Geist',
   'FiraGO',
   'Fira Sans',
   -apple-system,
@@ -119,8 +123,8 @@ $font-family-sans-serif:
   'Segoe UI Emoji',
   'Segoe UI Symbol',
   'Noto Color Emoji';
-$font-family-monospace: 'Fira Code', SFMono-Regular, Menlo, Monaco, Consolas,
-  'Liberation Mono', 'Courier New', monospace;
+$font-family-monospace: 'Geist Mono', 'Fira Code', SFMono-Regular, Menlo,
+  Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
 $h2-font-size: $font-size-base * 1.5;
 $h3-font-size: $font-size-base * 1.4;

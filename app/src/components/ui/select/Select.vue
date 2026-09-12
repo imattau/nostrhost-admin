@@ -11,7 +11,7 @@ const model = defineModel<unknown>()
 
 const classes = computed(() =>
   cn(
-    'tw:h-10 tw:w-full tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:text-sm tw:text-slate-900 tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500 tw:disabled:cursor-not-allowed tw:disabled:opacity-50 tw:dark:border-border-subtle-dark tw:dark:bg-surface-dark tw:dark:text-slate-100',
+    'tw:h-10 tw:w-full tw:rounded-lg tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:text-sm tw:text-foreground tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500 tw:focus-visible:ring-offset-2 tw:disabled:cursor-not-allowed tw:disabled:opacity-50',
     props.class,
   ),
 )

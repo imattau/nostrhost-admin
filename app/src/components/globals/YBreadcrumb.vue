@@ -12,7 +12,7 @@ updateHtmlTitle()
 <template>
   <nav v-if="breadcrumb.length" :aria-label="$t('home')">
     <ol
-      class="tw:flex tw:flex-wrap tw:items-center tw:gap-1.5 tw:text-sm tw:text-slate-500 tw:dark:text-slate-400"
+      class="tw:flex tw:flex-wrap tw:items-center tw:gap-1.5 tw:text-sm tw:text-muted-foreground"
     >
       <li>
         <RouterLink
@@ -34,8 +34,7 @@ updateHtmlTitle()
           :to="to"
           class="tw:hover:text-brand-600"
           :class="{
-            'tw:font-medium tw:text-slate-900 tw:dark:text-slate-100':
-              i === breadcrumb.length - 1,
+            'tw:font-medium tw:text-foreground': i === breadcrumb.length - 1,
           }"
           :aria-current="i === breadcrumb.length - 1 ? 'page' : undefined"
         >

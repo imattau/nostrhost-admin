@@ -19,7 +19,7 @@ const open = ref(false)
     <span
       v-if="open"
       role="tooltip"
-      class="tw:pointer-events-none tw:absolute tw:bottom-full tw:left-1/2 tw:z-10 tw:mb-2 tw:w-max tw:max-w-64 tw:-translate-x-1/2 tw:rounded-md tw:bg-slate-900 tw:px-2 tw:py-1 tw:text-xs tw:text-white tw:shadow-lg tw:dark:bg-slate-700"
+      class="tw:pointer-events-none tw:absolute tw:bottom-full tw:left-1/2 tw:z-10 tw:mb-2 tw:w-max tw:max-w-64 tw:-translate-x-1/2 tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface-muted tw:px-2 tw:py-1 tw:text-xs tw:text-foreground tw:shadow-lg"
     >
       {{ text }}
     </span>

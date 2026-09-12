@@ -28,26 +28,49 @@
 @custom-variant dark (&:where([data-bs-theme='dark'], [data-bs-theme='dark'] *));
 
 @theme {
-  --font-sans: 'FiraGO', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'Fira Code', ui-monospace, monospace;
+  --font-sans: 'Geist', 'FiraGO', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* Shared with the existing SCSS palette (src/scss/_variables.scss) so
-     migrated and not-yet-migrated views still look like one product. */
-  --color-brand-50: #eef6ff;
-  --color-brand-100: #dbebff;
-  --color-brand-200: #b8d6ff;
-  --color-brand-300: #85b8ff;
-  --color-brand-400: #4a8cff;
-  --color-brand-500: #1a67f0;
-  --color-brand-600: #0d4fc7;
-  --color-brand-700: #0c3fa0;
-  --color-brand-800: #103682;
-  --color-brand-900: #12306c;
+  --color-brand-50: #f5f0ff;
+  --color-brand-100: #ede5ff;
+  --color-brand-200: #dacaff;
+  --color-brand-300: #c4a8ff;
+  --color-brand-400: #a37bff;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7541db;
+  --color-brand-700: #6134bb;
+  --color-brand-800: #4d2a91;
+  --color-brand-900: #2b1c4a;
 
-  --color-surface: #ffffff;
-  --color-surface-dark: #14161a;
-  --color-surface-muted: #f6f7f9;
-  --color-surface-muted-dark: #1c1f26;
-  --color-border-subtle: #e4e7ec;
-  --color-border-subtle-dark: #2b2f38;
+  /* Semantic tokens are overridden by the existing app-wide theme setting. */
+  --color-background: var(--nh-background);
+  --color-foreground: var(--nh-foreground);
+  --color-surface: var(--nh-surface);
+  --color-surface-dark: var(--nh-surface);
+  --color-surface-muted: var(--nh-surface-muted);
+  --color-surface-muted-dark: var(--nh-surface-muted);
+  --color-muted-foreground: var(--nh-muted-foreground);
+  --color-border-subtle: var(--nh-border);
+  --color-border-subtle-dark: var(--nh-border);
+}
+
+:root,
+:root[data-bs-theme='light'] {
+  color-scheme: light;
+  --nh-background: #f8f7fc;
+  --nh-foreground: #201b2e;
+  --nh-surface: #ffffff;
+  --nh-surface-muted: #f1eff7;
+  --nh-muted-foreground: #686279;
+  --nh-border: #e5e1ef;
+}
+
+:root[data-bs-theme='dark'] {
+  color-scheme: dark;
+  --nh-background: #0c0c14;
+  --nh-foreground: #f1f5f9;
+  --nh-surface: #16162b;
+  --nh-surface-muted: #1e1e33;
+  --nh-muted-foreground: #94a3b8;
+  --nh-border: #2a2a47;
 }

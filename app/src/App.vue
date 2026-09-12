@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useToastController } from 'bootstrap-vue-next'
-import { LogOut, User } from 'lucide-vue-next'
+import { LogOut } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 
 import { Button } from '@/components/ui/button'
@@ -11,9 +11,9 @@ import { useSettings } from '@/composables/useSettings'
 import { HistoryConsole } from '@/views/_partials'
 
 useAutoToast().init(useToastController())
-const { ssoLink, connected, yunohost, logout, onAppCreated } = useInfos()
+const { connected, logout, onAppCreated } = useInfos()
 const { locked } = useRequests()
-const { spinner, dark } = useSettings()
+const { spinner } = useSettings()
 
 const ready = ref(false)
 onAppCreated().finally(() => (ready.value = true))
@@ -83,40 +83,42 @@ onMounted(() => {
 </script>
 
 <template>
-  <div id="app">
+  <div
+    id="app"
+    class="tw:flex tw:min-h-screen tw:flex-col tw:bg-background tw:font-sans tw:text-foreground"
+  >
     <!-- HEADER -->
-    <header
-      class="tw:border-b tw:border-border-subtle tw:dark:border-border-subtle-dark"
-    >
+    <header class="tw:border-b tw:border-border-subtle tw:bg-surface">
       <div
-        class="tw:mx-auto tw:flex tw:max-w-6xl tw:items-center tw:gap-4 tw:px-4 tw:py-3"
+        class="tw:mx-auto tw:flex tw:w-full tw:max-w-7xl tw:items-center tw:gap-3 tw:px-4 tw:py-3"
       >
         <RouterLink
           :to="{ name: 'home' }"
           :aria-disabled="locked"
-          class="tw:shrink-0"
+          class="tw:flex tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-lg tw:text-foreground tw:no-underline tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
           :class="{ 'tw:pointer-events-none tw:opacity-50': locked }"
         >
-          <img
-            v-if="dark"
-            alt="YunoHost logo"
-            src="./assets/logo_light.png"
-            width="36"
-          />
-          <img
-            v-else
-            alt="YunoHost logo"
-            src="./assets/logo_dark.png"
-            width="36"
-          />
+          <span
+            class="tw:flex tw:size-9 tw:items-center tw:justify-center tw:rounded-[10px] tw:bg-brand-500 tw:text-white tw:shadow-[0_4px_12px_rgba(139,92,246,0.35)]"
+          >
+            <img
+              src="/nostrhost-mark.svg"
+              alt=""
+              width="18"
+              height="18"
+              class="tw:size-[18px]"
+            />
+          </span>
+          <span class="tw:flex tw:flex-col tw:leading-tight">
+            <span class="tw:text-base tw:font-bold">NostrHost</span>
+            <span
+              class="tw:font-mono tw:text-[10px] tw:uppercase tw:tracking-wider tw:text-brand-500"
+              >System Console</span
+            >
+          </span>
         </RouterLink>
 
         <div class="tw:ml-auto tw:flex tw:items-center tw:gap-2">
-          <Button as="a" :href="ssoLink" size="sm">
-            <User class="tw:size-4" />
-            {{ $t('user_interface_link') }}
-          </Button>
-
           <Button
             v-show="connected"
             variant="outline"
@@ -131,7 +133,7 @@ onMounted(() => {
     </header>
 
     <!-- MAIN -->
-    <div class="container">
+    <div class="tw:mx-auto tw:w-full tw:max-w-7xl tw:flex-1 tw:px-4 tw:py-6">
       <MainLayout v-if="ready" />
     </div>
 
@@ -143,39 +145,12 @@ onMounted(() => {
 
     <!-- FOOTER -->
     <footer
-      class="tw:mt-auto tw:border-t tw:border-border-subtle tw:py-4 tw:text-sm tw:text-slate-500 tw:dark:border-border-subtle-dark tw:dark:text-slate-400"
+      class="tw:mt-auto tw:border-t tw:border-border-subtle tw:py-4 tw:text-sm tw:text-muted-foreground"
     >
       <nav
-        class="tw:mx-auto tw:flex tw:max-w-6xl tw:flex-wrap tw:items-center tw:justify-center tw:gap-x-6 tw:gap-y-2 tw:px-4"
+        class="tw:mx-auto tw:flex tw:max-w-7xl tw:flex-wrap tw:items-center tw:justify-between tw:gap-x-6 tw:gap-y-2 tw:px-4"
       >
-        <a
-          href="https://doc.yunohost.org/admin"
-          target="_blank"
-          class="tw:hover:text-brand-600"
-          >{{ $t('footer.documentation') }}</a
-        >
-        <a
-          href="https://doc.yunohost.org/community/help/"
-          target="_blank"
-          class="tw:hover:text-brand-600"
-          >{{ $t('footer.help') }}</a
-        >
-        <a
-          href="https://doc.yunohost.org/community/terms_of_services/"
-          target="_blank"
-          class="tw:hover:text-brand-600"
-          >{{ $t('footer.tos') }}</a
-        >
-        <a
-          href="https://yunohost.org/donate.html"
-          target="_blank"
-          class="tw:hover:text-brand-600"
-          >{{ $t('footer.donate') }}</a
-        >
-
-        <span v-if="yunohost" id="yunohost-version" class="tw:ml-auto">
-          <span v-html="$t('footer_version', yunohost)" />
-        </span>
+        <span class="tw:font-mono tw:text-xs">NostrHost Control Plane</span>
       </nav>
     </footer>
   </div>

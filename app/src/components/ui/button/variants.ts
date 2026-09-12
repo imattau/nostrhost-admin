@@ -5,13 +5,13 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'tw:bg-brand-600 tw:text-white tw:hover:bg-brand-700',
+        primary:
+          'tw:bg-brand-600 tw:text-white tw:shadow-sm tw:hover:bg-brand-700',
         secondary:
-          'tw:bg-surface-muted tw:text-slate-900 tw:hover:bg-slate-200 tw:dark:bg-surface-muted-dark tw:dark:text-slate-100',
+          'tw:bg-surface-muted tw:text-foreground tw:hover:brightness-95',
         outline:
-          'tw:border tw:border-border-subtle tw:bg-transparent tw:hover:bg-surface-muted tw:dark:border-border-subtle-dark tw:dark:hover:bg-surface-muted-dark',
-        ghost:
-          'tw:bg-transparent tw:hover:bg-surface-muted tw:dark:hover:bg-surface-muted-dark',
+          'tw:border tw:border-border-subtle tw:bg-transparent tw:text-foreground tw:hover:bg-surface-muted',
+        ghost: 'tw:bg-transparent tw:text-foreground tw:hover:bg-surface-muted',
         danger: 'tw:bg-red-600 tw:text-white tw:hover:bg-red-700',
       },
       size: {

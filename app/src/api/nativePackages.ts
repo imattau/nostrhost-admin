@@ -1,17 +1,3 @@
-export type PackageDiagnostic = {
-  code: string
-  path: Array<string | number>
-  message: string
-  hint?: string
-}
-
-export type PackageValidation = {
-  schema: number
-  valid: boolean
-  package: { id: string; version: string } | null
-  diagnostics: PackageDiagnostic[]
-}
-
 export type PackageOperation = {
   name: string
   resource: string
@@ -25,35 +11,10 @@ export type PackageOperation = {
 
 export type PackagePlan = {
   schema: number
-  package?: { id: string; version: string }
-  valid?: boolean
-  operation_count?: number
-  operations?: PackageOperation[]
-  diagnostics?: PackageDiagnostic[]
-}
-
-export type NativeIdentity = {
-  pubkey: string
-  username: string
-  signer_type: string
-  label: string | null
-  enabled: boolean
-  authority: 'admin'
-}
-
-type SchemaDocument = Record<string, unknown>
-
-const API_PREFIX = '/api/v1'
-
-export class NativeApiError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code: string,
-  ) {
-    super(message)
-    this.name = 'NativeApiError'
-  }
+  manifest_sha256: string
+  plan_sha256: string
+  package: { id: string; version: string }
+  operations: PackageOperation[]
 }
 
 async function request<T>(
@@ -67,7 +28,7 @@ async function request<T>(
   }
 
   const pubkey = await signer.getPublicKey()
-  const url = new URL(`${API_PREFIX}${path}`, window.location.origin)
+  const url = new URL(path, window.location.origin)
   const tags = [
     ['u', url.href],
     ['method', method],
@@ -109,35 +70,17 @@ async function request<T>(
   })
   const data = await response.json().catch(() => null)
   if (!response.ok) {
-    throw new NativeApiError(
+    throw new Error(
       data?.error || `Native API request failed (${response.status}).`,
-      response.status,
-      data?.code || 'request_failed',
     )
   }
   return data as T
 }
 
-export function getPackageSchema() {
-  return request<SchemaDocument>('/packages/schema', 'GET')
-}
-
-export function getCurrentIdentity() {
-  return request<NativeIdentity>('/identity/me', 'GET')
-}
-
-export function validatePackageManifest(manifest: string) {
-  return request<PackageValidation>(
-    '/packages/validate',
-    'POST',
-    JSON.stringify({ manifest }),
-  )
-}
-
-export function planPackageManifest(manifest: string) {
+export function planPackageManifest(packageData: Record<string, unknown>) {
   return request<PackagePlan>(
-    '/packages/plan',
+    '/package/plan',
     'POST',
-    JSON.stringify({ manifest }),
+    JSON.stringify({ package: packageData }),
   )
 }

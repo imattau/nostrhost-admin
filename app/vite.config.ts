@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:8190'
 
   return {
-    base: mode === 'production' ? env.VITE_BASE_URL || '/admin/' : '/',
+    base: mode === 'production' ? env.VITE_BASE_URL || '/yunohost/admin/' : '/',
     plugins: [vue(), tailwindcss()],
     resolve: {
       alias: {
@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       host: env.VITE_HOST || '127.0.0.1',
       port: Number(env.VITE_PORT || 8080),
       proxy: {
-        '/api/v1': {
+        '/package': {
           target: apiTarget,
           changeOrigin: false,
           xfwd: true,

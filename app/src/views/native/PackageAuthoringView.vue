@@ -1,30 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import {
-  getPackageSchema,
-  getCurrentIdentity,
-  planPackageManifest,
-  validatePackageManifest,
-  type NativeIdentity,
-  type PackagePlan,
-  type PackageValidation,
-} from '@/api/nativePackages'
+import { planPackageManifest, type PackagePlan } from '@/api/nativePackages'
 import { Button } from '@/components/ui/button'
 
 const manifest = ref(
-  ['[app]', 'id = "example-app"', 'version = "0.1.0"', ''].join('\n'),
+  JSON.stringify({ app: { id: 'example-app', version: '0.1.0' } }, null, 2),
 )
 const publicKey = ref<string | null>(null)
-const identity = ref<NativeIdentity | null>(null)
-const schema = ref<Record<string, unknown> | null>(null)
-const validation = ref<PackageValidation | null>(null)
 const plan = ref<PackagePlan | null>(null)
 const error = ref('')
-const busy = ref<'connect' | 'validate' | 'plan' | null>(null)
+const busy = ref<'connect' | 'plan' | null>(null)
 const signerAvailable = computed(() => Boolean(window.nostr))
-const serializedSchema = computed(() =>
-  schema.value ? JSON.stringify(schema.value, null, 2) : '',
-)
 
 async function connectSigner() {
   busy.value = 'connect'
@@ -34,16 +20,8 @@ async function connectSigner() {
     if (!connectedKey)
       throw new Error('The signer did not return a public key.')
     publicKey.value = connectedKey
-    const [packageSchema, currentIdentity] = await Promise.all([
-      getPackageSchema(),
-      getCurrentIdentity(),
-    ])
-    schema.value = packageSchema
-    identity.value = currentIdentity
   } catch (cause) {
     publicKey.value = null
-    identity.value = null
-    schema.value = null
     error.value =
       cause instanceof Error ? cause.message : 'Could not connect the signer.'
   } finally {
@@ -55,32 +33,15 @@ async function syncSignerIdentity() {
   const current = await window.nostr?.getPublicKey()
   if (!current) {
     publicKey.value = null
-    identity.value = null
     throw new Error('The Nostr signer is no longer available.')
   }
   if (publicKey.value && current !== publicKey.value) {
     publicKey.value = current
-    identity.value = null
     throw new Error(
-      'The signer account changed. Reconnect to confirm admin access.',
+      'The signer account changed. Review the account before continuing.',
     )
   }
   publicKey.value = current
-}
-
-async function validate() {
-  busy.value = 'validate'
-  error.value = ''
-  plan.value = null
-  try {
-    await syncSignerIdentity()
-    validation.value = await validatePackageManifest(manifest.value)
-  } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Validation request failed.'
-  } finally {
-    busy.value = null
-  }
 }
 
 async function reviewPlan() {
@@ -89,26 +50,22 @@ async function reviewPlan() {
   plan.value = null
   try {
     await syncSignerIdentity()
-    const result = await planPackageManifest(manifest.value)
-    plan.value = result
-    if (result.diagnostics?.length) {
-      validation.value = {
-        schema: result.schema,
-        valid: false,
-        package: null,
-        diagnostics: result.diagnostics,
-      }
-    }
+    const packageData: unknown = JSON.parse(manifest.value)
+    if (
+      !packageData ||
+      typeof packageData !== 'object' ||
+      Array.isArray(packageData)
+    )
+      throw new Error('The package manifest must be a JSON object.')
+    plan.value = await planPackageManifest(
+      packageData as Record<string, unknown>,
+    )
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Plan request failed.'
   } finally {
     busy.value = null
   }
-}
-
-function formatPath(path: Array<string | number>) {
-  return path.length ? path.join('.') : 'package'
 }
 
 function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
@@ -123,11 +80,11 @@ function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
   <section class="native-authoring" aria-labelledby="page-title">
     <header class="page-heading">
       <div>
-        <p class="eyebrow">NostrHost native API · v1</p>
+        <p class="eyebrow">NostrHost native package planner</p>
         <h1 id="page-title">Package authoring</h1>
         <p class="lede">
-          Draft a declarative package, validate it, then inspect the resource
-          plan. Planning is read-only; this screen cannot install packages.
+          Draft a declarative package and inspect its resource plan. Planning is
+          read-only; this screen cannot install packages.
         </p>
       </div>
       <Button
@@ -149,23 +106,17 @@ function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
       A NIP-07 browser signer is required. Enable a signer extension, then
       reload this page.
     </p>
-    <p v-else-if="identity" class="notice" role="status">
-      Authorized as <strong>{{ identity.username }}</strong>
-      <span v-if="identity.label">({{ identity.label }})</span> ·
-      {{ identity.authority }} access ·
-      <code
-        >{{ identity.pubkey.slice(0, 12) }}…{{
-          identity.pubkey.slice(-8)
-        }}</code
-      >
+    <p v-else-if="publicKey" class="notice" role="status">
+      Signer connected ·
+      <code>{{ publicKey.slice(0, 12) }}…{{ publicKey.slice(-8) }}</code>
     </p>
     <p v-else class="notice" role="status">
-      Connect your signer to load the package schema and use the native API.
+      Connect your signer to authorize package planning.
     </p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
     <div class="editor-grid">
-      <label class="editor-label" for="package-manifest">package.toml</label>
+      <label class="editor-label" for="package-manifest">package.json</label>
       <textarea
         id="package-manifest"
         v-model="manifest"
@@ -175,13 +126,10 @@ function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
         aria-describedby="manifest-help"
       />
       <p id="manifest-help" class="help">
-        The server accepts TOML text only. It does not read local paths or run
-        package commands.
+        Enter a JSON package object. The server validates it and returns a
+        read-only resource plan; it does not install packages.
       </p>
       <div class="actions">
-        <Button :disabled="!publicKey || busy !== null" @click="validate">{{
-          busy === 'validate' ? 'Validating…' : 'Validate manifest'
-        }}</Button>
         <Button
           :disabled="!publicKey || busy !== null"
           variant="outline"
@@ -192,44 +140,15 @@ function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
     </div>
 
     <section
-      v-if="validation"
-      class="result"
-      aria-labelledby="validation-title"
-    >
-      <h2 id="validation-title">Validation</h2>
-      <p v-if="validation.valid" class="success">
-        Valid package:
-        <strong
-          >{{ validation.package?.id }}
-          {{ validation.package?.version }}</strong
-        >
-      </p>
-      <p v-else class="error" role="status">
-        The manifest needs changes before planning.
-      </p>
-      <ul v-if="validation.diagnostics.length" class="diagnostics">
-        <li
-          v-for="(diagnostic, index) in validation.diagnostics"
-          :key="`${diagnostic.code}-${index}`"
-        >
-          <code>{{ formatPath(diagnostic.path) }}</code>
-          <strong>{{ diagnostic.message }}</strong>
-          <span class="diagnostic-code">{{ diagnostic.code }}</span>
-          <small v-if="diagnostic.hint">{{ diagnostic.hint }}</small>
-        </li>
-      </ul>
-    </section>
-
-    <section
       v-if="plan?.operations"
       class="result"
       aria-labelledby="plan-title"
     >
       <h2 id="plan-title">
-        Plan for {{ plan.package?.id }} {{ plan.package?.version }}
+        Plan for {{ plan.package.id }} {{ plan.package.version }}
       </h2>
       <p>
-        {{ plan.operation_count }} resource operations. No host changes have
+        {{ plan.operations.length }} resource operations. No host changes have
         been made.
       </p>
       <ol class="operations">
@@ -245,11 +164,6 @@ function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
         </li>
       </ol>
     </section>
-
-    <details v-if="schema" class="schema-details">
-      <summary>Package manifest schema</summary>
-      <pre><code>{{ serializedSchema }}</code></pre>
-    </details>
   </section>
 </template>
 
@@ -349,20 +263,11 @@ summary:focus-visible {
   margin: 0;
   font-size: 1.1rem;
 }
-.diagnostics,
 .operations {
   display: grid;
   gap: 0.55rem;
   margin: 0;
   padding-left: 1.3rem;
-}
-.diagnostics li {
-  display: grid;
-  gap: 0.2rem;
-}
-.diagnostic-code,
-small {
-  color: #626574;
 }
 .operations {
   padding-left: 1.7rem;
@@ -375,33 +280,11 @@ small {
   gap: 0.2rem;
 }
 .operations code,
-.diagnostics code {
-  overflow-wrap: anywhere;
-  font-size: 0.8rem;
-}
 .operations span {
   display: inline-block;
   margin-top: 0.3rem;
   color: #626574;
   font-size: 0.8rem;
-}
-.schema-details {
-  border-top: 1px solid #dedee5;
-  padding-top: 0.8rem;
-}
-.schema-details summary {
-  width: fit-content;
-  cursor: pointer;
-  font-weight: 600;
-}
-.schema-details pre {
-  overflow: auto;
-  max-height: 24rem;
-  margin-top: 0.7rem;
-  padding: 0.8rem;
-  border-radius: 0.5rem;
-  background: #f5f5f8;
-  font-size: 0.75rem;
 }
 @media (max-width: 42rem) {
   .page-heading {

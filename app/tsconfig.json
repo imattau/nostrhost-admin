@@ -1,6 +1,16 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": ["env.d.ts", "overrides.d.ts", "src/**/*", "src/**/*.vue"],
+  "include": [
+    "env.d.ts",
+    "src/App.vue",
+    "src/main.ts",
+    "src/router/**/*.ts",
+    "src/api/nativePackages.ts",
+    "src/types/nostr.d.ts",
+    "src/views/native/**/*.vue",
+    "src/components/ui/button/**/*",
+    "src/lib/utils.ts"
+  ],
   "compilerOptions": {
     "target": "ESNext",
     "noErrorTruncation": true,

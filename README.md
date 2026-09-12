@@ -38,3 +38,7 @@ corepack yarn@1.22.22 type-check
 
 The shipped route table contains only native admin views. Legacy YunoHost
 screens and their cookie/form-data API client are not part of the native UI.
+The source tree still contains upstream files that are outside the active
+route graph; type-checking and linting intentionally follow the native entry
+points above. Do not add those legacy files to the router or restore their
+dependencies as part of native work.

@@ -5,6 +5,7 @@ import {
   AppWindow,
   ArrowUpCircle,
   Bot,
+  Flame,
   Globe,
   LayoutGrid,
   Package,
@@ -105,6 +106,12 @@ const routes: RouteRecordRaw[] = [
     path: '/diagnosis',
     component: () => import('@/views/native/DiagnosisView.vue'),
     meta: { nav: { label: 'Diagnosis', icon: Stethoscope } },
+  },
+  {
+    name: 'native-firewall',
+    path: '/firewall',
+    component: () => import('@/views/native/FirewallView.vue'),
+    meta: { nav: { label: 'Firewall', icon: Flame } },
   },
 ]
 

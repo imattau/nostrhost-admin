@@ -23,7 +23,7 @@ export type LinkIdentityInput = {
 
 export function resolveIdentity(value: string) {
   return request<Identity | Identity[] | null>(
-    `/identity/resolve/${encodeURIComponent(value)}`,
+    `/package/identity/resolve/${encodeURIComponent(value)}`,
     'GET',
   )
 }

@@ -8,6 +8,7 @@ export const alertVariants = cva(
         info: 'tw:border-brand-500/30 tw:bg-brand-500/10 tw:text-foreground',
         success:
           'tw:border-emerald-500/30 tw:bg-emerald-500/10 tw:text-foreground',
+        warning: 'tw:border-amber-500/30 tw:bg-amber-500/10 tw:text-foreground',
         danger: 'tw:border-red-500/30 tw:bg-red-500/10 tw:text-foreground',
       },
     },

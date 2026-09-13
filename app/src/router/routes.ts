@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import {
   Activity,
   AppWindow,
+  ArrowUpCircle,
   Bot,
   LayoutGrid,
   Package,
@@ -77,6 +78,12 @@ const routes: RouteRecordRaw[] = [
     path: '/ai',
     component: () => import('@/views/native/AiManagementView.vue'),
     meta: { nav: { label: 'AI management', icon: Bot } },
+  },
+  {
+    name: 'native-updates',
+    path: '/updates',
+    component: () => import('@/views/native/UpdatesView.vue'),
+    meta: { nav: { label: 'Updates', icon: ArrowUpCircle } },
   },
 ]
 

@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   Package,
   Server,
+  UserCog,
   Users,
 } from '@lucide/vue'
 import type { RouteRecordRaw } from 'vue-router'
@@ -52,6 +53,12 @@ const routes: RouteRecordRaw[] = [
     path: '/catalogue',
     component: () => import('@/views/native/CatalogueView.vue'),
     meta: { nav: { label: 'Catalogue', icon: LayoutGrid } },
+  },
+  {
+    name: 'native-users',
+    path: '/users',
+    component: () => import('@/views/native/UserManagementView.vue'),
+    meta: { nav: { label: 'Users', icon: UserCog } },
   },
   {
     name: 'native-identities',

@@ -49,16 +49,6 @@
 }
 
 :root,
-:root[data-bs-theme='light'] {
-  color-scheme: light;
-  --nh-background: #f8f7fc;
-  --nh-foreground: #201b2e;
-  --nh-surface: #ffffff;
-  --nh-surface-muted: #f1eff7;
-  --nh-muted-foreground: #686279;
-  --nh-border: #e5e1ef;
-}
-
 :root[data-bs-theme='dark'] {
   color-scheme: dark;
   --nh-background: #121222;
@@ -67,4 +57,14 @@
   --nh-surface-muted: #1e1e33;
   --nh-muted-foreground: #94a3b8;
   --nh-border: #2a2a47;
+}
+
+:root[data-bs-theme='light'] {
+  color-scheme: light;
+  --nh-background: #f8f7fc;
+  --nh-foreground: #201b2e;
+  --nh-surface: #ffffff;
+  --nh-surface-muted: #f1eff7;
+  --nh-muted-foreground: #686279;
+  --nh-border: #e5e1ef;
 }

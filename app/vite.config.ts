@@ -18,13 +18,23 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.VITE_HOST || '127.0.0.1',
       port: Number(env.VITE_PORT || 8080),
-      proxy: {
-        '/package': {
-          target: apiTarget,
-          changeOrigin: false,
-          xfwd: true,
-        },
-      },
+      proxy: Object.fromEntries(
+        [
+          '/healthz',
+          '/system',
+          '/service',
+          '/app',
+          '/package',
+          '/identity',
+          '/catalog',
+          '/capability',
+          '/agent',
+          '/events',
+        ].map((path) => [
+          path,
+          { target: apiTarget, changeOrigin: false, xfwd: true },
+        ]),
+      ),
     },
   }
 })

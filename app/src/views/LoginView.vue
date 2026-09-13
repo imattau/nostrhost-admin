@@ -62,7 +62,7 @@ const onLogin = onSubmit((onError) => {
     .then(() => {
       currentUser.value = username
       if (props.forceReload) {
-        window.location.href = '/yunohost/admin/'
+        window.location.href = '/admin/'
       } else {
         router.push(
           (router.currentRoute.value.query.redirect as LocationQueryValue) || {

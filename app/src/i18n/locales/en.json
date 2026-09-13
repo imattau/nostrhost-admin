@@ -221,8 +221,8 @@
     "details": "Details",
     "details_about": "Show more details about {subject}",
     "diagnosis": "Diagnosis",
-    "diagnosis_explanation": "The diagnosis feature will attempt to identify common issues on the different aspects of your server to make sure everything runs smoothly. The diagnosis runs automatically twice a day and an email is sent to the administrator if issues are found. Note that some tests may not be relevant if you do not want to use some specific features (for example email) or may fail if you have a complex setup. In such cases, and if you know what you are doing, it is alright to ignore the corresponding issues or warnings.",
-    "diagnosis_first_run": "The diagnosis feature will attempt to identify common issues on the different aspects of your server to make sure everything runs smoothly. Please do not panic if you see a bunch of errors right after setting up your server: it is precisely meant to help you to identify issues and guide you to fix them. The diagnosis will also run automatically twice a day and an email is sent to the administrator if issues are found.",
+    "diagnosis_explanation": "Diagnosis checks common issues across your server. It runs automatically twice a day. Relevant notices can be sent as encrypted Nostr messages to recipients configured in NostrHost notification policy. Mail-related checks apply only when an optional mail service is installed. Some tests may not be relevant to your setup; if you understand the implications, you can ignore those warnings.",
+    "diagnosis_first_run": "Diagnosis checks common issues across your server. It is normal to see warnings during initial setup; use them to identify and resolve configuration issues. Diagnosis runs automatically twice a day, and relevant notices can be sent as encrypted Nostr messages to recipients configured in NostrHost notification policy.",
     "disable": "Disable",
     "disabled": "Disabled",
     "domain": {
@@ -285,7 +285,7 @@
     "enable": "Enable",
     "enabled": "Enabled",
     "error": "Error",
-    "error_connection_interrupted": "The server closed the connection instead of answering it. Has nginx or the yunohost-api been restarted or stopped for some reason?",
+    "error_connection_interrupted": "The server closed the connection instead of answering it. Has Caddy or the platform API been restarted or stopped?",
     "error_modify_something": "You should modify something",
     "error_server_unexpected": "Unexpected server error",
     "everything_good": "Everything okay!",
@@ -334,7 +334,7 @@
     "group_add_permission": "Add a permission",
     "group_admins": "Admins",
     "group_all_users": "All users",
-    "group_explain_admins": "This is a special group corresponding to admin users. Users in this group can access YunoHost's webadmin, connect to the server with SSH and use the `sudo` command. They will also receive emails sent to root{'@'}, admin{'@'} and admins{'@'}, such as the diagnosis notifications. You should only add people you absolutely trust in this group!",
+    "group_explain_admins": "This is a special group for administrators. Members can access the web admin, connect to the server with SSH, and use the `sudo` command. If a mail service is installed, they may also receive mail sent to root{'@'}, admin{'@'} and admins{'@'}. NostrHost notifications are delivered separately to recipients configured by notification policy. Only add people you absolutely trust to this group.",
     "group_explain_all_users": "This is a special group containing all users accounts on the server",
     "group_explain_visitors": "This is a special group representing anonymous visitors",
     "group_explain_visitors_needed_for_external_client": "Be careful that you need to keep some applications allowed to visitors if you intend to use them with external clients. For example, this is the case for Nextcloud if you intend to use a synchronization client on your smartphone or desktop computer.",
@@ -544,7 +544,7 @@
         "transitions": "Page transition animations"
     },
     "tools_webadmin_settings": "Web-admin settings",
-    "tools_yunohost_settings": "YunoHost settings",
+    "tools_yunohost_settings": "Compatibility settings",
     "tos": {
         "acknowledgement": "TOS acknowledgement",
         "i_agree": "I agree",

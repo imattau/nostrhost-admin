@@ -17,7 +17,7 @@ const { infos, upOrDownTime, isCritical, logs } = await api
   >([{ uri: 'services/' + props.name }, { uri: `services/${props.name}/log?number=50` }])
   .then(([service, logs]) => {
     const { last_state_change, ...infos } = service
-    const criticalServices = ['nginx', 'ssh', 'slapd', 'yunohost-api']
+    const criticalServices = ['caddy', 'ssh', 'slapd', 'yunohost-api']
 
     return {
       infos,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { createReusableTemplate } from '@vueuse/core'
 import type { VNode } from 'vue'
-import { computed, onErrorCaptured } from 'vue'
+import { computed, onErrorCaptured, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -17,6 +17,8 @@ import { useRequests } from '@/composables/useRequests'
 import { useSSE } from '@/composables/useSSE'
 import { useSettings } from '@/composables/useSettings'
 import type { CustomRoute, Skeleton, VueClass } from '@/types/commons'
+import { Button } from '@/components/ui/button'
+import { ChevronDown, Plus } from 'lucide-vue-next'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -24,6 +26,7 @@ const { routerKey, hasSuspenseError } = useInfos()
 const { currentRequest, dismissModal } = useRequests()
 const { transitions, transitionName, dark } = useSettings()
 const { reconnecting } = useSSE()
+const quickActions = ref<HTMLDetailsElement | null>(null)
 
 const RootView = createReusableTemplate<{
   Component: VNode
@@ -37,6 +40,10 @@ const quickAddItems: CustomRoute[] = [
   { text: t('group_add'), to: { name: 'group-create' } },
   { text: t('install_app'), to: { name: 'app-catalog' } },
 ]
+
+function closeQuickActions() {
+  if (quickActions.value) quickActions.value.open = false
+}
 
 const skeletons = computed<Skeleton[]>(() => {
   const skeleton = router.currentRoute.value.meta.skeleton ?? 'CardInfoSkeleton'
@@ -112,23 +119,37 @@ onErrorCaptured((e) => {
     </BOverlay>
   </RootView.define>
 
-  <div class="d-flex align-items-center mt-2 mb-4">
+  <div class="tw:mb-4 tw:mt-2 tw:flex tw:items-center tw:gap-4">
     <YBreadcrumb />
 
-    <BDropdown
+    <details
       v-if="router.currentRoute.value.name === 'home'"
-      variant="success"
-      class="ms-auto"
+      ref="quickActions"
+      class="tw:relative tw:ml-auto"
     >
-      <template #button-content>
-        <YIcon iname="plus" /> {{ t('quick_action') }}
-      </template>
-      <template v-for="(item, i) in quickAddItems" :key="i">
-        <BDropdownItem :to="item.to">
-          <YIcon iname="plus" /> {{ item.text }}
-        </BDropdownItem>
-      </template>
-    </BDropdown>
+      <summary
+        class="tw:list-none tw:cursor-pointer tw:rounded-md tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500 tw:focus-visible:ring-offset-2"
+      >
+        <Button as="span" size="sm">
+          <Plus class="tw:size-4" aria-hidden="true" />
+          {{ t('quick_action') }}
+          <ChevronDown class="tw:size-3.5" aria-hidden="true" />
+        </Button>
+      </summary>
+      <div
+        class="tw:absolute tw:right-0 tw:z-20 tw:mt-2 tw:w-60 tw:rounded-xl tw:border tw:border-border-subtle tw:bg-surface tw:p-1.5 tw:shadow-lg"
+      >
+        <RouterLink
+          v-for="item in quickAddItems"
+          :key="item.text"
+          :to="item.to"
+          class="tw:flex tw:items-center tw:rounded-lg tw:px-3 tw:py-2.5 tw:text-sm tw:text-foreground tw:no-underline tw:transition-colors tw:hover:bg-surface-muted tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
+          @click="closeQuickActions"
+        >
+          {{ item.text }}
+        </RouterLink>
+      </div>
+    </details>
   </div>
 
   <main id="main">

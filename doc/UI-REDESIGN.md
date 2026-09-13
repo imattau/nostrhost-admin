@@ -42,7 +42,7 @@ kept, deferred, or dropped.)
   never link to a screen that doesn't exist yet.
 - **Primitives** (`src/components/ui/`): `Button`, `Badge`, `Card` (+
   `CardHeader`/`CardTitle`/`CardDescription`/`CardContent`), `Input`,
-  `Textarea`, `Label`, `Alert`.
+  `Textarea`, `Label`, `Select`, `Alert`.
 - **Shared signer state** (`src/composables/useSigner.ts`): one connected
   NIP-07 public key shared between the header and any view, instead of each
   view reconnecting independently.
@@ -50,11 +50,13 @@ kept, deferred, or dropped.)
   health, installed versions, linked identities), `PackageAuthoringView.vue`
   (manifest editing, validation, and read-only resource plan review),
   `CatalogueView.vue` (read-only trusted catalogue with provenance — no
-  install/publish action).
+  install/publish action), `IdentitiesView.vue` (link a signer pubkey to a
+  YunoHost account, or revoke one — the only screen so far that performs a
+  write; revoke asks for inline confirmation before publishing).
 - **API clients** (`src/api/`): `client.ts` holds the shared NIP-98 request
-  signer; `nativePackages.ts`, `nativeSystem.ts`, `nativeCatalog.ts` are thin
-  typed wrappers per resource area, one file per route group in
-  `nostrhost-yunohost`'s `src/nostrhost/api.py`.
+  signer; `nativePackages.ts`, `nativeSystem.ts`, `nativeCatalog.ts`,
+  `nativeIdentity.ts` are thin typed wrappers per resource area, one file per
+  route group in `nostrhost-yunohost`'s `src/nostrhost/api.py`.
 
 `src/views/LoginView.vue` and `src/views/service/ServiceInfo.vue` are
 carried over from the legacy Bootstrap admin and are not part of the build

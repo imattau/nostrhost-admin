@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { Activity, AppWindow, LayoutGrid } from '@lucide/vue'
+import { Activity, AppWindow, LayoutGrid, Users } from '@lucide/vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 // A route carries `meta.nav` only when it should appear in the sidebar —
@@ -29,6 +29,12 @@ const routes: RouteRecordRaw[] = [
     path: '/catalogue',
     component: () => import('@/views/native/CatalogueView.vue'),
     meta: { nav: { label: 'Catalogue', icon: LayoutGrid } },
+  },
+  {
+    name: 'native-identities',
+    path: '/identities',
+    component: () => import('@/views/native/IdentitiesView.vue'),
+    meta: { nav: { label: 'Identities', icon: Users } },
   },
 ]
 

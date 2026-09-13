@@ -23,16 +23,58 @@ import { Label } from '@/components/ui/label'
 import { useSigner } from '@/composables/useSigner'
 
 // Curated subset of the scopes defined in nostrhost-yunohost's
-// nostr_operations.py (SCOPE_*) — read-heavy defaults so granting an MCP
-// agent access doesn't default to write/delete capabilities.
-const AVAILABLE_SCOPES = [
-  'system.read',
-  'services.read',
-  'services.restart',
-  'apps.read',
-  'catalog.inspect',
-  'logs.read',
-  'audit.read',
+// nostr_operations.py (SCOPE_*), each mapped to the tool(s) it governs —
+// the scope string alone doesn't say what it unlocks (e.g. "catalog.inspect"
+// governs catalog.list/catalog.get, not a tool named "catalog.inspect").
+const SCOPE_TOOLS: Record<string, string> = {
+  'system.read': 'system.status',
+  'apps.read': 'app.list',
+  'services.read': 'service.status',
+  'services.restart': 'service.restart',
+  'catalog.inspect': 'catalog.list, catalog.get',
+  'catalog.verify': 'catalog.verify',
+  'catalog.publish': 'catalog.publish',
+  'logs.read': 'logs.read, logs.web',
+  'audit.read': 'audit.list, audit.get',
+}
+const ALL_SCOPES = Object.keys(SCOPE_TOOLS)
+
+// Read-heavy defaults so granting access doesn't default to write scopes.
+const SCOPE_PRESETS = [
+  {
+    id: 'read-only',
+    label: 'Read-only',
+    recommended: true,
+    scopes: [
+      'system.read',
+      'apps.read',
+      'services.read',
+      'catalog.inspect',
+      'logs.read',
+      'audit.read',
+    ],
+  },
+  {
+    id: 'read-restart',
+    label: 'Read + restart services',
+    recommended: false,
+    scopes: [
+      'system.read',
+      'apps.read',
+      'services.read',
+      'services.restart',
+      'catalog.inspect',
+      'logs.read',
+      'audit.read',
+    ],
+  },
+  {
+    id: 'publishing',
+    label: 'Package publishing',
+    recommended: false,
+    scopes: ['catalog.inspect', 'catalog.verify', 'catalog.publish'],
+  },
+  { id: 'custom', label: 'Custom', recommended: false, scopes: [] as string[] },
 ] as const
 
 const { publicKey, signerAvailable, sync } = useSigner()
@@ -94,7 +136,30 @@ const mcpPubkey = ref('')
 const mcpScopes = ref<string[]>([])
 const mcpGranting = ref(false)
 const mcpError = ref('')
-const mcpResult = ref('')
+
+const wizardOpen = ref(false)
+const wizardStep = ref<1 | 2 | 3 | 4>(1)
+const selectedPreset = ref<(typeof SCOPE_PRESETS)[number]['id']>('read-only')
+const grantedPubkey = ref('')
+
+function openWizard() {
+  mcpPubkey.value = ''
+  mcpError.value = ''
+  selectedPreset.value = 'read-only'
+  mcpScopes.value = [...SCOPE_PRESETS[0].scopes]
+  wizardStep.value = 1
+  wizardOpen.value = true
+}
+
+function closeWizard() {
+  wizardOpen.value = false
+}
+
+function choosePreset(id: (typeof SCOPE_PRESETS)[number]['id']) {
+  selectedPreset.value = id
+  const preset = SCOPE_PRESETS.find((p) => p.id === id)
+  if (preset && id !== 'custom') mcpScopes.value = [...preset.scopes]
+}
 
 const grants = ref<CapabilityGrant[]>([])
 const grantsLoading = ref(false)
@@ -151,37 +216,15 @@ async function confirmRevokeGrant(pubkey: string) {
 async function submitGrant() {
   mcpGranting.value = true
   mcpError.value = ''
-  mcpResult.value = ''
   try {
     await sync()
     await grantCapability(mcpPubkey.value.trim(), mcpScopes.value)
-    mcpResult.value = mcpScopes.value.length
-      ? `Granted ${mcpScopes.value.length} scope(s) to this pubkey.`
-      : 'Cleared this pubkey’s capability grant.'
-    mcpPubkey.value = ''
-    mcpScopes.value = []
+    grantedPubkey.value = mcpPubkey.value.trim()
+    wizardStep.value = 4
     await loadGrants()
   } catch (cause) {
     mcpError.value =
       cause instanceof Error ? cause.message : 'Failed to publish the grant.'
-  } finally {
-    mcpGranting.value = false
-  }
-}
-
-async function submitRevoke() {
-  mcpGranting.value = true
-  mcpError.value = ''
-  mcpResult.value = ''
-  try {
-    await sync()
-    await revokeCapability(mcpPubkey.value.trim())
-    mcpScopes.value = []
-    mcpResult.value = 'Cleared this pubkey’s capability grant.'
-    await loadGrants()
-  } catch (cause) {
-    mcpError.value =
-      cause instanceof Error ? cause.message : 'Failed to publish the revoke.'
   } finally {
     mcpGranting.value = false
   }
@@ -404,56 +447,193 @@ watch(publicKey, (key) => {
           </ul>
         </div>
 
-        <div class="tw:grid tw:gap-1.5">
-          <Label for="mcp-pubkey">Agent public key or npub</Label>
-          <Input
-            id="mcp-pubkey"
-            v-model="mcpPubkey"
-            spellcheck="false"
-            autocomplete="off"
-            placeholder="npub1… or 64-char hex"
-          />
+        <div v-if="!wizardOpen" class="tw:flex tw:justify-end">
+          <Button variant="primary" size="sm" @click="openWizard"
+            >+ Connect an agent</Button
+          >
         </div>
 
-        <div class="tw:grid tw:gap-1.5">
-          <span class="tw:text-sm tw:font-medium tw:text-foreground"
-            >Scopes</span
-          >
-          <div class="tw:grid tw:gap-2 tw:sm:grid-cols-2">
-            <label
-              v-for="scope in AVAILABLE_SCOPES"
-              :key="scope"
-              class="tw:flex tw:items-center tw:gap-2 tw:text-sm tw:text-foreground"
-            >
-              <input
-                v-model="mcpScopes"
-                type="checkbox"
-                :value="scope"
-                class="tw:size-4 tw:rounded tw:border-border-subtle"
-              />
-              <code class="tw:font-mono tw:text-xs">{{ scope }}</code>
-            </label>
+        <div
+          v-else
+          class="tw:grid tw:gap-4 tw:rounded-lg tw:border tw:border-border-subtle tw:p-4"
+        >
+          <div class="tw:flex tw:gap-1.5">
+            <div
+              v-for="n in 3"
+              :key="n"
+              class="tw:h-1 tw:flex-1 tw:rounded-full"
+              :class="
+                wizardStep >= n ? 'tw:bg-brand-500' : 'tw:bg-surface-muted'
+              "
+            />
           </div>
-        </div>
 
-        <Alert v-if="mcpError" variant="danger" role="alert">{{
-          mcpError
-        }}</Alert>
-        <Alert v-if="mcpResult" variant="success">{{ mcpResult }}</Alert>
+          <template v-if="wizardStep === 1">
+            <div class="tw:grid tw:gap-1.5">
+              <Label for="mcp-pubkey">Agent public key or npub</Label>
+              <Input
+                id="mcp-pubkey"
+                v-model="mcpPubkey"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="npub1… or 64-char hex"
+              />
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                No key yet? On the agent's machine, run
+                <code class="tw:font-mono"
+                  >yunohost-mcp-connect --generate-key PATH</code
+                >
+                and paste the printed public key above — key generation stays on
+                the agent's side, this node never handles its private key.
+              </p>
+            </div>
+            <div class="tw:flex tw:justify-end tw:gap-2">
+              <Button variant="outline" size="sm" @click="closeWizard"
+                >Cancel</Button
+              >
+              <Button
+                variant="primary"
+                size="sm"
+                :disabled="!mcpPubkey.trim()"
+                @click="wizardStep = 2"
+                >Next: choose access</Button
+              >
+            </div>
+          </template>
 
-        <div class="tw:flex tw:justify-end tw:gap-2">
-          <Button
-            variant="outline"
-            :disabled="mcpGranting || !mcpPubkey.trim()"
-            @click="submitRevoke"
-            >{{ mcpGranting ? 'Working…' : 'Revoke access' }}</Button
-          >
-          <Button
-            variant="primary"
-            :disabled="mcpGranting || !mcpPubkey.trim() || !mcpScopes.length"
-            @click="submitGrant"
-            >{{ mcpGranting ? 'Granting…' : 'Grant access' }}</Button
-          >
+          <template v-else-if="wizardStep === 2">
+            <div class="tw:grid tw:gap-2">
+              <span class="tw:text-sm tw:font-medium tw:text-foreground"
+                >Presets</span
+              >
+              <div class="tw:flex tw:flex-wrap tw:gap-2">
+                <Button
+                  v-for="preset in SCOPE_PRESETS"
+                  :key="preset.id"
+                  :variant="
+                    selectedPreset === preset.id ? 'primary' : 'outline'
+                  "
+                  size="sm"
+                  @click="choosePreset(preset.id)"
+                  >{{ preset.label
+                  }}<span v-if="preset.recommended">
+                    (recommended)</span
+                  ></Button
+                >
+              </div>
+            </div>
+
+            <div class="tw:grid tw:gap-1.5">
+              <span class="tw:text-sm tw:font-medium tw:text-foreground">{{
+                selectedPreset === 'custom' ? 'Scopes' : 'Included scopes'
+              }}</span>
+              <div
+                v-if="selectedPreset === 'custom'"
+                class="tw:grid tw:gap-2 tw:sm:grid-cols-2"
+              >
+                <label
+                  v-for="scope in ALL_SCOPES"
+                  :key="scope"
+                  class="tw:flex tw:items-center tw:gap-2 tw:text-sm tw:text-foreground"
+                >
+                  <input
+                    v-model="mcpScopes"
+                    type="checkbox"
+                    :value="scope"
+                    class="tw:size-4 tw:rounded tw:border-border-subtle"
+                  />
+                  <code class="tw:font-mono tw:text-xs">{{ scope }}</code>
+                  <span class="tw:text-xs tw:text-muted-foreground">{{
+                    SCOPE_TOOLS[scope]
+                  }}</span>
+                </label>
+              </div>
+              <div v-else class="tw:grid tw:gap-2 tw:sm:grid-cols-2">
+                <div
+                  v-for="scope in mcpScopes"
+                  :key="scope"
+                  class="tw:flex tw:items-center tw:gap-2 tw:text-sm tw:text-foreground"
+                >
+                  <code class="tw:font-mono tw:text-xs">{{ scope }}</code>
+                  <span class="tw:text-xs tw:text-muted-foreground">{{
+                    SCOPE_TOOLS[scope]
+                  }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tw:flex tw:justify-between tw:gap-2">
+              <Button variant="outline" size="sm" @click="wizardStep = 1"
+                >← Back</Button
+              >
+              <Button
+                variant="primary"
+                size="sm"
+                :disabled="!mcpScopes.length"
+                @click="wizardStep = 3"
+                >Next: review</Button
+              >
+            </div>
+          </template>
+
+          <template v-else-if="wizardStep === 3">
+            <div
+              class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+            >
+              <span
+                class="tw:text-xs tw:font-mono tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+                >This will publish a signed capability grant</span
+              >
+              <p class="tw:m-0 tw:text-sm">
+                <code class="tw:font-mono tw:text-xs">{{
+                  truncatePubkey(mcpPubkey.trim())
+                }}</code>
+                will be able to call
+                <strong>{{ mcpScopes.length }} tool(s)</strong> governed by:
+                <code
+                  v-for="scope in mcpScopes"
+                  :key="scope"
+                  class="tw:mx-0.5 tw:rounded tw:bg-surface-muted tw:px-1.5 tw:py-0.5 tw:font-mono tw:text-[11px]"
+                  >{{ scope }}</code
+                >. It won't be able to do anything outside these scopes, and you
+                can revoke this at any time from the list above.
+              </p>
+            </div>
+
+            <Alert v-if="mcpError" variant="danger" role="alert">{{
+              mcpError
+            }}</Alert>
+
+            <div class="tw:flex tw:justify-between tw:gap-2">
+              <Button variant="outline" size="sm" @click="wizardStep = 2"
+                >← Back</Button
+              >
+              <Button
+                variant="primary"
+                size="sm"
+                :disabled="mcpGranting"
+                @click="submitGrant"
+                >{{ mcpGranting ? 'Signing…' : 'Sign & grant access' }}</Button
+              >
+            </div>
+          </template>
+
+          <template v-else-if="wizardStep === 4">
+            <Alert variant="success">Access granted.</Alert>
+            <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+              On the agent's machine, run
+              <code class="tw:font-mono">yunohost-mcp-connect setup</code>
+              pointed at this node's MCP endpoint with the same key (<code
+                class="tw:font-mono tw:text-xs"
+                >{{ truncatePubkey(grantedPubkey) }}</code
+              >) to finish connecting it.
+            </p>
+            <div class="tw:flex tw:justify-end">
+              <Button variant="primary" size="sm" @click="closeWizard"
+                >Done</Button
+              >
+            </div>
+          </template>
         </div>
       </CardContent>
     </Card>

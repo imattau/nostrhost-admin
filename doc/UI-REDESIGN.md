@@ -46,9 +46,15 @@ kept, deferred, or dropped.)
 - **Shared signer state** (`src/composables/useSigner.ts`): one connected
   NIP-07 public key shared between the header and any view, instead of each
   view reconnecting independently.
-- **Views**: `views/native/PackageAuthoringView.vue` (the only routed
-  screen — manifest editing, validation, and read-only resource plan
-  review).
+- **Views**: `views/native/SystemOverviewView.vue` (landing screen — API
+  health, installed versions, linked identities), `PackageAuthoringView.vue`
+  (manifest editing, validation, and read-only resource plan review),
+  `CatalogueView.vue` (read-only trusted catalogue with provenance — no
+  install/publish action).
+- **API clients** (`src/api/`): `client.ts` holds the shared NIP-98 request
+  signer; `nativePackages.ts`, `nativeSystem.ts`, `nativeCatalog.ts` are thin
+  typed wrappers per resource area, one file per route group in
+  `nostrhost-yunohost`'s `src/nostrhost/api.py`.
 
 `src/views/LoginView.vue` and `src/views/service/ServiceInfo.vue` are
 carried over from the legacy Bootstrap admin and are not part of the build

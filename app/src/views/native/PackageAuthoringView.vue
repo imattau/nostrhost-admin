@@ -1,55 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
+
 import { planPackageManifest, type PackagePlan } from '@/api/nativePackages'
+import { Alert } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { useSigner } from '@/composables/useSigner'
+
+const { publicKey, signerAvailable, sync } = useSigner()
 
 const manifest = ref(
   JSON.stringify({ app: { id: 'example-app', version: '0.1.0' } }, null, 2),
 )
-const publicKey = ref<string | null>(null)
 const plan = ref<PackagePlan | null>(null)
 const error = ref('')
-const busy = ref<'connect' | 'plan' | null>(null)
-const signerAvailable = computed(() => Boolean(window.nostr))
-
-async function connectSigner() {
-  busy.value = 'connect'
-  error.value = ''
-  try {
-    const connectedKey = (await window.nostr?.getPublicKey()) ?? null
-    if (!connectedKey)
-      throw new Error('The signer did not return a public key.')
-    publicKey.value = connectedKey
-  } catch (cause) {
-    publicKey.value = null
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not connect the signer.'
-  } finally {
-    busy.value = null
-  }
-}
-
-async function syncSignerIdentity() {
-  const current = await window.nostr?.getPublicKey()
-  if (!current) {
-    publicKey.value = null
-    throw new Error('The Nostr signer is no longer available.')
-  }
-  if (publicKey.value && current !== publicKey.value) {
-    publicKey.value = current
-    throw new Error(
-      'The signer account changed. Review the account before continuing.',
-    )
-  }
-  publicKey.value = current
-}
+const planning = ref(false)
 
 async function reviewPlan() {
-  busy.value = 'plan'
+  planning.value = true
   error.value = ''
   plan.value = null
   try {
-    await syncSignerIdentity()
+    await sync()
     const packageData: unknown = JSON.parse(manifest.value)
     if (
       !packageData ||
@@ -64,7 +39,7 @@ async function reviewPlan() {
     error.value =
       cause instanceof Error ? cause.message : 'Plan request failed.'
   } finally {
-    busy.value = null
+    planning.value = false
   }
 }
 
@@ -74,224 +49,106 @@ function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {
     operation.reverse || (operation.reversible ? 'available' : null)
   return `${risk} risk · ${reverse ? `reversible (${reverse})` : 'no automatic reverse'}`
 }
+
+function riskVariant(risk: string | undefined) {
+  if (risk === 'high') return 'danger'
+  if (risk === 'medium') return 'warning'
+  return 'success'
+}
 </script>
 
 <template>
-  <section class="native-authoring" aria-labelledby="page-title">
-    <header class="page-heading">
-      <div>
-        <p class="eyebrow">NostrHost native package planner</p>
-        <h1 id="page-title">Package authoring</h1>
-        <p class="lede">
-          Draft a declarative package and inspect its resource plan. Planning is
-          read-only; this screen cannot install packages.
-        </p>
-      </div>
-      <Button
-        :disabled="busy !== null || !signerAvailable"
-        variant="outline"
-        @click="connectSigner"
+  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
+    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
+      <p
+        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
       >
-        {{
-          busy === 'connect'
-            ? 'Connecting…'
-            : publicKey
-              ? 'Reconnect signer'
-              : 'Connect Nostr signer'
-        }}
-      </Button>
+        NostrHost native package planner
+      </p>
+      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
+        Package authoring
+      </h1>
+      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
+        Draft a declarative package and inspect its resource plan. Planning is
+        read-only; this screen cannot install packages.
+      </p>
     </header>
 
-    <p v-if="!signerAvailable" class="notice" role="status">
+    <Alert v-if="!signerAvailable" variant="danger">
       A NIP-07 browser signer is required. Enable a signer extension, then
       reload this page.
-    </p>
-    <p v-else-if="publicKey" class="notice" role="status">
+    </Alert>
+    <Alert v-else-if="!publicKey" variant="info">
+      Connect your signer above to authorize package planning.
+    </Alert>
+    <Alert v-else variant="success">
       Signer connected ·
-      <code>{{ publicKey.slice(0, 12) }}…{{ publicKey.slice(-8) }}</code>
-    </p>
-    <p v-else class="notice" role="status">
-      Connect your signer to authorize package planning.
-    </p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <code class="tw:font-mono"
+        >{{ publicKey.slice(0, 12) }}…{{ publicKey.slice(-8) }}</code
+      >
+    </Alert>
+    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
-    <div class="editor-grid">
-      <label class="editor-label" for="package-manifest">package.json</label>
-      <textarea
-        id="package-manifest"
-        v-model="manifest"
-        spellcheck="false"
-        autocapitalize="off"
-        autocomplete="off"
-        aria-describedby="manifest-help"
-      />
-      <p id="manifest-help" class="help">
-        Enter a JSON package object. The server validates it and returns a
-        read-only resource plan; it does not install packages.
-      </p>
-      <div class="actions">
-        <Button
-          :disabled="!publicKey || busy !== null"
-          variant="outline"
-          @click="reviewPlan"
-          >{{ busy === 'plan' ? 'Building plan…' : 'Review plan' }}</Button
-        >
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>package.json</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Label for="package-manifest">Package manifest</Label>
+        <Textarea
+          id="package-manifest"
+          v-model="manifest"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+          aria-describedby="manifest-help"
+        />
+        <p id="manifest-help" class="tw:text-sm tw:text-muted-foreground">
+          Enter a JSON package object. The server validates it and returns a
+          read-only resource plan; it does not install packages.
+        </p>
+        <div>
+          <Button
+            :disabled="!publicKey || planning"
+            variant="primary"
+            @click="reviewPlan"
+            >{{ planning ? 'Building plan…' : 'Review plan' }}</Button
+          >
+        </div>
+      </CardContent>
+    </Card>
 
-    <section
-      v-if="plan?.operations"
-      class="result"
-      aria-labelledby="plan-title"
-    >
-      <h2 id="plan-title">
-        Plan for {{ plan.package.id }} {{ plan.package.version }}
-      </h2>
-      <p>
-        {{ plan.operations.length }} resource operations. No host changes have
-        been made.
-      </p>
-      <ol class="operations">
-        <li
-          v-for="(operation, index) in plan.operations"
-          :key="`${operation.resource}-${index}`"
+    <Card v-if="plan?.operations">
+      <CardHeader>
+        <CardTitle
+          >Plan for {{ plan.package.id }} {{ plan.package.version }}</CardTitle
         >
-          <div>
-            <strong>{{ operation.summary }}</strong
-            ><code>{{ operation.name }} · {{ operation.resource }}</code>
-          </div>
-          <span>{{ riskLabel(operation) }}</span>
-        </li>
-      </ol>
-    </section>
+      </CardHeader>
+      <CardContent>
+        <p class="tw:text-sm tw:text-muted-foreground">
+          {{ plan.operations.length }} resource operations. No host changes have
+          been made.
+        </p>
+        <ol class="tw:grid tw:gap-3">
+          <li
+            v-for="(operation, index) in plan.operations"
+            :key="`${operation.resource}-${index}`"
+            class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+          >
+            <div class="tw:grid tw:gap-1">
+              <strong class="tw:text-sm tw:text-foreground">{{
+                operation.summary
+              }}</strong>
+              <code class="tw:font-mono tw:text-xs tw:text-muted-foreground"
+                >{{ operation.name }} · {{ operation.resource }}</code
+              >
+            </div>
+            <Badge :variant="riskVariant(operation.risk)" class="tw:w-fit">
+              {{ riskLabel(operation) }}
+            </Badge>
+          </li>
+        </ol>
+      </CardContent>
+    </Card>
   </section>
 </template>
-
-<style scoped>
-.native-authoring {
-  display: grid;
-  gap: 1rem;
-  max-width: 58rem;
-  margin: 0 auto;
-}
-.page-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-.page-heading h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 650;
-}
-.eyebrow {
-  margin: 0 0 0.35rem;
-  color: #6d5bce;
-  font:
-    600 0.72rem/1.2 ui-monospace,
-    monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.lede {
-  max-width: 42rem;
-  margin: 0.5rem 0 0;
-  color: #626574;
-}
-.notice,
-.error,
-.success {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  background: #f1efff;
-}
-.error {
-  color: #9b1c1c;
-  background: #fff1f0;
-}
-.success {
-  color: #17663a;
-  background: #edf9f0;
-}
-.editor-grid {
-  display: grid;
-  gap: 0.65rem;
-}
-.editor-label {
-  font-weight: 600;
-}
-textarea {
-  min-height: 17rem;
-  width: 100%;
-  resize: vertical;
-  border: 1px solid #c9cad3;
-  border-radius: 0.5rem;
-  padding: 0.85rem;
-  background: #171923;
-  color: #f6f6fa;
-  font:
-    0.9rem/1.55 ui-monospace,
-    SFMono-Regular,
-    monospace;
-}
-textarea:focus-visible,
-summary:focus-visible {
-  outline: 3px solid #8b5cf6;
-  outline-offset: 2px;
-}
-.help,
-.result > p {
-  margin: 0;
-  color: #626574;
-  font-size: 0.9rem;
-}
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-}
-.result {
-  display: grid;
-  gap: 0.75rem;
-  border: 1px solid #dedee5;
-  border-radius: 0.65rem;
-  padding: 1rem;
-}
-.result h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.operations {
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding-left: 1.3rem;
-}
-.operations {
-  padding-left: 1.7rem;
-}
-.operations li {
-  padding-left: 0.2rem;
-}
-.operations li > div {
-  display: grid;
-  gap: 0.2rem;
-}
-.operations code,
-.operations span {
-  display: inline-block;
-  margin-top: 0.3rem;
-  color: #626574;
-  font-size: 0.8rem;
-}
-@media (max-width: 42rem) {
-  .page-heading {
-    flex-direction: column;
-  }
-  .page-heading > :last-child {
-    width: 100%;
-  }
-}
-</style>

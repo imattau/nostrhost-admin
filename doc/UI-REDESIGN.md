@@ -1,8 +1,11 @@
 # UI redesign: Tailwind + shadcn-vue
 
-This fork is migrating off Bootstrap Vue Next onto Tailwind CSS + shadcn-vue
-style primitives (branch `ui-redesign-tailwind-shadcn`). Goal: a cleaner,
-lower-abstraction UI, and less framework surface for maintainers to know.
+The native admin SPA is Tailwind CSS + shadcn-vue style primitives from a
+clean start — there is no Bootstrap Vue Next in the shipped build. (The
+legacy YunoHost admin those views came from was Bootstrap-based; it wasn't
+migrated in place, it was cut over. See `docs/ADMIN-PORT-PLAN.md` and
+`docs/ADMIN-FEATURE-MATRIX.md` in the `nostrhost` umbrella repo for what was
+kept, deferred, or dropped.)
 
 ## Why this stack
 
@@ -12,48 +15,57 @@ lower-abstraction UI, and less framework surface for maintainers to know.
 - **shadcn-vue style primitives**: components are copied into
   `src/components/ui/` as plain Vue SFCs (not an installed dependency you
   fight the API of), built on `class-variance-authority` for variants and
-  `reka-ui` for accessible headless behaviour (menus, dialogs, etc. as those
-  get migrated). You own the code, so there's nothing to "eject" from later.
+  plain Tailwind/ARIA for behaviour. You own the code, so there's nothing to
+  "eject" from later.
 
-## Coexistence during migration
+## Conventions
 
-Bootstrap Vue Next is still used by most views (see `yarn why bootstrap-vue-next`
-for the full surface — ~66 of 89 `.vue` files at the time this migration
-started). Both frameworks run side by side until every view is migrated:
+- Tailwind utilities are emitted with a `tw:` prefix (`tw:flex`, `tw:p-4`,
+  ...) — see `src/assets/tailwind.css` for why (kept so shared files can't
+  collide with any styling reintroduced elsewhere in the umbrella project).
+  **Every component must use the `tw:` prefix**, never bare Tailwind class
+  names.
+- Semantic color tokens (`background`, `surface`, `border-subtle`,
+  `muted-foreground`, ...) read CSS variables keyed off `data-bs-theme` on
+  `<html>` — one dark-mode attribute, light and dark palettes defined once in
+  `src/assets/tailwind.css`.
+- Icons: `@lucide/vue` (tree-shakeable, matches the shadcn-vue ecosystem's
+  default icon set).
 
-- Tailwind utilities are emitted with a `tw:` prefix (`tw:flex`, `tw:p-4`, ...)
-  — see `src/assets/tailwind.css` for why. **Every new/migrated component
-  must use the `tw:` prefix**, never bare Tailwind class names.
-- Tailwind's preflight (CSS reset) is not imported, so it can't fight
-  Bootstrap's reboot in `src/scss/main.scss`.
-- Dark mode for Tailwind utilities (`tw:dark:*`) reads the same
-  `data-bs-theme` attribute `useSettings` already sets on `<html>` for
-  Bootstrap — one dark-mode toggle, not two.
+## What exists today
 
-Once every view is migrated: drop the bootstrap imports from
-`src/scss/main.scss`, drop `bootstrap`/`bootstrap-vue-next`/`fork-awesome`
-from `package.json`, drop the `tw:` prefix and preflight opt-out in
-`src/assets/tailwind.css`.
+- **App shell** (`src/components/layouts/AppShell.vue`,
+  `AppSidebar.vue`): sidebar branding + nav and a header with the shared
+  NIP-07 signer connection, matching the Figma admin shell
+  (`admin-dashboard` / `sidebar` frames). The sidebar's nav list is derived
+  from `router.options.routes` (a route opts in via `meta.nav`), so it can
+  never link to a screen that doesn't exist yet.
+- **Primitives** (`src/components/ui/`): `Button`, `Badge`, `Card` (+
+  `CardHeader`/`CardTitle`/`CardDescription`/`CardContent`), `Input`,
+  `Textarea`, `Label`, `Alert`.
+- **Shared signer state** (`src/composables/useSigner.ts`): one connected
+  NIP-07 public key shared between the header and any view, instead of each
+  view reconnecting independently.
+- **Views**: `views/native/PackageAuthoringView.vue` (the only routed
+  screen — manifest editing, validation, and read-only resource plan
+  review).
 
-## What's migrated so far
+`src/views/LoginView.vue` and `src/views/service/ServiceInfo.vue` are
+carried over from the legacy Bootstrap admin and are not part of the build
+(excluded from `tsconfig.json`, ESLint, and the router) — they reference
+composables and components (`useForm`, `useInfos`, `YCard`, `BButton`, ...)
+that don't exist in this app. They're a reference for what those screens
+used to do, not working code; building their native equivalents needs the
+identity/session and service-control API contracts described as deferred in
+`docs/ADMIN-FEATURE-MATRIX.md`.
 
-- App shell: header/nav and footer (`src/App.vue`)
-- Breadcrumb (`src/components/globals/YBreadcrumb.vue`)
-- Home screen (`src/views/HomeView.vue`)
-- New primitives: `Button`, `Card`, `Badge` (`src/components/ui/`)
+## Adding the next screen
 
-## What's not migrated yet
-
-Everything else — forms, tables, modals, the settings/tool views, user &
-domain management, backups, diagnosis, etc. Migrate incrementally, view group
-by view group, reusing/extending the primitives in `src/components/ui/`
-rather than one-off styling per view. `src/components/modals/`,
-`src/components/globals/ConfigPanels.vue` and `src/components/globals/formItems/`
-are the highest-value next targets since nearly every view depends on them.
-
-## Icons
-
-New/migrated components use `lucide-vue-next` instead of `fork-awesome`
-(smaller, tree-shakeable, actively maintained, matches the shadcn-vue
-ecosystem's default icon set). `fork-awesome`/`YIcon` still cover
-not-yet-migrated views.
+1. Add the route in `src/router/routes.ts` with `meta.nav` if it belongs in
+   the sidebar — it will appear there automatically.
+2. Reuse `src/components/ui/*` before writing new markup; add a primitive
+   there (following the existing `variants.ts` + `cva` pattern) only when
+   none of the existing ones fit.
+3. Pull the corresponding frame from the Figma file for exact spacing,
+   type, and color, and convert its React/Tailwind reference output to this
+   project's Vue/`tw:`-prefixed conventions rather than pasting it in.

@@ -8,7 +8,9 @@
     "src/api/nativePackages.ts",
     "src/types/nostr.d.ts",
     "src/views/native/**/*.vue",
-    "src/components/ui/button/**/*",
+    "src/components/ui/**/*",
+    "src/components/layouts/**/*",
+    "src/composables/**/*.ts",
     "src/lib/utils.ts"
   ],
   "compilerOptions": {

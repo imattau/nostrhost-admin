@@ -4,6 +4,7 @@ import {
   AppWindow,
   ArrowUpCircle,
   Bot,
+  Globe,
   LayoutGrid,
   Package,
   Server,
@@ -84,6 +85,12 @@ const routes: RouteRecordRaw[] = [
     path: '/updates',
     component: () => import('@/views/native/UpdatesView.vue'),
     meta: { nav: { label: 'Updates', icon: ArrowUpCircle } },
+  },
+  {
+    name: 'native-domains',
+    path: '/domains',
+    component: () => import('@/views/native/DomainsView.vue'),
+    meta: { nav: { label: 'Domains', icon: Globe } },
   },
 ]
 

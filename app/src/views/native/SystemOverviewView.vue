@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import {
   getHealth,
@@ -7,6 +7,7 @@ import {
   getSystemVersions,
   type Health,
   type Identity,
+  type PackageVersion,
   type SystemVersions,
 } from '@/api/nativeSystem'
 import { Alert } from '@/components/ui/alert'
@@ -47,6 +48,45 @@ async function load() {
 function shortenKey(key: string) {
   return `${key.slice(0, 12)}…${key.slice(-8)}`
 }
+
+// getSystemVersions() returns the raw package list from the underlying
+// YunoHost host (yunohost, moulinette, ssowat, ...) alongside NostrHost's
+// own components — split them into two groups so the platform internals
+// read as NostrHost's foundation rather than unexplained stray names.
+const PLATFORM_LABELS: Record<string, string> = {
+  yunohost: 'YunoHost core',
+  'yunohost-admin': 'YunoHost admin (legacy)',
+  moulinette: 'Moulinette',
+  ssowat: 'SSOwat (single sign-on)',
+  nostrhost: 'NostrHost core',
+  nostrhost_admin: 'NostrHost admin console',
+}
+
+type VersionEntry = { name: string; label: string; info: PackageVersion }
+
+function toEntries(
+  source: SystemVersions,
+  match: (name: string) => boolean,
+): VersionEntry[] {
+  return Object.entries(source)
+    .filter(([name]) => match(name))
+    .map(([name, info]) => ({
+      name,
+      label: PLATFORM_LABELS[name] ?? name,
+      info,
+    }))
+}
+
+const nostrhostVersions = computed(() =>
+  versions.value
+    ? toEntries(versions.value, (name) => name.startsWith('nostrhost'))
+    : [],
+)
+const platformVersions = computed(() =>
+  versions.value
+    ? toEntries(versions.value, (name) => !name.startsWith('nostrhost'))
+    : [],
+)
 
 onMounted(() => {
   if (publicKey.value) load()
@@ -114,25 +154,58 @@ watch(publicKey, (key) => {
       <CardHeader>
         <CardTitle>Installed versions</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ul
-          v-if="versions && Object.keys(versions).length"
-          class="tw:grid tw:gap-2"
-        >
-          <li
-            v-for="(info, name) in versions"
-            :key="name"
-            class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
-          >
-            <code class="tw:font-mono tw:text-sm tw:text-foreground">{{
-              name
-            }}</code>
-            <span class="tw:text-sm tw:text-muted-foreground">
-              {{ info.version ?? 'unknown' }}
-              <template v-if="info.repo"> · {{ info.repo }}</template>
-            </span>
-          </li>
-        </ul>
+      <CardContent class="tw:grid tw:gap-5">
+        <template v-if="versions && Object.keys(versions).length">
+          <div v-if="nostrhostVersions.length" class="tw:grid tw:gap-2">
+            <p
+              class="tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+            >
+              NostrHost
+            </p>
+            <ul class="tw:grid tw:gap-2">
+              <li
+                v-for="entry in nostrhostVersions"
+                :key="entry.name"
+                class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+              >
+                <span class="tw:text-sm tw:text-foreground">{{
+                  entry.label
+                }}</span>
+                <span class="tw:text-sm tw:text-muted-foreground">
+                  {{ entry.info.version ?? 'unknown' }}
+                  <template v-if="entry.info.repo">
+                    · {{ entry.info.repo }}</template
+                  >
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div v-if="platformVersions.length" class="tw:grid tw:gap-2">
+            <p
+              class="tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+            >
+              Platform (built on YunoHost)
+            </p>
+            <ul class="tw:grid tw:gap-2">
+              <li
+                v-for="entry in platformVersions"
+                :key="entry.name"
+                class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+              >
+                <span class="tw:text-sm tw:text-foreground">{{
+                  entry.label
+                }}</span>
+                <span class="tw:text-sm tw:text-muted-foreground">
+                  {{ entry.info.version ?? 'unknown' }}
+                  <template v-if="entry.info.repo">
+                    · {{ entry.info.repo }}</template
+                  >
+                </span>
+              </li>
+            </ul>
+          </div>
+        </template>
         <p v-else class="tw:text-sm tw:text-muted-foreground">
           {{ loading ? 'Loading…' : 'No version data yet.' }}
         </p>

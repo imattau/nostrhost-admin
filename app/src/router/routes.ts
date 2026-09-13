@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   Package,
   Server,
+  ShieldCheck,
   Stethoscope,
   UserCog,
   Users,
@@ -112,6 +113,12 @@ const routes: RouteRecordRaw[] = [
     path: '/firewall',
     component: () => import('@/views/native/FirewallView.vue'),
     meta: { nav: { label: 'Firewall', icon: Flame } },
+  },
+  {
+    name: 'native-groups',
+    path: '/groups',
+    component: () => import('@/views/native/GroupsView.vue'),
+    meta: { nav: { label: 'Groups & permissions', icon: ShieldCheck } },
   },
 ]
 

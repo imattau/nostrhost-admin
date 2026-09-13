@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ExternalLink } from '@lucide/vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -17,6 +18,12 @@ const navItems = computed(() =>
       icon: route.meta!.nav!.icon,
     })),
 )
+
+// The user portal is a separate SPA served by YunoHost at /yunohost/sso/ on
+// the same domain (see conf/caddy/caddy_domain.conf in nostrhost-yunohost) —
+// there is no native API route for it, so this is a plain same-origin link
+// rather than a router entry.
+const portalUrl = `${window.location.origin}/yunohost/sso/`
 </script>
 
 <template>
@@ -73,6 +80,15 @@ const navItems = computed(() =>
             {{ item.label }}
           </a>
         </RouterLink>
+        <a
+          :href="portalUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:border-transparent tw:px-4 tw:py-3 tw:text-sm tw:font-medium tw:text-muted-foreground tw:no-underline tw:transition-colors tw:hover:bg-surface-muted"
+        >
+          <ExternalLink class="tw:size-[18px]" aria-hidden="true" />
+          Portal
+        </a>
       </nav>
     </div>
 

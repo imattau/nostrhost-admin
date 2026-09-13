@@ -11,12 +11,14 @@ export async function request<T>(
   const headers = new Headers()
   if (body) headers.set('Content-Type', 'application/json')
 
-  // Prefer the portal session. If a NIP-07 signer is present AND the session
-  // is not already active, sign a NIP-98 event as a fallback so the request
-  // still works for signer-first callers. The session cookie is always sent.
+  // Prefer the portal session. Probe it first: a NIP-07 signer is only used
+  // when there is no session, otherwise an unrelated browser signer pubkey
+  // would be sent and rejected as "not a linked identity". The session cookie
+  // is always sent.
   const url = new URL(path, window.location.origin)
+  const sessionActive = await sessionProbe()
 
-  if (window.nostr) {
+  if (!sessionActive && window.nostr) {
     try {
       const pubkey = await window.nostr.getPublicKey()
       const tags = [
@@ -69,4 +71,21 @@ export async function request<T>(
     )
   }
   return data as T
+}
+
+// Probe whether a portal session is active (session cookie only). The public
+// /package/session endpoint reports it without needing any NIP-98 header.
+async function sessionProbe(): Promise<boolean> {
+  try {
+    const response = await fetch('/package/session', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) return false
+    const info = (await response.json()) as { authenticated: boolean }
+    return info.authenticated === true
+  } catch {
+    return false
+  }
 }

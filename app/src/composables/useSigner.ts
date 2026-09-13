@@ -1,48 +1,101 @@
 import { computed, ref } from 'vue'
 
 // Shared module-level state: every caller of `useSigner()` sees the same
-// connected signer, so the app shell header and individual views agree on
-// whether a NIP-07 signer is connected without prop-drilling.
+// session-derived identity, so the app shell header and individual views
+// agree on whether the user is signed in without prop-drilling.
+//
+// The admin console uses the portal session (single sign-in): once the user
+// signs in at /nostrhost/sso/login, the nostrhost.portal cookie authenticates
+// every native API request. A NIP-07 browser signer remains a fallback for
+// callers without a portal session.
 const publicKey = ref<string | null>(null)
+const username = ref<string | null>(null)
+const admin = ref(false)
 const busy = ref(false)
 const error = ref('')
 
-const signerAvailable = computed(() => Boolean(window.nostr))
+const sessionChecked = ref(false)
 
-async function connect() {
-  busy.value = true
-  error.value = ''
+const signerAvailable = computed(
+  () => Boolean(window.nostr) || sessionChecked.value,
+)
+
+export type SessionInfo = {
+  authenticated: boolean
+  username: string | null
+  pubkey: string | null
+  admin: boolean
+}
+
+// Probe the native API's public /session endpoint (session cookie only — no
+// NIP-98 needed) to learn who is signed in.
+export async function refreshSession(): Promise<SessionInfo> {
   try {
-    const connectedKey = (await window.nostr?.getPublicKey()) ?? null
-    if (!connectedKey)
-      throw new Error('The signer did not return a public key.')
-    publicKey.value = connectedKey
+    const response = await fetch('/package/session', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) throw new Error(`session probe failed (${response.status})`)
+    const info = (await response.json()) as SessionInfo
+    publicKey.value = info.pubkey
+    username.value = info.username
+    admin.value = info.admin
+    sessionChecked.value = true
+    return info
   } catch (cause) {
     publicKey.value = null
+    username.value = null
+    admin.value = false
+    sessionChecked.value = true
     error.value =
-      cause instanceof Error ? cause.message : 'Could not connect the signer.'
-  } finally {
-    busy.value = false
+      cause instanceof Error ? cause.message : 'Could not reach the session endpoint.'
+    return { authenticated: false, username: null, pubkey: null, admin: false }
   }
 }
 
-// Re-reads the signer's current key and fails loudly if it has changed
-// since connect(), so callers never sign a request under the wrong identity.
+// The portal is the single sign-in: connect() sends the user to the portal
+// login with a redirect back to this console.
+function connect() {
+  const target = `${window.location.origin}/nostrhost/sso/login?r=${btoa(
+    window.location.pathname + window.location.hash,
+  )}`
+  window.location.assign(target)
+}
+
+// Re-reads the session. If a portal session exists it is authoritative; a
+// NIP-07 signer is only consulted when there is no session.
 async function sync() {
-  const current = await window.nostr?.getPublicKey()
-  if (!current) {
-    publicKey.value = null
-    throw new Error('The Nostr signer is no longer available.')
+  const info = await refreshSession()
+  if (info.authenticated) {
+    if (publicKey.value && info.pubkey && publicKey.value !== info.pubkey) {
+      throw new Error('The session account changed. Review the account before continuing.')
+    }
+    return
   }
-  if (publicKey.value && current !== publicKey.value) {
+  if (window.nostr) {
+    const current = await window.nostr.getPublicKey()
+    if (!current) {
+      publicKey.value = null
+      throw new Error('The Nostr signer is no longer available.')
+    }
     publicKey.value = current
-    throw new Error(
-      'The signer account changed. Review the account before continuing.',
-    )
+    return
   }
-  publicKey.value = current
+  publicKey.value = null
+  throw new Error('Not signed in. Connect the portal session to continue.')
 }
 
 export function useSigner() {
-  return { publicKey, busy, error, signerAvailable, connect, sync }
+  return {
+    publicKey,
+    username,
+    admin,
+    busy,
+    error,
+    signerAvailable,
+    connect,
+    sync,
+    refreshSession,
+  }
 }

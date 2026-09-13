@@ -116,11 +116,10 @@ watch(publicKey, (key) => {
     </header>
 
     <Alert v-if="!signerAvailable" variant="danger">
-      A NIP-07 browser signer is required. Enable a signer extension, then
-      reload this page.
+      You are not signed in. Sign in at the portal to continue.
     </Alert>
     <Alert v-else-if="!publicKey" variant="info">
-      Connect your signer above to manage services.
+      Sign in at the portal to continue.
     </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="actionError" variant="danger" role="alert">{{

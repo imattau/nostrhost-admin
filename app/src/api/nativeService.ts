@@ -13,12 +13,12 @@ export type ServiceStatus = {
 export type ServiceStatusMap = Record<string, ServiceStatus>
 
 export function getServiceStatus() {
-  return request<ServiceStatusMap>('/service/status', 'GET')
+  return request<ServiceStatusMap>('/package/service/status', 'GET')
 }
 
 export function controlService(name: string, action: ServiceAction) {
   return request<{ service: string; action: ServiceAction; status: string }>(
-    '/service/control',
+    '/package/service/control',
     'POST',
     JSON.stringify({ name, action }),
   )

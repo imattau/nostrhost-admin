@@ -16,7 +16,7 @@ export type CapabilityEvent = {
 // is no separate delete endpoint or read-back listing for grants.
 export function grantCapability(pubkey: string, scopes: string[]) {
   return request<CapabilityEvent>(
-    '/capability/grant',
+    '/package/capability/grant',
     'POST',
     JSON.stringify({ pubkey, scopes, type: 'agent' }),
   )

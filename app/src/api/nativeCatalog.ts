@@ -26,7 +26,7 @@ export type CatalogueList = {
 }
 
 export function getCatalogueList() {
-  return request<CatalogueList>('/catalog/list', 'GET')
+  return request<CatalogueList>('/package/catalog/list', 'GET')
 }
 
 export function getCatalogueEntry(appId: string) {

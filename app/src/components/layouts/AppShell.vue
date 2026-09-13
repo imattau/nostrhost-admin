@@ -6,11 +6,15 @@ import { useSigner } from '@/composables/useSigner'
 
 import AppSidebar from './AppSidebar.vue'
 
-const { publicKey, busy, signerAvailable, connect } = useSigner()
+const { publicKey, username, admin, signerAvailable, connect } = useSigner()
 
 function shortenKey(key: string) {
   return `${key.slice(0, 8)}…${key.slice(-6)}`
 }
+
+const identity = () =>
+  username.value ||
+  (publicKey.value ? shortenKey(publicKey.value) : null)
 </script>
 
 <template>
@@ -31,26 +35,20 @@ function shortenKey(key: string) {
 
         <div class="tw:flex tw:items-center tw:gap-3">
           <span
-            v-if="publicKey"
+            v-if="identity()"
             class="tw:font-mono tw:text-xs tw:text-brand-500"
-            :title="publicKey"
+            :title="publicKey || username || ''"
           >
-            {{ shortenKey(publicKey) }}
+            {{ identity() }}
           </span>
           <Button
             variant="outline"
             size="sm"
-            :disabled="busy || !signerAvailable"
+            :disabled="!signerAvailable"
             @click="connect"
           >
             <KeyRound class="tw:size-3.5" aria-hidden="true" />
-            {{
-              busy
-                ? 'Connecting…'
-                : publicKey
-                  ? 'Reconnect signer'
-                  : 'Connect signer'
-            }}
+            {{ admin ? 'Sign out' : 'Sign in' }}
           </Button>
         </div>
       </header>

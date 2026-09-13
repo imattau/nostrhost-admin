@@ -30,7 +30,7 @@ export function resolveIdentity(value: string) {
 
 export function linkIdentity(input: LinkIdentityInput) {
   return request<IdentityEvent>(
-    '/identity/link',
+    '/package/identity/link',
     'POST',
     JSON.stringify({
       username: input.username,
@@ -44,7 +44,7 @@ export function linkIdentity(input: LinkIdentityInput) {
 
 export function revokeIdentity(pubkeyOrNpub: string) {
   return request<IdentityEvent>(
-    '/identity/revoke',
+    '/package/identity/revoke',
     'POST',
     JSON.stringify({ pubkey_or_npub: pubkeyOrNpub }),
   )

@@ -25,13 +25,13 @@ export type Identity = {
 }
 
 export function getHealth() {
-  return request<Health>('/healthz', 'GET')
+  return request<Health>('/package/healthz', 'GET')
 }
 
 export function getSystemVersions() {
-  return request<SystemVersions>('/system/version', 'GET')
+  return request<SystemVersions>('/package/system/version', 'GET')
 }
 
 export function getIdentities() {
-  return request<Identity[]>('/identity/list', 'GET')
+  return request<Identity[]>('/package/identity/list', 'GET')
 }

@@ -25,17 +25,17 @@ export type AgentServiceResult = {
 }
 
 export function getAgentStatus() {
-  return request<AgentStatus>('/agent/status', 'GET')
+  return request<AgentStatus>('/package/agent/status', 'GET')
 }
 
 export function initAgent() {
-  return request<AgentInitResult>('/agent/init', 'POST')
+  return request<AgentInitResult>('/package/agent/init', 'POST')
 }
 
 export function enableAgent() {
-  return request<AgentServiceResult>('/agent/enable', 'POST')
+  return request<AgentServiceResult>('/package/agent/enable', 'POST')
 }
 
 export function disableAgent() {
-  return request<AgentServiceResult>('/agent/disable', 'POST')
+  return request<AgentServiceResult>('/package/agent/disable', 'POST')
 }

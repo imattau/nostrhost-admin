@@ -217,11 +217,10 @@ function cancelPlan() {
     </header>
 
     <Alert v-if="!signerAvailable" variant="danger">
-      A NIP-07 browser signer is required. Enable a signer extension, then
-      reload this page.
+      You are not signed in. Sign in at the portal to continue.
     </Alert>
     <Alert v-else-if="!publicKey" variant="info">
-      Connect your signer above to load the catalogue and manage apps.
+      Sign in at the portal to continue.
     </Alert>
     <Alert v-if="catalogueError" variant="warning" role="status">
       The trusted catalogue is unavailable. Showing installed apps only.

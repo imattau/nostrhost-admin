@@ -72,7 +72,7 @@ export function planPackageManifest(packageData: Record<string, unknown>) {
 }
 
 export function getAppManagement() {
-  return request<AppManagement>('/app/management', 'GET')
+  return request<AppManagement>('/package/app/management', 'GET')
 }
 
 export function getNativeAppSettings(appId: string) {

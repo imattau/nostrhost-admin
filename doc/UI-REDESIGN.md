@@ -52,11 +52,15 @@ kept, deferred, or dropped.)
   `CatalogueView.vue` (read-only trusted catalogue with provenance — no
   install/publish action), `IdentitiesView.vue` (link a signer pubkey to a
   YunoHost account, or revoke one — the only screen so far that performs a
-  write; revoke asks for inline confirmation before publishing).
+  write; revoke asks for inline confirmation before publishing),
+  `ServiceControlView.vue` (start/stop/restart managed system services;
+  stop and restart ask for inline confirmation first since they can
+  interrupt the service in use, start does not).
 - **API clients** (`src/api/`): `client.ts` holds the shared NIP-98 request
   signer; `nativePackages.ts`, `nativeSystem.ts`, `nativeCatalog.ts`,
-  `nativeIdentity.ts` are thin typed wrappers per resource area, one file per
-  route group in `nostrhost-yunohost`'s `src/nostrhost/api.py`.
+  `nativeIdentity.ts`, `nativeService.ts` are thin typed wrappers per
+  resource area, one file per route group in `nostrhost-yunohost`'s
+  `src/nostrhost/api.py`.
 
 `src/views/LoginView.vue` and `src/views/service/ServiceInfo.vue` are
 carried over from the legacy Bootstrap admin and are not part of the build

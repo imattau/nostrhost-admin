@@ -4,6 +4,7 @@ import {
   AppWindow,
   Bot,
   LayoutGrid,
+  Package,
   Server,
   Users,
 } from '@lucide/vue'
@@ -33,6 +34,12 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/views/native/SystemOverviewView.vue'),
     meta: { nav: { label: 'Overview', icon: Activity } },
+  },
+  {
+    name: 'app-management',
+    path: '/apps',
+    component: () => import('@/views/native/AppManagementView.vue'),
+    meta: { nav: { label: 'Applications', icon: Package } },
   },
   {
     name: 'native-packages',

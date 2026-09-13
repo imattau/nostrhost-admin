@@ -42,7 +42,7 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
+  <section class="tw:mx-auto tw:grid tw:max-w-6xl tw:gap-6">
     <header class="tw:border-b tw:border-border-subtle tw:pb-4">
       <p
         class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
@@ -83,55 +83,60 @@ watch(publicKey, (key) => {
       No trusted apps in the catalogue yet.
     </p>
 
-    <Card v-for="entry in entries ?? []" :key="entry.event_id">
-      <CardHeader>
-        <CardTitle
-          >{{ entry.declaration.AppID }}
-          <Badge variant="brand" class="tw:ml-2"
-            >v{{ entry.declaration.Version }}</Badge
-          ></CardTitle
-        >
-      </CardHeader>
-      <CardContent>
-        <dl class="tw:grid tw:gap-2 tw:text-sm">
-          <div class="tw:flex tw:justify-between tw:gap-3">
-            <dt class="tw:text-muted-foreground">Repository</dt>
-            <dd class="tw:truncate tw:font-mono tw:text-xs tw:text-foreground">
-              {{ entry.declaration.Repository }}
-            </dd>
-          </div>
-          <div class="tw:flex tw:justify-between tw:gap-3">
-            <dt class="tw:text-muted-foreground">Commit</dt>
-            <dd class="tw:font-mono tw:text-xs tw:text-foreground">
-              {{ shortHash(entry.declaration.Commit) }}
-            </dd>
-          </div>
-          <div class="tw:flex tw:justify-between tw:gap-3">
-            <dt class="tw:text-muted-foreground">Manifest hash</dt>
-            <dd class="tw:font-mono tw:text-xs tw:text-foreground">
-              {{ shortHash(entry.declaration.ManifestHash) }}
-            </dd>
-          </div>
-          <div class="tw:flex tw:justify-between tw:gap-3">
-            <dt class="tw:text-muted-foreground">Content hash</dt>
-            <dd class="tw:font-mono tw:text-xs tw:text-foreground">
-              {{ shortHash(entry.declaration.ContentHash) }}
-            </dd>
-          </div>
-          <div class="tw:flex tw:justify-between tw:gap-3">
-            <dt class="tw:text-muted-foreground">Architectures</dt>
-            <dd class="tw:text-xs tw:text-foreground">
-              {{ entry.declaration.Architectures.join(', ') }}
-            </dd>
-          </div>
-          <div class="tw:flex tw:justify-between tw:gap-3">
-            <dt class="tw:text-muted-foreground">Provenance event</dt>
-            <dd class="tw:font-mono tw:text-xs tw:text-foreground">
-              {{ shortHash(entry.event_id) }}
-            </dd>
-          </div>
-        </dl>
-      </CardContent>
-    </Card>
+    <div
+      v-if="entries && entries.length"
+      class="tw:grid tw:gap-4 tw:sm:grid-cols-2 tw:lg:grid-cols-3"
+    >
+      <Card v-for="entry in entries" :key="entry.event_id">
+        <CardHeader>
+          <CardTitle
+            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
+          >
+            <span class="tw:truncate">{{ entry.declaration.AppID }}</span>
+            <Badge variant="brand">v{{ entry.declaration.Version }}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl class="tw:grid tw:gap-1.5 tw:text-xs">
+            <div class="tw:grid tw:gap-0.5">
+              <dt class="tw:text-muted-foreground">Repository</dt>
+              <dd class="tw:truncate tw:font-mono tw:text-foreground">
+                {{ entry.declaration.Repository }}
+              </dd>
+            </div>
+            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <dt class="tw:text-muted-foreground">Commit</dt>
+              <dd class="tw:font-mono tw:text-foreground">
+                {{ shortHash(entry.declaration.Commit) }}
+              </dd>
+            </div>
+            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <dt class="tw:text-muted-foreground">Manifest hash</dt>
+              <dd class="tw:font-mono tw:text-foreground">
+                {{ shortHash(entry.declaration.ManifestHash) }}
+              </dd>
+            </div>
+            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <dt class="tw:text-muted-foreground">Content hash</dt>
+              <dd class="tw:font-mono tw:text-foreground">
+                {{ shortHash(entry.declaration.ContentHash) }}
+              </dd>
+            </div>
+            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <dt class="tw:text-muted-foreground">Architectures</dt>
+              <dd class="tw:truncate tw:text-foreground">
+                {{ entry.declaration.Architectures.join(', ') }}
+              </dd>
+            </div>
+            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+              <dt class="tw:text-muted-foreground">Provenance event</dt>
+              <dd class="tw:font-mono tw:text-foreground">
+                {{ shortHash(entry.event_id) }}
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+    </div>
   </section>
 </template>

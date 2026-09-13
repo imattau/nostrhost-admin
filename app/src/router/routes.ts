@@ -2,9 +2,14 @@ import type { RouteRecordRaw } from 'vue-router'
 
 const routes: RouteRecordRaw[] = [
   {
-    name: 'native-packages',
+    name: 'app-management',
     path: '/',
-    alias: '/packages',
+    alias: '/apps',
+    component: () => import('@/views/native/AppManagementView.vue'),
+  },
+  {
+    name: 'native-packages',
+    path: '/packages',
     component: () => import('@/views/native/PackageAuthoringView.vue'),
   },
 ]

@@ -12,7 +12,7 @@ const baseUrl = import.meta.env.BASE_URL
         class="tw:mx-auto tw:flex tw:w-full tw:max-w-6xl tw:items-center tw:gap-3 tw:px-4 tw:py-3"
       >
         <RouterLink
-          :to="{ name: 'native-packages' }"
+          :to="{ name: 'app-management' }"
           class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:text-foreground tw:no-underline tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
         >
           <span
@@ -33,9 +33,18 @@ const baseUrl = import.meta.env.BASE_URL
             >
           </span>
         </RouterLink>
-        <span class="tw:ml-auto tw:text-sm tw:text-muted-foreground"
-          >Native package tools</span
-        >
+        <nav class="tw:ml-auto tw:flex tw:items-center tw:gap-4 tw:text-sm">
+          <RouterLink
+            class="tw:text-foreground tw:no-underline tw:hover:text-brand-500"
+            :to="{ name: 'app-management' }"
+            >Applications</RouterLink
+          >
+          <RouterLink
+            class="tw:text-muted-foreground tw:no-underline tw:hover:text-brand-500"
+            :to="{ name: 'native-packages' }"
+            >Package authoring</RouterLink
+          >
+        </nav>
       </div>
     </header>
 

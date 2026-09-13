@@ -21,11 +21,13 @@ export type LinkIdentityInput = {
   enabled?: boolean
 }
 
-export function resolveIdentity(value: string) {
-  return request<Identity | Identity[] | null>(
+export async function resolveIdentity(value: string) {
+  const result = await request<Identity | { identities: Identity[] } | null>(
     `/package/identity/resolve/${encodeURIComponent(value)}`,
     'GET',
   )
+  if (result && 'identities' in result) return result.identities
+  return result
 }
 
 export function linkIdentity(input: LinkIdentityInput) {

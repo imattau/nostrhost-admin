@@ -32,6 +32,10 @@ export function getSystemVersions() {
   return request<SystemVersions>('/package/system/version', 'GET')
 }
 
-export function getIdentities() {
-  return request<Identity[]>('/package/identity/list', 'GET')
+export async function getIdentities() {
+  const { identities } = await request<{ identities: Identity[] }>(
+    '/package/identity/list',
+    'GET',
+  )
+  return identities
 }

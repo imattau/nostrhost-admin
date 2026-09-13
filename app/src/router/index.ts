@@ -24,8 +24,12 @@ router.beforeEach(async (to) => {
   const isConnectRoute = to.name === 'native-connect'
 
   if (!publicKey.value && !isConnectRoute) {
-    // Not signed in at all → portal login, redirecting back here.
-    const back = `${to.fullPath}`
+    // Not signed in at all → portal login, redirecting back here. The console
+    // uses hash history with base /nostrhost/admin/, so `to.fullPath` is a
+    // bare path (e.g. "/apps") — the portal's post-login navigateTo would
+    // resolve it against the domain root. Send the absolute console URL
+    // (origin + hash-history base + # + path) so the user returns to admin.
+    const back = `${window.location.origin}${import.meta.env.BASE_URL}#${to.fullPath}`
     return { name: 'native-connect', query: { redirect: back } }
   }
   if (publicKey.value && !admin.value && !isConnectRoute) {

@@ -1,6 +1,7 @@
 import type { Component } from 'vue'
 import {
   Activity,
+  Archive,
   AppWindow,
   ArrowUpCircle,
   Bot,
@@ -91,6 +92,12 @@ const routes: RouteRecordRaw[] = [
     path: '/domains',
     component: () => import('@/views/native/DomainsView.vue'),
     meta: { nav: { label: 'Domains', icon: Globe } },
+  },
+  {
+    name: 'native-backups',
+    path: '/backups',
+    component: () => import('@/views/native/BackupsView.vue'),
+    meta: { nav: { label: 'Backups', icon: Archive } },
   },
 ]
 

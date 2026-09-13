@@ -31,7 +31,7 @@ export function getCatalogueList() {
 
 export function getCatalogueEntry(appId: string) {
   return request<CatalogueEntry>(
-    `/catalog/get/${encodeURIComponent(appId)}`,
+    `/package/catalog/get/${encodeURIComponent(appId)}`,
     'GET',
   )
 }

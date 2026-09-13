@@ -8,7 +8,12 @@ import {
   initAgent,
   type AgentStatus,
 } from '@/api/nativeAgent'
-import { grantCapability, revokeCapability } from '@/api/nativeCapability'
+import {
+  grantCapability,
+  listCapabilities,
+  revokeCapability,
+  type CapabilityGrant,
+} from '@/api/nativeCapability'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -91,6 +96,58 @@ const mcpGranting = ref(false)
 const mcpError = ref('')
 const mcpResult = ref('')
 
+const grants = ref<CapabilityGrant[]>([])
+const grantsLoading = ref(false)
+const grantsError = ref('')
+const confirmingRevoke = ref<string | null>(null)
+const revokingPubkey = ref('')
+
+async function loadGrants() {
+  grantsLoading.value = true
+  grantsError.value = ''
+  try {
+    await sync()
+    const result = await listCapabilities()
+    grants.value = result.grants
+  } catch (cause) {
+    grantsError.value =
+      cause instanceof Error ? cause.message : 'Failed to load current access.'
+  } finally {
+    grantsLoading.value = false
+  }
+}
+
+function truncatePubkey(pubkey: string) {
+  return pubkey.length > 16
+    ? `${pubkey.slice(0, 8)}…${pubkey.slice(-4)}`
+    : pubkey
+}
+
+function requestRevokeGrant(pubkey: string) {
+  mcpError.value = ''
+  confirmingRevoke.value = pubkey
+}
+
+function cancelRevokeGrant() {
+  confirmingRevoke.value = null
+}
+
+async function confirmRevokeGrant(pubkey: string) {
+  confirmingRevoke.value = null
+  revokingPubkey.value = pubkey
+  mcpError.value = ''
+  try {
+    await sync()
+    await revokeCapability(pubkey)
+    await loadGrants()
+  } catch (cause) {
+    mcpError.value =
+      cause instanceof Error ? cause.message : 'Failed to revoke access.'
+  } finally {
+    revokingPubkey.value = ''
+  }
+}
+
 async function submitGrant() {
   mcpGranting.value = true
   mcpError.value = ''
@@ -101,6 +158,9 @@ async function submitGrant() {
     mcpResult.value = mcpScopes.value.length
       ? `Granted ${mcpScopes.value.length} scope(s) to this pubkey.`
       : 'Cleared this pubkey’s capability grant.'
+    mcpPubkey.value = ''
+    mcpScopes.value = []
+    await loadGrants()
   } catch (cause) {
     mcpError.value =
       cause instanceof Error ? cause.message : 'Failed to publish the grant.'
@@ -118,6 +178,7 @@ async function submitRevoke() {
     await revokeCapability(mcpPubkey.value.trim())
     mcpScopes.value = []
     mcpResult.value = 'Cleared this pubkey’s capability grant.'
+    await loadGrants()
   } catch (cause) {
     mcpError.value =
       cause instanceof Error ? cause.message : 'Failed to publish the revoke.'
@@ -127,10 +188,16 @@ async function submitRevoke() {
 }
 
 onMounted(() => {
-  if (publicKey.value) loadAgentStatus()
+  if (publicKey.value) {
+    loadAgentStatus()
+    loadGrants()
+  }
 })
 watch(publicKey, (key) => {
-  if (key) loadAgentStatus()
+  if (key) {
+    loadAgentStatus()
+    loadGrants()
+  }
 })
 </script>
 
@@ -241,16 +308,101 @@ watch(publicKey, (key) => {
 
     <Card v-if="publicKey">
       <CardHeader>
-        <CardTitle>MCP agent access</CardTitle>
+        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <span>MCP agent access</span>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="grantsLoading"
+            @click="loadGrants"
+            >{{ grantsLoading ? 'Refreshing…' : 'Refresh' }}</Button
+          >
+        </CardTitle>
       </CardHeader>
       <CardContent class="tw:grid tw:gap-4">
         <p class="tw:text-sm tw:text-muted-foreground">
           Grant a Nostr pubkey scoped capabilities so an MCP-connected agent can
-          call this node's tools through the signed operation chain. Capability
-          grants are relay events keyed by pubkey — granting no scopes clears an
-          existing grant, and there is no local list of past grants to browse
-          back.
+          call this node's tools through the signed operation chain. Granting no
+          scopes clears an existing grant.
         </p>
+
+        <Alert v-if="grantsError" variant="danger" role="alert">{{
+          grantsError
+        }}</Alert>
+
+        <div class="tw:grid tw:gap-2">
+          <span class="tw:text-sm tw:font-medium tw:text-foreground"
+            >Current access</span
+          >
+          <p
+            v-if="grantsLoading && !grants.length"
+            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+          >
+            Loading…
+          </p>
+          <p
+            v-else-if="!grants.length"
+            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+          >
+            No agent currently has access.
+          </p>
+          <ul v-else class="tw:m-0 tw:grid tw:gap-2 tw:pl-0">
+            <li
+              v-for="grant in grants"
+              :key="grant.pubkey"
+              class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+            >
+              <div
+                class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-3"
+              >
+                <div class="tw:grid tw:gap-1">
+                  <code class="tw:font-mono tw:text-xs" :title="grant.pubkey">{{
+                    truncatePubkey(grant.pubkey)
+                  }}</code>
+                  <div class="tw:flex tw:flex-wrap tw:gap-1.5">
+                    <code
+                      v-for="scope in grant.scopes"
+                      :key="scope"
+                      class="tw:rounded tw:bg-surface-muted tw:px-1.5 tw:py-0.5 tw:font-mono tw:text-[11px] tw:text-muted-foreground"
+                      >{{ scope }}</code
+                    >
+                  </div>
+                </div>
+                <Badge variant="neutral">{{ grant.type }}</Badge>
+              </div>
+
+              <div
+                v-if="confirmingRevoke === grant.pubkey"
+                class="tw:flex tw:items-center tw:justify-end tw:gap-2"
+              >
+                <span class="tw:text-xs tw:text-muted-foreground"
+                  >Revoke this agent's access?</span
+                >
+                <Button variant="outline" size="sm" @click="cancelRevokeGrant"
+                  >Cancel</Button
+                >
+                <Button
+                  variant="danger"
+                  size="sm"
+                  :disabled="revokingPubkey !== ''"
+                  @click="confirmRevokeGrant(grant.pubkey)"
+                  >Confirm</Button
+                >
+              </div>
+              <div v-else class="tw:flex tw:justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="revokingPubkey !== ''"
+                  @click="requestRevokeGrant(grant.pubkey)"
+                  >{{
+                    revokingPubkey === grant.pubkey ? 'Revoking…' : 'Revoke'
+                  }}</Button
+                >
+              </div>
+            </li>
+          </ul>
+        </div>
 
         <div class="tw:grid tw:gap-1.5">
           <Label for="mcp-pubkey">Agent public key or npub</Label>

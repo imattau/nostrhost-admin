@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 
+import { linkIdentity } from '@/api/nativeIdentity'
+import { getIdentities, type Identity } from '@/api/nativeSystem'
 import {
   createUser,
   deleteUser,
@@ -15,21 +17,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSigner } from '@/composables/useSigner'
+import IdentityFields from '@/components/native/IdentityFields.vue'
+import {
+  defaultIdentitySelection,
+  type IdentitySelection,
+} from '@/components/native/identitySelection'
+import { shortenKey } from '@/lib/utils'
 
 const { publicKey, signerAvailable, sync } = useSigner()
 
 type UserRow = NativeUser & { username: string }
 
 const users = ref<UserRow[] | null>(null)
+const identities = ref<Identity[] | null>(null)
 const error = ref('')
 const loading = ref(false)
+
+const identityByUsername = computed(() => {
+  const map = new Map<string, Identity>()
+  for (const identity of identities.value ?? []) {
+    if (!map.has(identity.username)) map.set(identity.username, identity)
+  }
+  return map
+})
 
 const createUsername = ref('')
 const createDomain = ref('')
 const createPassword = ref('')
 const createFullname = ref('')
+const createIdentity = ref<IdentitySelection>(defaultIdentitySelection())
 const creating = ref(false)
 const createError = ref('')
+const createIdentityNotice = ref('')
 
 const editPending = ref<string | null>(null)
 const editFullname = ref('')
@@ -42,6 +61,11 @@ const deletePurge = ref(false)
 const deleting = ref(false)
 const deleteError = ref('')
 
+const linkPending = ref<string | null>(null)
+const linkSelection = ref<IdentitySelection>(defaultIdentitySelection())
+const linking = ref(false)
+const linkError = ref('')
+
 const sortedUsers = computed(() =>
   (users.value ?? [])
     .slice()
@@ -53,11 +77,15 @@ async function load() {
   error.value = ''
   try {
     await sync()
-    const result = await listUsers()
-    users.value = Object.entries(result.users).map(([username, info]) => ({
+    const [userResult, identityResult] = await Promise.all([
+      listUsers(),
+      getIdentities(),
+    ])
+    users.value = Object.entries(userResult.users).map(([username, info]) => ({
       ...info,
       username,
     }))
+    identities.value = identityResult
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Failed to load users.'
@@ -69,10 +97,12 @@ async function load() {
 async function submitCreate() {
   creating.value = true
   createError.value = ''
+  createIdentityNotice.value = ''
   try {
     await sync()
+    const username = createUsername.value.trim()
     await createUser({
-      username: createUsername.value.trim(),
+      username,
       domain: createDomain.value.trim(),
       password: createPassword.value,
       fullname: createFullname.value.trim(),
@@ -81,6 +111,23 @@ async function submitCreate() {
     createDomain.value = ''
     createPassword.value = ''
     createFullname.value = ''
+
+    const identity = createIdentity.value
+    createIdentity.value = defaultIdentitySelection()
+    if (identity.mode !== 'none') {
+      try {
+        await linkIdentity({
+          username,
+          pubkeyOrNpub: identity.pubkeyOrNpub.trim(),
+          signerType: identity.signerType,
+          label: identity.label.trim() || undefined,
+        })
+      } catch (cause) {
+        createIdentityNotice.value = `User "${username}" was created, but linking the Nostr identity failed: ${
+          cause instanceof Error ? cause.message : 'unknown error'
+        }. Use "Link identity" below to retry.`
+      }
+    }
     await load()
   } catch (cause) {
     createError.value =
@@ -147,6 +194,42 @@ async function confirmDelete(username: string) {
   }
 }
 
+function askLink(username: string) {
+  linkError.value = ''
+  linkSelection.value = {
+    ...defaultIdentitySelection(),
+    mode: 'existing',
+    ready: false,
+  }
+  linkPending.value = username
+}
+
+function cancelLink() {
+  linkPending.value = null
+}
+
+async function confirmLink(username: string) {
+  linking.value = true
+  linkError.value = ''
+  try {
+    await sync()
+    const selection = linkSelection.value
+    await linkIdentity({
+      username,
+      pubkeyOrNpub: selection.pubkeyOrNpub.trim(),
+      signerType: selection.signerType,
+      label: selection.label.trim() || undefined,
+    })
+    linkPending.value = null
+    await load()
+  } catch (cause) {
+    linkError.value =
+      cause instanceof Error ? cause.message : 'Failed to link identity.'
+  } finally {
+    linking.value = false
+  }
+}
+
 onMounted(() => {
   if (publicKey.value) load()
 })
@@ -156,7 +239,7 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
+  <section class="tw:mx-auto tw:grid tw:max-w-5xl tw:gap-6">
     <header class="tw:border-b tw:border-border-subtle tw:pb-4">
       <p
         class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
@@ -165,9 +248,9 @@ watch(publicKey, (key) => {
       </p>
       <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">Users</h1>
       <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Create, edit and delete server accounts. A user's Nostr identity is
-        linked separately from the Identities screen once the account exists
-        here.
+        Create, edit and delete server accounts, and optionally link or generate
+        a Nostr identity for each one. A pubkey can also be linked or revoked
+        later from the Identities screen.
       </p>
     </header>
 
@@ -184,56 +267,90 @@ watch(publicKey, (key) => {
         <CardTitle>Create a user</CardTitle>
       </CardHeader>
       <CardContent>
-        <form class="tw:grid tw:gap-4" @submit.prevent="submitCreate">
-          <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="create-username">Username</Label>
-              <Input
-                id="create-username"
-                v-model="createUsername"
-                required
-                autocomplete="off"
-              />
+        <form class="tw:grid tw:gap-6" @submit.prevent="submitCreate">
+          <div class="tw:grid tw:gap-4">
+            <p
+              class="tw:m-0 tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+            >
+              Account details
+            </p>
+            <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
+              <div class="tw:grid tw:gap-1.5">
+                <Label for="create-username">Username</Label>
+                <Input
+                  id="create-username"
+                  v-model="createUsername"
+                  required
+                  autocomplete="off"
+                />
+              </div>
+              <div class="tw:grid tw:gap-1.5">
+                <Label for="create-fullname">Full name</Label>
+                <Input
+                  id="create-fullname"
+                  v-model="createFullname"
+                  required
+                  autocomplete="off"
+                />
+              </div>
             </div>
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="create-fullname">Full name</Label>
-              <Input
-                id="create-fullname"
-                v-model="createFullname"
-                required
-                autocomplete="off"
-              />
+            <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
+              <div class="tw:grid tw:gap-1.5">
+                <Label for="create-domain">Mail domain</Label>
+                <Input
+                  id="create-domain"
+                  v-model="createDomain"
+                  required
+                  autocomplete="off"
+                  placeholder="example.com"
+                />
+              </div>
+              <div class="tw:grid tw:gap-1.5">
+                <Label for="create-password">Password</Label>
+                <Input
+                  id="create-password"
+                  v-model="createPassword"
+                  type="password"
+                  required
+                  autocomplete="new-password"
+                />
+              </div>
             </div>
           </div>
-          <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="create-domain">Mail domain</Label>
-              <Input
-                id="create-domain"
-                v-model="createDomain"
-                required
-                autocomplete="off"
-                placeholder="example.com"
-              />
+
+          <div
+            class="tw:grid tw:gap-4 tw:border-t tw:border-border-subtle tw:pt-4"
+          >
+            <div>
+              <p
+                class="tw:m-0 tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+              >
+                Nostr identity (optional)
+              </p>
+              <p class="tw:mt-1 tw:text-xs tw:text-muted-foreground">
+                Link this account to a pubkey it already controls, or generate a
+                new keypair for it now.
+              </p>
             </div>
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="create-password">Password</Label>
-              <Input
-                id="create-password"
-                v-model="createPassword"
-                type="password"
-                required
-                autocomplete="new-password"
-              />
-            </div>
+            <IdentityFields
+              v-model="createIdentity"
+              id-prefix="create-identity"
+            />
           </div>
+
           <Alert v-if="createError" variant="danger" role="alert">{{
             createError
           }}</Alert>
+          <Alert v-if="createIdentityNotice" variant="warning" role="status">{{
+            createIdentityNotice
+          }}</Alert>
           <div>
-            <Button type="submit" variant="primary" :disabled="creating">{{
-              creating ? 'Creating…' : 'Create user'
-            }}</Button>
+            <Button
+              type="submit"
+              variant="primary"
+              :disabled="creating || !createIdentity.ready"
+              >{{ creating ? 'Creating…' : 'Create user' }}</Button
+            >
           </div>
         </form>
       </CardContent>
@@ -259,7 +376,9 @@ watch(publicKey, (key) => {
             :key="user.username"
             class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
           >
-            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+            <div
+              class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3"
+            >
               <strong class="tw:text-sm tw:text-foreground">{{
                 user.username
               }}</strong>
@@ -273,6 +392,37 @@ watch(publicKey, (key) => {
               >{{ user.fullname
               }}<template v-if="user.mail"> · {{ user.mail }}</template></span
             >
+
+            <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+              <template v-if="identityByUsername.get(user.username)">
+                <Badge
+                  :variant="
+                    identityByUsername.get(user.username)!.enabled
+                      ? 'success'
+                      : 'neutral'
+                  "
+                  >{{
+                    identityByUsername.get(user.username)!.enabled
+                      ? 'Nostr linked'
+                      : 'Nostr disabled'
+                  }}</Badge
+                >
+                <code
+                  class="tw:font-mono tw:text-xs tw:text-muted-foreground"
+                  >{{
+                    shortenKey(identityByUsername.get(user.username)!.pubkey)
+                  }}</code
+                >
+                <RouterLink
+                  :to="{ name: 'native-identities' }"
+                  class="tw:text-xs tw:text-brand-500 tw:no-underline tw:hover:underline"
+                  >Manage in Identities</RouterLink
+                >
+              </template>
+              <template v-else>
+                <Badge variant="neutral">No Nostr identity</Badge>
+              </template>
+            </div>
 
             <template v-if="editPending === user.username">
               <div class="tw:grid tw:gap-3 tw:sm:grid-cols-2">
@@ -339,7 +489,39 @@ watch(publicKey, (key) => {
               </div>
             </template>
 
-            <div v-else class="tw:flex tw:justify-end tw:gap-2">
+            <template v-else-if="linkPending === user.username">
+              <div class="tw:rounded-lg tw:bg-surface-muted tw:p-3">
+                <IdentityFields
+                  v-model="linkSelection"
+                  :id-prefix="`link-${user.username}`"
+                  :allow-none="false"
+                />
+              </div>
+              <Alert v-if="linkError" variant="danger" role="alert">{{
+                linkError
+              }}</Alert>
+              <div class="tw:flex tw:justify-end tw:gap-2">
+                <Button variant="outline" size="sm" @click="cancelLink"
+                  >Cancel</Button
+                >
+                <Button
+                  variant="primary"
+                  size="sm"
+                  :disabled="linking || !linkSelection.ready"
+                  @click="confirmLink(user.username)"
+                  >{{ linking ? 'Linking…' : 'Link identity' }}</Button
+                >
+              </div>
+            </template>
+
+            <div v-else class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+              <Button
+                v-if="!identityByUsername.get(user.username)"
+                variant="outline"
+                size="sm"
+                @click="askLink(user.username)"
+                >Link identity</Button
+              >
               <Button variant="outline" size="sm" @click="askEdit(user)"
                 >Edit</Button
               >

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useSigner } from '@/composables/useSigner'
+import { shortenKey } from '@/lib/utils'
 
 const { publicKey, signerAvailable, sync } = useSigner()
 
@@ -96,10 +97,6 @@ async function confirmRevoke(pubkey: string) {
   }
 }
 
-function shortenKey(key: string) {
-  return `${key.slice(0, 12)}…${key.slice(-8)}`
-}
-
 onMounted(() => {
   if (publicKey.value) load()
 })
@@ -167,6 +164,7 @@ watch(publicKey, (key) => {
                 <option value="nip07">nip07</option>
                 <option value="nip46">nip46</option>
                 <option value="passkey">passkey</option>
+                <option value="generated">generated</option>
                 <option value="unknown">unknown</option>
               </Select>
             </div>

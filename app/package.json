@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint:js": "eslint src/App.vue src/main.ts src/router src/api/client.ts src/api/nativePackages.ts src/api/nativeSystem.ts src/api/nativeCatalog.ts src/api/nativeIdentity.ts src/api/nativeService.ts src/api/nativeAgent.ts src/api/nativeCapability.ts src/api/nativeUsers.ts src/types/nostr.d.ts src/views/native src/components/ui src/components/layouts src/composables src/lib/utils.ts vite.config.ts",
+    "lint:js": "eslint src/App.vue src/main.ts src/router src/api/client.ts src/api/nativePackages.ts src/api/nativeSystem.ts src/api/nativeCatalog.ts src/api/nativeIdentity.ts src/api/nativeService.ts src/api/nativeAgent.ts src/api/nativeCapability.ts src/api/nativeUsers.ts src/types/nostr.d.ts src/views/native src/components/ui src/components/layouts src/components/native src/composables src/lib/utils.ts vite.config.ts",
     "lint:prettier": "prettier --check .",
     "lint": "yarn lint:js && yarn lint:prettier",
     "lintfix": "prettier --write --list-different . && yarn lint:js --fix",
@@ -19,6 +19,7 @@
     "@lucide/vue": "^1.45.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "nostr-tools": "^2.25.2",
     "tailwind-merge": "^3.6.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"

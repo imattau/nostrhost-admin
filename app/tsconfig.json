@@ -10,6 +10,7 @@
     "src/views/native/**/*.vue",
     "src/components/ui/**/*",
     "src/components/layouts/**/*",
+    "src/components/native/**/*",
     "src/composables/**/*.ts",
     "src/lib/utils.ts"
   ],

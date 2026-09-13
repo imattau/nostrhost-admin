@@ -36,7 +36,8 @@ export async function refreshSession(): Promise<SessionInfo> {
       credentials: 'include',
       cache: 'no-store',
     })
-    if (!response.ok) throw new Error(`session probe failed (${response.status})`)
+    if (!response.ok)
+      throw new Error(`session probe failed (${response.status})`)
     const info = (await response.json()) as SessionInfo
     publicKey.value = info.pubkey
     username.value = info.username
@@ -49,7 +50,9 @@ export async function refreshSession(): Promise<SessionInfo> {
     admin.value = false
     sessionChecked.value = true
     error.value =
-      cause instanceof Error ? cause.message : 'Could not reach the session endpoint.'
+      cause instanceof Error
+        ? cause.message
+        : 'Could not reach the session endpoint.'
     return { authenticated: false, username: null, pubkey: null, admin: false }
   }
 }
@@ -85,7 +88,9 @@ async function sync() {
   const info = await refreshSession()
   if (info.authenticated) {
     if (publicKey.value && info.pubkey && publicKey.value !== info.pubkey) {
-      throw new Error('The session account changed. Review the account before continuing.')
+      throw new Error(
+        'The session account changed. Review the account before continuing.',
+      )
     }
     return
   }

@@ -1,7 +1,7 @@
 import { request } from '@/api/client'
 import type { Identity } from '@/api/nativeSystem'
 
-export type SignerType = 'nip07' | 'nip46' | 'passkey' | 'unknown'
+export type SignerType = 'nip07' | 'nip46' | 'passkey' | 'generated' | 'unknown'
 
 export type IdentityEvent = {
   id: string

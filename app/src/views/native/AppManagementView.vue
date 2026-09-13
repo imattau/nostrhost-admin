@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   applyCatalogueApp,
   applyNativeAppSettings,
@@ -11,7 +11,9 @@ import {
   type NativeAppSettings,
   type PackagePlan,
 } from '@/api/nativePackages'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { useSigner } from '@/composables/useSigner'
 
 type Filter =
   | 'all'
@@ -21,7 +23,8 @@ type Filter =
   | 'installed-unlisted'
 type Action = 'install' | 'upgrade' | 'remove' | 'settings'
 
-const publicKey = ref<string | null>(null)
+const { publicKey, signerAvailable, sync } = useSigner()
+
 const apps = ref<AppManagementEntry[]>([])
 const catalogueError = ref('')
 const selected = ref<AppManagementEntry | null>(null)
@@ -34,7 +37,6 @@ const notice = ref('')
 const filter = ref<Filter>('all')
 const search = ref('')
 const busy = ref('')
-const signerAvailable = computed(() => Boolean(window.nostr))
 const visibleApps = computed(() =>
   apps.value.filter((app) => {
     const matchesFilter =
@@ -55,6 +57,7 @@ async function loadApps() {
   busy.value = 'load'
   error.value = ''
   try {
+    await sync()
     const inventory = await getAppManagement()
     apps.value = inventory.apps
     catalogueError.value = inventory.catalogue_error || ''
@@ -70,21 +73,12 @@ async function loadApps() {
   }
 }
 
-async function connectSigner() {
-  busy.value = 'connect'
-  error.value = ''
-  try {
-    const key = await window.nostr?.getPublicKey()
-    if (!key) throw new Error('The signer did not return a public key.')
-    publicKey.value = key
-    await loadApps()
-  } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not connect the signer.'
-  } finally {
-    busy.value = ''
-  }
-}
+onMounted(() => {
+  if (publicKey.value) loadApps()
+})
+watch(publicKey, (key) => {
+  if (key) loadApps()
+})
 
 async function chooseApp(app: AppManagementEntry) {
   selected.value = app
@@ -220,58 +214,21 @@ function cancelPlan() {
           Browse trusted releases and manage apps installed on this server.
         </p>
       </div>
-      <Button
-        :disabled="busy !== '' || !signerAvailable"
-        variant="outline"
-        @click="connectSigner"
-      >
-        {{
-          busy === 'connect'
-            ? 'Connecting…'
-            : publicKey
-              ? 'Reconnect signer'
-              : 'Connect Nostr signer'
-        }}
-      </Button>
     </header>
 
-    <p
-      v-if="!signerAvailable"
-      class="tw:rounded-lg tw:bg-surface-muted tw:p-3 tw:text-sm"
-      role="status"
-    >
-      Enable a NIP-07 signer to load the catalogue and manage apps.
-    </p>
-    <p
-      v-else-if="publicKey"
-      class="tw:rounded-lg tw:bg-surface-muted tw:p-3 tw:text-sm"
-      role="status"
-    >
-      Connected ·
-      <code>{{ publicKey.slice(0, 12) }}…{{ publicKey.slice(-8) }}</code>
-    </p>
-    <p
-      v-if="catalogueError"
-      class="tw:rounded-lg tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-3 tw:text-sm tw:text-amber-950"
-      role="status"
-    >
+    <Alert v-if="!signerAvailable" variant="danger">
+      A NIP-07 browser signer is required. Enable a signer extension, then
+      reload this page.
+    </Alert>
+    <Alert v-else-if="!publicKey" variant="info">
+      Connect your signer above to load the catalogue and manage apps.
+    </Alert>
+    <Alert v-if="catalogueError" variant="warning" role="status">
       The trusted catalogue is unavailable. Showing installed apps only.
       {{ catalogueError }}
-    </p>
-    <p
-      v-if="error"
-      class="tw:rounded-lg tw:bg-red-50 tw:p-3 tw:text-sm tw:text-red-800"
-      role="alert"
-    >
-      {{ error }}
-    </p>
-    <p
-      v-if="notice"
-      class="tw:rounded-lg tw:bg-emerald-50 tw:p-3 tw:text-sm tw:text-emerald-900"
-      role="status"
-    >
-      {{ notice }}
-    </p>
+    </Alert>
+    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
+    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <div
       v-if="publicKey"

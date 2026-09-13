@@ -77,7 +77,7 @@ export function getAppManagement() {
 
 export function getNativeAppSettings(appId: string) {
   return request<NativeAppSettings>(
-    `/app/${encodeURIComponent(appId)}/settings`,
+    `/package/app/${encodeURIComponent(appId)}/settings`,
     'GET',
   )
 }
@@ -87,7 +87,7 @@ export function planNativeAppSettings(
   values: Record<string, unknown>,
 ) {
   return request<PackagePlan>(
-    `/app/${encodeURIComponent(appId)}/settings/plan`,
+    `/package/app/${encodeURIComponent(appId)}/settings/plan`,
     'POST',
     JSON.stringify({ values }),
   )
@@ -102,7 +102,7 @@ export function applyNativeAppSettings(
     operation: { ok: boolean; request_id?: string; result?: unknown }
     settings_diff: PackagePlan['settings_diff']
   }>(
-    `/app/${encodeURIComponent(appId)}/settings/apply`,
+    `/package/app/${encodeURIComponent(appId)}/settings/apply`,
     'POST',
     JSON.stringify({ values, plan_sha256: plan.plan_sha256 }),
   )
@@ -114,13 +114,13 @@ export function planCatalogueApp(
 ) {
   if (action === 'remove') {
     return request<PackagePlan>(
-      `/app/${encodeURIComponent(appId)}/remove/plan`,
+      `/package/app/${encodeURIComponent(appId)}/remove/plan`,
       'POST',
       '{}',
     )
   }
   return request<PackagePlan>(
-    `/app/${encodeURIComponent(appId)}/${action}/plan`,
+    `/package/app/${encodeURIComponent(appId)}/${action}/plan`,
     'POST',
     '{}',
   )
@@ -136,7 +136,7 @@ export function applyCatalogueApp(
     action: string
     package: PackagePlan['package']
   }>(
-    `/app/${encodeURIComponent(appId)}/${action}/apply`,
+    `/package/app/${encodeURIComponent(appId)}/${action}/apply`,
     'POST',
     JSON.stringify({ plan_sha256: plan.plan_sha256 }),
   )

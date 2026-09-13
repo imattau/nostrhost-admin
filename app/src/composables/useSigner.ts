@@ -55,11 +55,27 @@ export async function refreshSession(): Promise<SessionInfo> {
 }
 
 // The portal is the single sign-in: connect() sends the user to the portal
-// login with a redirect back to this console.
-function connect() {
+// login with a redirect back to this console. When already signed in it first
+// clears the portal session cookie (so "Sign out" actually signs out instead of
+// bouncing back to the portal still authenticated).
+async function connect() {
   const target = `${window.location.origin}/nostrhost/sso/login?r=${btoa(
     window.location.pathname + window.location.hash,
   )}`
+  if (publicKey.value || admin.value) {
+    try {
+      await fetch('/nostrhost/portalapi/logout', {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+      })
+    } catch {
+      // Session cookie may already be gone; the login redirect below still
+      // applies.
+    }
+    publicKey.value = null
+    admin.value = false
+  }
   window.location.assign(target)
 }
 

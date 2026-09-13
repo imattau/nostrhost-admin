@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:8190'
 
   return {
-    base: mode === 'production' ? env.VITE_BASE_URL || '/nostrhost/admin/' : '/',
+    base:
+      mode === 'production' ? env.VITE_BASE_URL || '/nostrhost/admin/' : '/',
     plugins: [vue(), tailwindcss()],
     resolve: {
       alias: {
@@ -18,23 +19,9 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.VITE_HOST || '127.0.0.1',
       port: Number(env.VITE_PORT || 8080),
-      proxy: Object.fromEntries(
-        [
-          '/healthz',
-          '/system',
-          '/service',
-          '/app',
-          '/package',
-          '/identity',
-          '/catalog',
-          '/capability',
-          '/agent',
-          '/events',
-        ].map((path) => [
-          path,
-          { target: apiTarget, changeOrigin: false, xfwd: true },
-        ]),
-      ),
+      proxy: {
+        '/package': { target: apiTarget, changeOrigin: false, xfwd: true },
+      },
     },
   }
 })

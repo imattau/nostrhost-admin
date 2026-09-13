@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:8190'
 
   return {
-    base: mode === 'production' ? env.VITE_BASE_URL || '/yunohost/admin/' : '/',
+    base: mode === 'production' ? env.VITE_BASE_URL || '/admin/' : '/',
     plugins: [vue(), tailwindcss()],
     resolve: {
       alias: {

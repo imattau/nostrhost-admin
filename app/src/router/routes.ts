@@ -9,7 +9,9 @@ import {
   Globe,
   LayoutGrid,
   Package,
+  Power,
   Server,
+  Settings,
   ShieldCheck,
   Stethoscope,
   UserCog,
@@ -119,6 +121,18 @@ const routes: RouteRecordRaw[] = [
     path: '/groups',
     component: () => import('@/views/native/GroupsView.vue'),
     meta: { nav: { label: 'Groups & permissions', icon: ShieldCheck } },
+  },
+  {
+    name: 'native-power',
+    path: '/power',
+    component: () => import('@/views/native/PowerView.vue'),
+    meta: { nav: { label: 'Power', icon: Power } },
+  },
+  {
+    name: 'native-settings',
+    path: '/settings',
+    component: () => import('@/views/native/SettingsView.vue'),
+    meta: { nav: { label: 'Settings', icon: Settings } },
   },
 ]
 

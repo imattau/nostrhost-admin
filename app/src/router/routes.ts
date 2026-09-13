@@ -8,10 +8,19 @@ import type { RouteRecordRaw } from 'vue-router'
 declare module 'vue-router' {
   interface RouteMeta {
     nav?: { label: string; icon: Component }
+    // 'bare' skips AppShell (no sidebar/header) — used by the signer gate,
+    // which sits in front of the console rather than inside it.
+    layout?: 'bare'
   }
 }
 
 const routes: RouteRecordRaw[] = [
+  {
+    name: 'native-connect',
+    path: '/connect',
+    component: () => import('@/views/native/ConnectGateView.vue'),
+    meta: { layout: 'bare' },
+  },
   {
     name: 'native-overview',
     path: '/',

@@ -65,6 +65,23 @@ kept, deferred, or dropped.)
   `nativeIdentity.ts`, `nativeService.ts` are thin typed wrappers per
   resource area, one file per route group in `nostrhost-yunohost`'s
   `src/nostrhost/api.py`.
+- **Signer gate** (`src/views/native/ConnectGateView.vue`,
+  `src/router/index.ts`): every route except `/connect` requires a
+  connected signer. `router.beforeEach` redirects unauthenticated
+  navigation to `native-connect` (carrying the original path in a
+  `redirect` query param) and redirects away from it once
+  `useSigner().publicKey` is set. The gate route has no `meta.nav`, so it
+  never appears in the sidebar, and it carries `meta.layout: 'bare'` so
+  `App.vue` renders it without `AppShell` — a centred card instead of the
+  console chrome. The card intentionally does not mirror Figma's
+  `admin-login` frame, which mocks a username/password form: this project
+  has no password auth and no stored session, only a per-page-load NIP-07
+  connection, so the gate explains that instead of pretending otherwise.
+  Server-side authorization was already enforced independently of this
+  guard (every native API route but `/healthz` requires a valid NIP-98
+  signature — see `_AuthErrorsPlugin` in `nostrhost-yunohost`'s
+  `src/nostrhost/api.py`); the guard closes the UX gap of unauthenticated
+  visitors seeing screens whose data/actions would fail anyway.
 
 `src/views/LoginView.vue` and `src/views/service/ServiceInfo.vue` are
 carried over from the legacy Bootstrap admin and are not part of the build

@@ -231,7 +231,7 @@ function cancelPlan() {
 
     <div
       v-if="publicKey"
-      class="tw:grid tw:gap-5 lg:tw:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]"
+      class="tw:grid tw:gap-5 tw:lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]"
     >
       <section
         class="tw:space-y-3"
@@ -269,7 +269,7 @@ function cancelPlan() {
         >
           <li v-for="app in visibleApps" :key="app.id">
             <button
-              class="tw:flex tw:w-full tw:items-start tw:gap-3 tw:p-4 tw:text-left tw:transition-colors tw:hover:bg-surface-muted tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
+              class="tw:flex tw:w-full tw:items-start tw:gap-3 tw:border-0 tw:bg-transparent tw:p-4 tw:text-left tw:text-foreground tw:[font:inherit] tw:transition-colors tw:hover:bg-surface-muted tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
               :aria-current="selected?.id === app.id ? 'true' : undefined"
               @click="chooseApp(app)"
             >

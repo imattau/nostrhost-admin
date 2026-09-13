@@ -3,6 +3,9 @@ import { ExternalLink } from '@lucide/vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
+const props = defineProps<{ open?: boolean }>()
+const emit = defineEmits<{ close: [] }>()
+
 const router = useRouter()
 const baseUrl = import.meta.env.BASE_URL
 
@@ -19,6 +22,11 @@ const navItems = computed(() =>
     })),
 )
 
+function navigate(to: (typeof navItems.value)[number]['to']) {
+  router.push(to)
+  emit('close')
+}
+
 // The user portal is a separate SPA served by YunoHost at /yunohost/sso/ on
 // the same domain (see conf/caddy/caddy_domain.conf in nostrhost-yunohost) —
 // there is no native API route for it, so this is a plain same-origin link
@@ -27,13 +35,21 @@ const portalUrl = `${window.location.origin}/yunohost/sso/`
 </script>
 
 <template>
+  <div
+    v-if="props.open"
+    class="tw:fixed tw:inset-0 tw:z-40 tw:bg-black/50 tw:lg:hidden"
+    aria-hidden="true"
+    @click="emit('close')"
+  />
   <aside
-    class="tw:flex tw:w-[260px] tw:shrink-0 tw:flex-col tw:justify-between tw:border-r tw:border-border-subtle tw:bg-surface tw:p-6"
+    class="tw:fixed tw:inset-y-0 tw:left-0 tw:z-50 tw:flex tw:w-[260px] tw:shrink-0 tw:-translate-x-full tw:flex-col tw:justify-between tw:overflow-y-auto tw:border-r tw:border-border-subtle tw:bg-surface tw:p-6 tw:transition-transform tw:lg:sticky tw:lg:top-0 tw:lg:h-screen tw:lg:translate-x-0"
+    :class="props.open ? 'tw:translate-x-0' : ''"
   >
     <div class="tw:flex tw:flex-col tw:gap-8">
       <RouterLink
         :to="{ name: 'native-packages' }"
         class="tw:flex tw:items-center tw:gap-3 tw:text-foreground tw:no-underline tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500 tw:rounded-lg"
+        @click="emit('close')"
       >
         <span
           class="tw:flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-[10px] tw:bg-brand-500 tw:shadow-[0_4px_6px_rgba(139,92,246,0.5)]"
@@ -70,7 +86,7 @@ const portalUrl = `${window.location.origin}/yunohost/sso/`
                 ? 'tw:border-brand-500 tw:bg-brand-500/10 tw:font-semibold tw:text-foreground'
                 : 'tw:border-transparent tw:font-medium tw:text-muted-foreground tw:hover:bg-surface-muted'
             "
-            @click.prevent="router.push(item.to)"
+            @click.prevent="navigate(item.to)"
           >
             <component
               :is="item.icon"
@@ -85,6 +101,7 @@ const portalUrl = `${window.location.origin}/yunohost/sso/`
           target="_blank"
           rel="noopener noreferrer"
           class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:border-transparent tw:px-4 tw:py-3 tw:text-sm tw:font-medium tw:text-muted-foreground tw:no-underline tw:transition-colors tw:hover:bg-surface-muted"
+          @click="emit('close')"
         >
           <ExternalLink class="tw:size-[18px]" aria-hidden="true" />
           Portal

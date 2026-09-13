@@ -28,6 +28,7 @@ export default defineConfig(({ mode }) => {
           '/identity',
           '/catalog',
           '/capability',
+          '/agent',
           '/events',
         ].map((path) => [
           path,

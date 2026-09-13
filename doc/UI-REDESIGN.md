@@ -59,12 +59,36 @@ kept, deferred, or dropped.)
   write; revoke asks for inline confirmation before publishing),
   `ServiceControlView.vue` (start/stop/restart managed system services;
   stop and restart ask for inline confirmation first since they can
-  interrupt the service in use, start does not).
+  interrupt the service in use, start does not), `AiManagementView.vue`
+  (see below).
 - **API clients** (`src/api/`): `client.ts` holds the shared NIP-98 request
   signer; `nativePackages.ts`, `nativeSystem.ts`, `nativeCatalog.ts`,
-  `nativeIdentity.ts`, `nativeService.ts` are thin typed wrappers per
-  resource area, one file per route group in `nostrhost-yunohost`'s
-  `src/nostrhost/api.py`.
+  `nativeIdentity.ts`, `nativeService.ts`, `nativeAgent.ts`,
+  `nativeCapability.ts` are thin typed wrappers per resource area, one file
+  per route group in `nostrhost-yunohost`'s `src/nostrhost/api.py`.
+- **AI management** (`views/native/AiManagementView.vue`, route `/ai`):
+  three cards, of unequal realness.
+  - *Admin agent*: a real control surface for the optional
+    `nostrhost-agent` (a resident, read-only "observe" agent — see
+    `nostrhost-agent`'s own docs). `nativeAgent.ts` wraps the new
+    `/agent/status`, `/agent/init`, `/agent/enable`, `/agent/disable`
+    routes in `nostrhost-yunohost`'s `api.py`, which are thin HTTP wrappers
+    over the existing `_agent_init`/`_agent_status`/`_agent_service`
+    functions the `nostrhost agent` CLI already called — this UI is the
+    first way to drive that lifecycle without SSH access.
+  - *MCP agent access*: also real. Granting an MCP-connected agent access
+    to this node's tools is the existing `/capability/grant` endpoint
+    (kind-31100 capability events) via `nativeCapability.ts`, with a
+    curated, read-heavy subset of the ~30 scopes in `nostrhost-yunohost`'s
+    `nostr_operations.py` so the form doesn't default to granting write or
+    delete access. Kind-31100 grants are parameterized-replaceable, keyed
+    by the subject pubkey, so "revoke" is just granting an empty scope
+    list — there's no separate delete endpoint and no read-back listing of
+    past grants.
+  - *Local models & data sharing*: **UI-only placeholders.** NostrHost has
+    no local model runtime and no Hugging Face integration today; these
+    rows are visibly disabled (dimmed, "Coming soon" badge, disabled
+    buttons) so the page is honest about what does nothing yet.
 - **Signer gate** (`src/views/native/ConnectGateView.vue`,
   `src/router/index.ts`): every route except `/connect` requires a
   connected signer. `router.beforeEach` redirects unauthenticated

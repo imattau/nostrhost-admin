@@ -14,6 +14,12 @@ import {
   revokeCapability,
   type CapabilityGrant,
 } from '@/api/nativeCapability'
+import {
+  getMcpCaBundle,
+  getMcpEndpoint,
+  type McpCaBundle,
+  type McpEndpoint,
+} from '@/api/nativeMcp'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -142,12 +148,48 @@ const wizardStep = ref<1 | 2 | 3 | 4>(1)
 const selectedPreset = ref<(typeof SCOPE_PRESETS)[number]['id']>('read-only')
 const grantedPubkey = ref('')
 
+const transportTab = ref<'local' | 'remote'>('local')
+const mcpEndpoint = ref<McpEndpoint | null>(null)
+const mcpEndpointLoading = ref(false)
+const caBundle = ref<McpCaBundle | null>(null)
+
+async function loadRemoteTransportInfo() {
+  mcpEndpointLoading.value = true
+  try {
+    const [endpoint, bundle] = await Promise.all([
+      getMcpEndpoint(),
+      getMcpCaBundle(),
+    ])
+    mcpEndpoint.value = endpoint
+    caBundle.value = bundle
+  } catch {
+    mcpEndpoint.value = { configured: false }
+    caBundle.value = { available: false }
+  } finally {
+    mcpEndpointLoading.value = false
+  }
+}
+
+function downloadCaBundle() {
+  if (!caBundle.value?.available) return
+  const blob = new Blob([caBundle.value.pem], {
+    type: 'application/x-pem-file',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'nostrhost-mcp-ca.pem'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 function openWizard() {
   mcpPubkey.value = ''
   mcpError.value = ''
   selectedPreset.value = 'read-only'
   mcpScopes.value = [...SCOPE_PRESETS[0].scopes]
   wizardStep.value = 1
+  transportTab.value = 'local'
   wizardOpen.value = true
 }
 
@@ -221,7 +263,7 @@ async function submitGrant() {
     await grantCapability(mcpPubkey.value.trim(), mcpScopes.value)
     grantedPubkey.value = mcpPubkey.value.trim()
     wizardStep.value = 4
-    await loadGrants()
+    await Promise.all([loadGrants(), loadRemoteTransportInfo()])
   } catch (cause) {
     mcpError.value =
       cause instanceof Error ? cause.message : 'Failed to publish the grant.'
@@ -620,14 +662,83 @@ watch(publicKey, (key) => {
 
           <template v-else-if="wizardStep === 4">
             <Alert variant="success">Access granted.</Alert>
-            <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
-              On the agent's machine, run
-              <code class="tw:font-mono">yunohost-mcp-connect setup</code>
-              pointed at this node's MCP endpoint with the same key (<code
-                class="tw:font-mono tw:text-xs"
-                >{{ truncatePubkey(grantedPubkey) }}</code
-              >) to finish connecting it.
-            </p>
+
+            <div class="tw:flex tw:gap-2">
+              <Button
+                :variant="transportTab === 'local' ? 'primary' : 'outline'"
+                size="sm"
+                @click="transportTab = 'local'"
+                >Local (stdio)</Button
+              >
+              <Button
+                :variant="transportTab === 'remote' ? 'primary' : 'outline'"
+                size="sm"
+                @click="transportTab = 'remote'"
+                >Remote (HTTPS)</Button
+              >
+            </div>
+
+            <template v-if="transportTab === 'local'">
+              <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+                On the agent's machine, run
+                <code class="tw:font-mono">yunohost-mcp-connect setup</code>
+                pointed at this node's MCP endpoint with the same key (<code
+                  class="tw:font-mono tw:text-xs"
+                  >{{ truncatePubkey(grantedPubkey) }}</code
+                >) to finish connecting it.
+              </p>
+            </template>
+
+            <template v-else>
+              <p
+                v-if="mcpEndpointLoading"
+                class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+              >
+                Checking this node's MCP endpoint…
+              </p>
+              <template v-else-if="mcpEndpoint?.configured">
+                <div
+                  class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+                >
+                  <span
+                    class="tw:text-xs tw:font-mono tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+                    >Run on the agent's machine</span
+                  >
+                  <code class="tw:font-mono tw:text-xs"
+                    >yunohost-mcp-connect setup --server https://{{
+                      mcpEndpoint.domain
+                    }}/mcp</code
+                  >
+                </div>
+                <template v-if="caBundle?.available">
+                  <Alert variant="info">
+                    This endpoint uses a self-signed certificate (a lab/test
+                    domain) — the agent's machine needs to trust it before
+                    connecting.
+                  </Alert>
+                  <div class="tw:flex tw:justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      @click="downloadCaBundle"
+                      >Download CA bundle</Button
+                    >
+                  </div>
+                </template>
+                <p v-else class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                  This endpoint uses a public certificate — no extra trust setup
+                  needed.
+                </p>
+              </template>
+              <Alert v-else variant="info">
+                No MCP endpoint is configured on this node yet. On the node, run
+                <code class="tw:font-mono"
+                  >nostrhost mcp route &lt;domain&gt;</code
+                >
+                to route a domain to it, then reopen this step.
+              </Alert>
+            </template>
+
             <div class="tw:flex tw:justify-end">
               <Button variant="primary" size="sm" @click="closeWizard"
                 >Done</Button

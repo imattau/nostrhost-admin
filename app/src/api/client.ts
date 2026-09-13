@@ -44,7 +44,9 @@ export async function request<T>(
         content: '',
       })
       if (signed.pubkey !== pubkey) {
-        throw new Error('The signer changed identities while signing the request.')
+        throw new Error(
+          'The signer changed identities while signing the request.',
+        )
       }
       const eventBytes = new TextEncoder().encode(JSON.stringify(signed))
       const encodedEvent = btoa(

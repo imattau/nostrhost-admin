@@ -30,7 +30,10 @@ router.beforeEach(async (to) => {
   }
   if (publicKey.value && !admin.value && !isConnectRoute) {
     // Signed in but not an admin → refuse, don't loop to login.
-    return { name: 'native-connect', query: { redirect: to.fullPath, denied: '1' } }
+    return {
+      name: 'native-connect',
+      query: { redirect: to.fullPath, denied: '1' },
+    }
   }
   if (publicKey.value && isConnectRoute) {
     const redirect = to.query.redirect

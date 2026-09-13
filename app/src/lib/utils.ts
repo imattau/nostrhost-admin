@@ -12,3 +12,9 @@ const twMerge = extendTailwindMerge({ prefix: 'tw:' })
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+// Shortens a hex pubkey or npub for display in a list row, e.g.
+// "npub1abcdefabcdef…9c8b7a6f".
+export function shortenKey(key: string) {
+  return `${key.slice(0, 12)}…${key.slice(-8)}`
+}

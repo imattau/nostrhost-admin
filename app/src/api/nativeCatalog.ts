@@ -22,6 +22,12 @@ export type CatalogueDeclaration = {
 export type CatalogueEntry = {
   declaration: CatalogueDeclaration
   event_id: string
+  // Phase 5: present when this kind-32267 app is also served as a registered
+  // nsite — the catalogue annotates the entry with an "open nsite" link.
+  nsite?: {
+    url: string
+    label: string
+  }
 }
 
 export type CatalogueList = {

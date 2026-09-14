@@ -10,11 +10,13 @@ import {
   getNsiteDomainList,
   getNsiteGatewayStatus,
   getNsiteList,
+  getNsitePublishPlan,
   publishNsite,
   unregisterNsite,
   type GatewayInput,
   type GatewayStatus,
   type NsiteCustomDomain,
+  type NsitePublishPlan,
   type NsiteSite,
 } from '@/api/nativeNsites'
 import { getDomains } from '@/api/nativeDomains'
@@ -378,6 +380,92 @@ async function confirmDetachDomain(fqdn: string) {
       cause instanceof Error ? cause.message : 'Failed to detach the domain.'
   } finally {
     detaching.value = ''
+  }
+}
+
+// -- create my copy (Phase 5) -------------------------------------------------
+
+const copyBusy = ref('')
+const copyError = ref('')
+const copyNotice = ref('')
+const copySourceKey = ref('')
+const copyD = ref('')
+const copyServers = ref('')
+const copyPlan = ref<NsitePublishPlan | null>(null)
+
+const copySources = computed(() =>
+  sites.value.map((site) => ({
+    value: `${site.kind}:${site.pubkey}:${site.d}`,
+    label: siteLabel(site),
+  })),
+)
+
+const hasSigner = computed(() => Boolean(window.nostr))
+
+function copyTargetKind() {
+  return Number(copySourceKey.value.split(':')[0] || KIND_ROOT)
+}
+
+async function buildCopyPlan() {
+  copyBusy.value = 'plan'
+  copyError.value = ''
+  copyNotice.value = ''
+  copyPlan.value = null
+  try {
+    await sync()
+    const result = await getNsitePublishPlan({
+      pubkey: publicKey.value ?? '',
+      kind: copyTargetKind(),
+      d: copyD.value.trim(),
+      servers: copyServers.value
+        ? copyServers.value
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean)
+        : undefined,
+      copy_of: copySourceKey.value,
+    })
+    copyPlan.value = result.plan
+    copyNotice.value = `Copy plan ready: ${result.plan.items.length} file(s), a/A tags set. Review and sign to publish.`
+  } catch (cause) {
+    copyError.value =
+      cause instanceof Error ? cause.message : 'Failed to build the copy plan.'
+  } finally {
+    copyBusy.value = ''
+  }
+}
+
+async function submitCopy() {
+  if (!copyPlan.value) return
+  copyBusy.value = 'publish'
+  copyError.value = ''
+  copyNotice.value = ''
+  try {
+    const plan = copyPlan.value
+    const signed = await window.nostr!.signEvent({
+      kind: plan.unsigned_event.kind,
+      pubkey: plan.unsigned_event.pubkey,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: plan.unsigned_event.tags,
+      content: plan.unsigned_event.content,
+    })
+    const outcome = await publishNsite({
+      event: signed,
+      plan_sha256: plan.plan_sha256,
+      relays: plan.relays,
+    })
+    copyNotice.value = 'Copy published.'
+    copyPlan.value = null
+    copySourceKey.value = ''
+    copyD.value = ''
+    copyServers.value = ''
+    await Promise.all([load(), loadSites()])
+    return outcome
+  } catch (cause) {
+    copyError.value =
+      cause instanceof Error ? cause.message : 'Failed to publish the copy.'
+  } finally {
+    copyBusy.value = ''
   }
 }
 
@@ -1187,6 +1275,105 @@ function siteKindName(site: NsiteSite): string {
               >
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <!-- Create my copy (Phase 5) -->
+      <Card>
+        <CardHeader>
+          <CardTitle>Create my copy</CardTitle>
+          <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+            Copy a registered site into your own namespace. The copied manifest
+            keeps the same blobs (content-addressed, so nothing is re-uploaded)
+            and carries <code>a</code> (parent) and{' '} <code>A</code> (origin)
+            tags pointing at the source, per NIP-5A. You sign it with your own
+            key, so the copy is published under your pubkey.
+          </p>
+        </CardHeader>
+        <CardContent class="tw:grid tw:gap-3">
+          <Alert v-if="copyError" variant="danger">{{ copyError }}</Alert>
+          <Alert v-if="copyNotice" variant="success" role="status">{{
+            copyNotice
+          }}</Alert>
+
+          <div class="tw:grid tw:grid-cols-1 tw:gap-2 sm:tw:grid-cols-3">
+            <div class="tw:grid tw:gap-1">
+              <Label for="copy-source">Source site</Label>
+              <Select id="copy-source" v-model="copySourceKey">
+                <option value="" disabled>Choose a registered site…</option>
+                <option
+                  v-for="opt in copySources"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </Select>
+            </div>
+            <div class="tw:grid tw:gap-1">
+              <Label for="copy-d">Copy d tag</Label>
+              <Input
+                id="copy-d"
+                v-model="copyD"
+                placeholder="fork-name (named copies only)"
+                :disabled="copyTargetKind() !== KIND_NAMED"
+              />
+            </div>
+            <div class="tw:grid tw:gap-1">
+              <Label for="copy-servers">Blossom servers</Label>
+              <Input
+                id="copy-servers"
+                v-model="copyServers"
+                placeholder="https://blossom.primal.net, …"
+              />
+            </div>
+          </div>
+
+          <Button
+            :disabled="copyBusy !== '' || !copySourceKey || !publicKey"
+            @click="buildCopyPlan"
+            >{{
+              copyBusy === 'plan' ? 'Building plan…' : 'Build copy plan'
+            }}</Button
+          >
+
+          <div
+            v-if="copyPlan"
+            class="tw:grid tw:gap-1.5 tw:rounded-md tw:border tw:px-3 tw:py-2 tw:text-xs"
+          >
+            <div class="tw:flex tw:justify-between tw:gap-3">
+              <span class="tw:text-muted-foreground">Source</span>
+              <code class="tw:font-mono">{{ copyPlan.copy_of }}</code>
+            </div>
+            <div class="tw:flex tw:justify-between tw:gap-3">
+              <span class="tw:text-muted-foreground">Target</span>
+              <code class="tw:font-mono"
+                >{{ copyPlan.kind }}:{{ copyPlan.pubkey.slice(0, 16) }}…:{{
+                  copyPlan.d
+                }}</code
+              >
+            </div>
+            <div class="tw:flex tw:justify-between tw:gap-3">
+              <span class="tw:text-muted-foreground">Files</span>
+              <span class="tw:font-mono">{{ copyPlan.items.length }}</span>
+            </div>
+            <div class="tw:flex tw:justify-between tw:gap-3">
+              <span class="tw:text-muted-foreground">Plan digest</span>
+              <code class="tw:font-mono tw:truncate"
+                >{{ copyPlan.plan_sha256.slice(0, 16) }}…</code
+              >
+            </div>
+          </div>
+
+          <Button
+            v-if="copyPlan"
+            variant="primary"
+            :disabled="copyBusy === 'publish' || !hasSigner"
+            @click="submitCopy"
+            >{{
+              copyBusy === 'publish' ? 'Publishing…' : 'Sign & publish copy'
+            }}</Button
+          >
         </CardContent>
       </Card>
 

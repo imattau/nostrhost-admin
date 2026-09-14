@@ -246,6 +246,43 @@ export function publishNsite(input: {
   )
 }
 
+export type NsitePublishPlanInput = {
+  pubkey: string
+  kind: number
+  d?: string
+  items?: { path: string; sha256: string }[]
+  site?: string
+  servers?: string[]
+  relays?: string[]
+  copy_of?: string
+}
+
+export type NsitePublishPlan = {
+  pubkey: string
+  kind: number
+  d: string
+  items: { path: string; sha256: string }[]
+  servers: string[]
+  relays: string[]
+  copy_of: string
+  unsigned_event: {
+    kind: number
+    pubkey: string
+    created_at: number
+    tags: string[][]
+    content: string
+  }
+  plan_sha256: string
+}
+
+export function getNsitePublishPlan(input: NsitePublishPlanInput) {
+  return request<{ plan: NsitePublishPlan }>(
+    '/package/nsite/publish/plan',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
 export function snapshotNsite(input: {
   event: unknown
   plan_sha256?: string

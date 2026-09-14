@@ -198,6 +198,17 @@ watch(publicKey, (key) => {
               </dd>
             </div>
           </dl>
+          <a
+            v-if="entry.nsite"
+            :href="entry.nsite.url"
+            target="_blank"
+            rel="noreferrer"
+            class="tw:mt-3 tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:bg-brand-500 tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:text-white tw:no-underline hover:tw:bg-brand-600"
+            >Open nsite
+            <span class="tw:font-mono tw:text-xs"
+              >{{ entry.nsite.label }} ↗</span
+            ></a
+          >
         </CardContent>
       </Card>
     </div>

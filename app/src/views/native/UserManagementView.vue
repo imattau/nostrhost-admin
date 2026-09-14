@@ -654,7 +654,9 @@ watch(publicKey, (key) => {
       @confirm="confirmDelete(deletePending!)"
       @cancel="cancelDelete"
     >
-      <label class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground">
+      <label
+        class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
+      >
         <input v-model="deletePurge" type="checkbox" />
         Also purge the account's data
       </label>

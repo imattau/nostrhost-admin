@@ -101,3 +101,159 @@ export function configureNsiteGateway(input: GatewayInput) {
     JSON.stringify(input),
   )
 }
+
+// -- Phase 3a: site registry + publishing ----------------------------------
+
+export type NsiteSite = {
+  pubkey: string
+  kind: number
+  d: string
+  title?: string
+  last_event_id?: string
+  aggregate_hash?: string
+  servers?: string[]
+  relays?: string[]
+  snapshots?: string[]
+}
+
+export type NsiteListEnvelope = {
+  mode: string
+  sites: NsiteSite[]
+  count: number
+}
+
+export type NsiteInspectEnvelope = { site: NsiteSite }
+
+export type NsiteValidateEnvelope = {
+  valid: boolean
+  errors: string[]
+  site_type?: string
+  label?: string
+  aggregate_hash?: string
+}
+
+export type NsitePlanEnvelope = {
+  plan: {
+    pubkey: string
+    kind: number
+    d: string
+    items: { path: string; sha256: string }[]
+    servers: string[]
+    relays: string[]
+    unsigned_event: unknown
+    plan_sha256: string
+  }
+}
+
+export type NsiteResolveEnvelope = {
+  found: boolean
+  relays_queried: string[]
+  manifest: {
+    event_id: string
+    pubkey: string
+    kind: number
+    d: string
+    label: string
+    aggregate_hash: string
+    paths: [string, string][]
+  } | null
+}
+
+export function getNsiteList() {
+  return request<NsiteListEnvelope>('/package/nsite/list', 'GET')
+}
+
+export function getNsiteInspect(input: { pubkey: string; d?: string }) {
+  const params = new URLSearchParams({ pubkey: input.pubkey })
+  if (input.d) params.set('d', input.d)
+  return request<NsiteInspectEnvelope>(
+    `/package/nsite/inspect?${params}`,
+    'GET',
+  )
+}
+
+export function resolveNsite(input: {
+  label?: string
+  pubkey?: string
+  d?: string
+  relays?: string[]
+  limit?: number
+}) {
+  const params = new URLSearchParams()
+  if (input.label) params.set('label', input.label)
+  if (input.pubkey) params.set('pubkey', input.pubkey)
+  if (input.d) params.set('d', input.d)
+  if (input.limit) params.set('limit', String(input.limit))
+  return request<NsiteResolveEnvelope>(
+    `/package/nsite/resolve?${params}`,
+    'GET',
+  )
+}
+
+export function validateNsiteManifest(event: unknown) {
+  return request<NsiteValidateEnvelope>(
+    '/package/nsite/validate',
+    'POST',
+    JSON.stringify({ event }),
+  )
+}
+
+export function planNsitePublish(input: {
+  pubkey: string
+  kind: number
+  d?: string
+  items: { path: string; sha256: string }[]
+  servers?: string[]
+  relays?: string[]
+}) {
+  return request<NsitePlanEnvelope>(
+    '/package/nsite/publish/plan',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function registerNsite(input: {
+  pubkey: string
+  kind: number
+  d?: string
+  title?: string
+}) {
+  return request<LifecycleOperation>(
+    '/package/nsite/register',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function unregisterNsite(input: { pubkey: string; d?: string }) {
+  return request<LifecycleOperation>(
+    '/package/nsite/unregister',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function publishNsite(input: {
+  event: unknown
+  plan_sha256: string
+  relays?: string[]
+}) {
+  return request<LifecycleOperation>(
+    '/package/nsite/publish',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function snapshotNsite(input: {
+  event: unknown
+  plan_sha256?: string
+  relays?: string[]
+}) {
+  return request<LifecycleOperation>(
+    '/package/nsite/snapshot',
+    'POST',
+    JSON.stringify(input),
+  )
+}

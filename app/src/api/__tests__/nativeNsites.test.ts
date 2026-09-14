@@ -6,6 +6,12 @@ import {
   disableNsiteGateway,
   enableNsiteGateway,
   getNsiteGatewayStatus,
+  getNsiteInspect,
+  getNsiteList,
+  planNsitePublish,
+  publishNsite,
+  registerNsite,
+  unregisterNsite,
 } from '@/api/nativeNsites'
 
 vi.mock('@/api/client', () => ({
@@ -80,6 +86,85 @@ describe('gateway lifecycle writes', () => {
       '/package/nsite/gateway/configure',
       'POST',
       JSON.stringify(input),
+    )
+  })
+})
+
+describe('Phase 3a site registry + publish client', () => {
+  it('list hits /package/nsite/list', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      mode: 'hosted',
+      sites: [],
+      count: 0,
+    })
+    await getNsiteList()
+    expect(request).toHaveBeenCalledWith('/package/nsite/list', 'GET')
+  })
+
+  it('inspect passes pubkey and d as query params', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      site: { pubkey: 'pk', kind: 35128, d: 'blog' },
+    })
+    await getNsiteInspect({ pubkey: 'pk', d: 'blog' })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/inspect?pubkey=pk&d=blog',
+      'GET',
+    )
+  })
+
+  it('plan posts the inventory as JSON', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ plan: { plan_sha256: 'd' } })
+    const input = {
+      pubkey: 'pk',
+      kind: 15128,
+      d: '',
+      items: [{ path: '/i.html', sha256: 'a'.repeat(64) }],
+    }
+    await planNsitePublish(input)
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/publish/plan',
+      'POST',
+      JSON.stringify(input),
+    )
+  })
+
+  it('register posts pubkey/kind/d/title', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true })
+    const input = { pubkey: 'pk', kind: 35128, d: 'blog', title: 'Blog' }
+    await registerNsite(input)
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/register',
+      'POST',
+      JSON.stringify(input),
+    )
+  })
+
+  it('unregister posts pubkey and d', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true })
+    await unregisterNsite({ pubkey: 'pk', d: 'blog' })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/unregister',
+      'POST',
+      JSON.stringify({ pubkey: 'pk', d: 'blog' }),
+    )
+  })
+
+  it('publish posts the signed event + plan digest + relays', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true })
+    const event = { id: 'evt', sig: 'sig' }
+    await publishNsite({
+      event,
+      plan_sha256: 'digest',
+      relays: ['wss://relay.test'],
+    })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/publish',
+      'POST',
+      JSON.stringify({
+        event,
+        plan_sha256: 'digest',
+        relays: ['wss://relay.test'],
+      }),
     )
   })
 })

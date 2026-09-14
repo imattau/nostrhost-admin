@@ -6,8 +6,12 @@ import {
   disableNsiteGateway,
   enableNsiteGateway,
   getNsiteGatewayStatus,
+  getNsiteList,
+  publishNsite,
+  unregisterNsite,
   type GatewayInput,
   type GatewayStatus,
+  type NsiteSite,
 } from '@/api/nativeNsites'
 import { getDomains } from '@/api/nativeDomains'
 import { Alert } from '@/components/ui/alert'
@@ -22,7 +26,16 @@ import { useSigner } from '@/composables/useSigner'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
-import { Globe2 } from '@lucide/vue'
+import { Globe2, PackageOpen } from '@lucide/vue'
+import { inventoryFromFiles, type InventoryItem } from '@/lib/nsite/inventory'
+import {
+  buildUnsignedManifest,
+  planDigest,
+  KIND_ROOT,
+  KIND_NAMED,
+} from '@/lib/nsite/manifest'
+import { uploadToBlossom, type BlossomResult } from '@/lib/nsite/blossom'
+import { signAndSubmit } from '@/lib/nsite/publish'
 
 const { publicKey, sync } = useSigner()
 
@@ -52,6 +65,7 @@ async function load() {
     ])
     status.value = statusResult.gateway
     domains.value = domainResult.domains
+    await loadSites()
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Failed to load gateway status.'
@@ -242,6 +256,316 @@ const configSummary = computed(() => {
     )
   return parts.length ? parts.join(' · ') : 'defaults'
 })
+
+// -- sites table + publish wizard (Phase 3a) --------------------------------
+
+const sites = ref<NsiteSite[]>([])
+const sitesLoading = ref(false)
+const sitesError = ref('')
+const unregistering = ref('')
+
+async function loadSites() {
+  sitesLoading.value = true
+  sitesError.value = ''
+  try {
+    const result = await getNsiteList()
+    sites.value = result.sites
+  } catch (cause) {
+    sitesError.value =
+      cause instanceof Error ? cause.message : 'Failed to load sites.'
+  } finally {
+    sitesLoading.value = false
+  }
+}
+
+async function confirmUnregister(site: NsiteSite) {
+  unregistering.value = `${site.pubkey}:${site.d}`
+  sitesError.value = ''
+  notice.value = ''
+  try {
+    await sync()
+    await unregisterNsite({ pubkey: site.pubkey, d: site.d })
+    notice.value = 'Site unregister submitted.'
+    await loadSites()
+  } catch (cause) {
+    sitesError.value =
+      cause instanceof Error ? cause.message : 'Failed to unregister the site.'
+  } finally {
+    unregistering.value = ''
+  }
+}
+
+// wizard
+const wizardVisible = ref(false)
+const wizardStep = ref(0) // 0 identity · 1 directory · 2 targets · 3 upload · 4 review · 5 sign/submit · 6 done
+const wizardError = ref('')
+const wizardNotice = ref('')
+const signerAvailable = ref(Boolean(window.nostr))
+const signerPubkey = ref<string | null>(null)
+const publishBusy = ref('')
+
+const wKind = ref(String(KIND_ROOT))
+const wD = ref('')
+const wTitle = ref('')
+const selectedFiles = ref<File[]>([])
+const filesByPath = new Map<string, File>()
+const inventory = ref<InventoryItem[]>([])
+const wServers = ref('')
+const wRelays = ref('')
+const wBlossomResults = ref<BlossomResult[]>([])
+const uploadProgress = ref({ done: 0, total: 0, path: '' })
+const reviewDigest = ref('')
+const reviewEvent = ref<unknown>(null)
+const publishResult = ref<unknown>(null)
+
+const publishEventId = computed(() => {
+  const value = publishResult.value as { event_id?: string } | null
+  return value?.event_id?.slice(0, 16) ?? ''
+})
+
+const publishSiteUrl = computed(() => {
+  const value = publishResult.value as { site_url?: string } | null
+  return value?.site_url
+})
+
+function openPublish() {
+  wizardError.value = ''
+  wizardNotice.value = ''
+  publishResult.value = null
+  wizardVisible.value = true
+  wizardStep.value = 0
+  selectedFiles.value = []
+  filesByPath.clear()
+  inventory.value = []
+  wBlossomResults.value = []
+  uploadProgress.value = { done: 0, total: 0, path: '' }
+  reviewDigest.value = ''
+  reviewEvent.value = null
+  signerAvailable.value = Boolean(window.nostr)
+  signerPubkey.value = window.nostr ? publicKey.value : null
+  wServers.value = (status.value?.config?.blossom?.fallback_servers ?? []).join(
+    ', ',
+  )
+  wRelays.value = 'wss://purplepag.es, wss://nos.lol, wss://relay.damus.io'
+}
+
+function closePublish() {
+  wizardVisible.value = false
+  wizardStep.value = 0
+}
+
+async function stepIdentity() {
+  if (!wTitle.value.trim()) {
+    wizardError.value = 'Give the site a title.'
+    return
+  }
+  if (
+    Number(wKind.value) === KIND_NAMED &&
+    !/^[a-z0-9-]{1,13}$/.test(wD.value)
+  ) {
+    wizardError.value =
+      'A named-site d tag is 1–13 lowercase letters, digits or hyphens.'
+    return
+  }
+  if (!signerAvailable.value) {
+    wizardError.value =
+      'Publishing needs a NIP-07 signer (window.nostr). Sign in with one, or wait for NIP-46.'
+    return
+  }
+  wizardError.value = ''
+  wizardStep.value = 1
+}
+
+async function onFilesSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = input.files ? Array.from(input.files) : []
+  input.value = ''
+  wizardError.value = ''
+  wizardNotice.value = ''
+  inventory.value = []
+  if (!files.length) return
+  selectedFiles.value = files
+  filesByPath.clear()
+  for (const file of files) filesByPath.set(file.webkitRelativePath, file)
+  try {
+    const items = await inventoryFromFiles(files)
+    inventory.value = items
+    if (!items.length) return
+    wizardNotice.value = `${items.length} file(s), ${formatBytes(
+      items.reduce((sum, item) => sum + item.size, 0),
+    )}.`
+  } catch (cause) {
+    wizardError.value =
+      cause instanceof Error ? cause.message : 'Inventory failed.'
+  }
+}
+
+function stepTargets() {
+  if (!inventory.value.length) {
+    wizardError.value = 'Choose a directory with files first.'
+    return
+  }
+  if (!wServers.value.trim()) {
+    wizardError.value =
+      'At least one Blossom server is required to host the blobs.'
+    return
+  }
+  wizardError.value = ''
+  wizardStep.value = 2
+}
+
+async function doUpload() {
+  publishBusy.value = 'upload'
+  wizardError.value = ''
+  wBlossomResults.value = []
+  const servers = wServers.value
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  const items = inventory.value.map((item) => ({
+    path: item.path,
+    sha256: item.sha256,
+  }))
+  try {
+    for (const server of servers) {
+      const result = await uploadToBlossom(
+        server,
+        items,
+        async (path) => {
+          const file = filesByPath.get(path)
+          return file ? new Uint8Array(await file.arrayBuffer()) : null
+        },
+        {
+          pubkey: publicKey.value ?? '',
+          signEvent: (event) => window.nostr!.signEvent(event),
+          onProgress: (done, total, path) => {
+            uploadProgress.value = { done, total, path }
+          },
+        },
+      )
+      wBlossomResults.value.push(result)
+    }
+    const allOk = wBlossomResults.value.every((result) => result.ok)
+    if (!allOk) {
+      wizardError.value =
+        'Some blobs failed to upload. Review the per-server results below.'
+      return
+    }
+    wizardStep.value = 3
+  } catch (cause) {
+    wizardError.value =
+      cause instanceof Error ? cause.message : 'Upload failed.'
+  } finally {
+    publishBusy.value = ''
+  }
+}
+
+async function doReview() {
+  wizardError.value = ''
+  publishBusy.value = 'review'
+  try {
+    const items = inventory.value.map((item) => ({
+      path: item.path,
+      sha256: item.sha256,
+    }))
+    const servers = wServers.value
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const relays = wRelays.value
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const digest = await planDigest({
+      kind: Number(wKind.value),
+      d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
+      paths: items,
+      servers,
+    })
+    const { event } = await buildUnsignedManifest({
+      pubkey: publicKey.value ?? '',
+      kind: Number(wKind.value),
+      d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
+      items,
+      servers,
+    })
+    reviewDigest.value = digest
+    reviewEvent.value = event
+    wRelays.value = relays.join(', ')
+    wizardStep.value = 4
+  } catch (cause) {
+    wizardError.value =
+      cause instanceof Error ? cause.message : 'Review failed.'
+  } finally {
+    publishBusy.value = ''
+  }
+}
+
+async function doPublish() {
+  wizardError.value = ''
+  publishBusy.value = 'publish'
+  try {
+    const items = inventory.value.map((item) => ({
+      path: item.path,
+      sha256: item.sha256,
+    }))
+    const servers = wServers.value
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const relays = wRelays.value
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const outcome = await signAndSubmit({
+      pubkey: publicKey.value ?? '',
+      kind: Number(wKind.value),
+      d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
+      items,
+      servers,
+      relays,
+      signEvent: (event) => window.nostr!.signEvent(event),
+      submit: (args) =>
+        publishNsite({
+          event: args.event,
+          plan_sha256: args.plan_sha256,
+          relays: args.relays,
+        }),
+    })
+    publishResult.value = outcome
+    wizardStep.value = 5
+    await Promise.all([load(), loadSites()])
+  } catch (cause) {
+    wizardError.value =
+      cause instanceof Error ? cause.message : 'Publish failed.'
+  } finally {
+    publishBusy.value = ''
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KiB`
+  return `${(bytes / 1048576).toFixed(1)} MiB`
+}
+
+function openSite(url: string | undefined) {
+  if (url) window.open(url, '_blank')
+}
+
+function siteLabel(site: NsiteSite): string {
+  return site.kind === 35128
+    ? `${site.pubkey.slice(0, 8)}…/d=${site.d}`
+    : `${site.pubkey.slice(0, 16)}…`
+}
+
+function siteKindName(site: NsiteSite): string {
+  return site.kind === 35128
+    ? 'named'
+    : site.kind === 15128
+      ? 'root'
+      : String(site.kind)
+}
 </script>
 
 <template>
@@ -586,6 +910,349 @@ const configSummary = computed(() => {
 
       <Card>
         <CardHeader>
+          <CardTitle
+            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
+          >
+            <span>Registered sites</span>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="busy !== '' || !status?.enabled"
+              @click="openPublish"
+              >{{ wizardVisible ? 'Close wizard' : 'Publish a site' }}</Button
+            >
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="tw:grid tw:gap-3">
+          <p
+            v-if="sitesLoading"
+            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+          >
+            Loading…
+          </p>
+          <EmptyState
+            v-else-if="!sites.length"
+            :icon="PackageOpen"
+            title="No registered sites"
+            description="A registered site is an allowlisted owner pubkey; publishing records its manifest and serves it over HTTPS."
+          >
+            <template #action>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="!status?.enabled"
+                @click="openPublish"
+                >{{
+                  wizardVisible ? 'Close wizard' : 'Publish your first site'
+                }}</Button
+              >
+            </template>
+          </EmptyState>
+          <ul v-else class="tw:m-0 tw:grid tw:gap-2 tw:p-0 tw:list-none">
+            <li
+              v-for="site in sites"
+              :key="site.pubkey + ':' + site.d"
+              class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-md tw:border tw:px-3 tw:py-2"
+            >
+              <code class="tw:font-mono tw:text-sm">{{ siteLabel(site) }}</code>
+              <Badge variant="neutral">{{ siteKindName(site) }}</Badge>
+              <template v-if="site.title">
+                <span class="tw:text-sm">{{ site.title }}</span>
+              </template>
+              <template v-if="site.last_event_id">
+                <span
+                  class="tw:text-xs tw:text-muted-foreground tw:font-mono"
+                  :title="site.last_event_id"
+                  >{{ site.last_event_id.slice(0, 12) }}…</span
+                >
+              </template>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="tw:ml-auto"
+                :disabled="unregistering !== ''"
+                @click="confirmUnregister(site)"
+                >{{
+                  unregistering === site.pubkey + ':' + site.d
+                    ? 'Removing…'
+                    : 'Unregister'
+                }}</Button
+              >
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <!-- Publish wizard -->
+      <Card v-if="wizardVisible">
+        <CardHeader>
+          <CardTitle>
+            Publish a site
+            <span class="tw:text-sm tw:font-normal tw:text-muted-foreground">
+              step {{ wizardStep + 1 }} of 6
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="tw:grid tw:gap-3">
+          <Alert v-if="wizardError" variant="danger">{{ wizardError }}</Alert>
+          <Alert v-if="wizardNotice" variant="success" role="status">{{
+            wizardNotice
+          }}</Alert>
+
+          <!-- step 1: identity -->
+          <template v-if="wizardStep === 0">
+            <div class="tw:grid tw:gap-1.5">
+              <Label for="w-title">Site title</Label>
+              <Input id="w-title" v-model="wTitle" spellcheck="false" />
+            </div>
+            <div class="tw:grid tw:gap-1.5">
+              <Label for="w-kind">Site type</Label>
+              <Select id="w-kind" v-model="wKind">
+                <option :value="String(KIND_ROOT)">
+                  Root site (npub address)
+                </option>
+                <option :value="String(KIND_NAMED)">
+                  Named site (custom d label)
+                </option>
+              </Select>
+            </div>
+            <div v-if="Number(wKind) === KIND_NAMED" class="tw:grid tw:gap-1.5">
+              <Label for="w-d">d label</Label>
+              <Input
+                id="w-d"
+                v-model="wD"
+                placeholder="blog"
+                spellcheck="false"
+                autocomplete="off"
+              />
+            </div>
+            <Alert v-if="!signerAvailable" variant="warning">
+              No NIP-07 signer detected. Publishing needs a browser signer
+              (window.nostr) until NIP-46 support lands.
+            </Alert>
+            <div v-else class="tw:flex tw:justify-end">
+              <Button size="sm" @click="stepIdentity">Next</Button>
+            </div>
+          </template>
+
+          <!-- step 2: directory -->
+          <template v-else-if="wizardStep === 1">
+            <div class="tw:grid tw:gap-1.5">
+              <Label for="w-dir">Site directory</Label>
+              <Input
+                id="w-dir"
+                type="file"
+                webkitdirectory
+                directory=""
+                multiple
+                @change="onFilesSelected"
+              />
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                Select the folder that becomes the site root. Files are hashed
+                in your browser (Web Crypto); paths with &quot;..&quot; and
+                files over 32 MiB are rejected.
+              </p>
+            </div>
+            <div v-if="inventory.length" class="tw:grid tw:gap-1">
+              <p class="tw:m-0 tw:text-sm">
+                {{ inventory.length }} file(s) · total
+                {{
+                  formatBytes(
+                    inventory.reduce((sum, item) => sum + item.size, 0),
+                  )
+                }}
+              </p>
+              <ul
+                class="tw:m-0 tw:max-h-48 tw:overflow-auto tw:grid tw:gap-1 tw:p-0 tw:list-none tw:text-xs tw:font-mono"
+              >
+                <li
+                  v-for="item in inventory.slice(0, 50)"
+                  :key="item.path"
+                  class="tw:truncate"
+                >
+                  {{ item.path }} · {{ formatBytes(item.size) }}
+                </li>
+                <li
+                  v-if="inventory.length > 50"
+                  class="tw:text-muted-foreground"
+                >
+                  …and {{ inventory.length - 50 }} more
+                </li>
+              </ul>
+            </div>
+            <div class="tw:flex tw:justify-end tw:gap-2">
+              <Button variant="outline" size="sm" @click="wizardStep = 0"
+                >Back</Button
+              >
+              <Button
+                size="sm"
+                :disabled="!inventory.length"
+                @click="stepTargets"
+                >Next</Button
+              >
+            </div>
+          </template>
+
+          <!-- step 3: servers + relays -->
+          <template v-else-if="wizardStep === 2">
+            <div class="tw:grid tw:gap-1.5">
+              <Label for="w-servers">Blossom servers (comma-separated)</Label>
+              <Input
+                id="w-servers"
+                v-model="wServers"
+                placeholder="https://blossom.primal.net"
+                spellcheck="false"
+                autocomplete="off"
+              />
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                Blobs are uploaded from your browser straight to these servers
+                (BUD-01). The manifest will list them as server hints.
+              </p>
+            </div>
+            <div class="tw:grid tw:gap-1.5">
+              <Label for="w-relays">Publish relays (comma-separated)</Label>
+              <Input
+                id="w-relays"
+                v-model="wRelays"
+                spellcheck="false"
+                autocomplete="off"
+              />
+            </div>
+            <div class="tw:flex tw:justify-end tw:gap-2">
+              <Button variant="outline" size="sm" @click="wizardStep = 1"
+                >Back</Button
+              >
+              <Button
+                size="sm"
+                :disabled="publishBusy === 'upload'"
+                @click="doUpload"
+                >{{
+                  publishBusy === 'upload' ? 'Uploading…' : 'Upload blobs'
+                }}</Button
+              >
+            </div>
+          </template>
+
+          <!-- step 4: upload progress -->
+          <template v-else-if="wizardStep === 3">
+            <p class="tw:m-0 tw:text-sm">
+              Uploading
+              <template v-if="uploadProgress.total">
+                {{ uploadProgress.done }} / {{ uploadProgress.total }}
+              </template>
+              <template v-if="uploadProgress.path">
+                · <code class="tw:font-mono">{{ uploadProgress.path }}</code>
+              </template>
+            </p>
+            <div
+              v-for="result in wBlossomResults"
+              :key="result.server"
+              class="tw:grid tw:gap-1 tw:rounded-md tw:border tw:px-3 tw:py-2 tw:text-sm"
+            >
+              <div class="tw:flex tw:items-center tw:gap-2">
+                <code class="tw:font-mono">{{ result.server }}</code>
+                <Badge :variant="result.ok ? 'success' : 'danger'">{{
+                  result.ok ? 'ok' : 'failed'
+                }}</Badge>
+              </div>
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                {{ result.uploaded.length }} uploaded ·
+                {{ result.skipped.length }} skipped ·
+                {{ result.failed.length }} failed
+              </p>
+            </div>
+            <Alert v-if="wizardError" variant="danger">{{ wizardError }}</Alert>
+            <div class="tw:flex tw:justify-end tw:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="publishBusy !== ''"
+                @click="wizardStep = 2"
+                >Back</Button
+              >
+              <Button size="sm" :disabled="publishBusy !== ''" @click="doReview"
+                >Review manifest</Button
+              >
+            </div>
+          </template>
+
+          <!-- step 5: review -->
+          <template v-else-if="wizardStep === 4">
+            <p class="tw:m-0 tw:text-sm">
+              Kind <code class="tw:font-mono">{{ wKind }}</code> · d
+              <code class="tw:font-mono">{{ wD || '—' }}</code>
+            </p>
+            <div class="tw:grid tw:gap-1">
+              <p class="tw:m-0 tw:text-sm">Tags to be signed:</p>
+              <pre
+                class="tw:m-0 tw:max-h-48 tw:overflow-auto tw:rounded tw:bg-muted tw:p-2 tw:text-xs tw:font-mono"
+                >{{ JSON.stringify(reviewEvent, null, 2) }}</pre
+              >
+            </div>
+            <p class="tw:m-0 tw:text-sm">
+              Plan digest
+              <code class="tw:font-mono">{{ reviewDigest }}</code>
+            </p>
+            <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+              Editing anything above (kind, d, files, servers) discards this
+              digest — go back and re-review.
+            </p>
+            <div class="tw:flex tw:justify-end tw:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="publishBusy !== ''"
+                @click="wizardStep = 2"
+                >Back</Button
+              >
+              <Button
+                size="sm"
+                :disabled="publishBusy !== ''"
+                @click="doPublish"
+                >{{
+                  publishBusy === 'publish'
+                    ? 'Publishing…'
+                    : 'Sign &amp; publish'
+                }}</Button
+              >
+            </div>
+          </template>
+
+          <!-- step 6: result -->
+          <template v-else-if="wizardStep === 5">
+            <div class="tw:grid tw:gap-1 tw:text-sm">
+              <p class="tw:m-0">
+                Published
+                <code class="tw:font-mono">{{ publishEventId || '…' }}</code>
+              </p>
+              <template v-if="publishSiteUrl">
+                <p class="tw:m-0">
+                  Site URL
+                  <code class="tw:font-mono">{{ publishSiteUrl }}</code>
+                </p>
+                <div class="tw:flex tw:justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    @click="openSite(publishSiteUrl)"
+                    >Open site</Button
+                  >
+                </div>
+              </template>
+              <p v-else class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                The publish is pending approval or was submitted; check the
+                operations list for the chain result.
+              </p>
+            </div>
+            <div class="tw:flex tw:justify-end">
+              <Button size="sm" @click="closePublish">Done</Button>
+            </div>
+          </template>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>How sites are served</CardTitle>
         </CardHeader>
         <CardContent class="tw:grid tw:gap-1 tw:text-sm">
@@ -596,8 +1263,8 @@ const configSummary = computed(() => {
             servers, verifying hashes on the way.
           </p>
           <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-            Publishing a site from this console is not wired up yet — it arrives
-            with the Phase 3 publish flow.
+            Publishing signs a manifest in your browser with NIP-07 (the server
+            never sees your key) and submits it for approval.
           </p>
         </CardContent>
       </Card>

@@ -269,11 +269,19 @@ watch(publicKey, (key) => {
       <CardContent>
         <form class="tw:grid tw:gap-6" @submit.prevent="submitCreate">
           <div class="tw:grid tw:gap-4">
-            <p
-              class="tw:m-0 tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
-            >
-              Account details
-            </p>
+            <div>
+              <p
+                class="tw:m-0 tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+              >
+                System account
+              </p>
+              <p class="tw:mt-1 tw:text-xs tw:text-muted-foreground">
+                This provisions a real Unix account on the server. It is
+                separate from signing in to this console, which always uses
+                Nostr — the password below is only for system-level access
+                (e.g. SSH), not for the admin login.
+              </p>
+            </div>
             <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
               <div class="tw:grid tw:gap-1.5">
                 <Label for="create-username">Username</Label>
@@ -296,7 +304,7 @@ watch(publicKey, (key) => {
             </div>
             <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
               <div class="tw:grid tw:gap-1.5">
-                <Label for="create-domain">Mail domain</Label>
+                <Label for="create-domain">Domain</Label>
                 <Input
                   id="create-domain"
                   v-model="createDomain"
@@ -304,9 +312,12 @@ watch(publicKey, (key) => {
                   autocomplete="off"
                   placeholder="example.com"
                 />
+                <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                  The domain this account is provisioned under.
+                </p>
               </div>
               <div class="tw:grid tw:gap-1.5">
-                <Label for="create-password">Password</Label>
+                <Label for="create-password">System password</Label>
                 <Input
                   id="create-password"
                   v-model="createPassword"
@@ -314,6 +325,9 @@ watch(publicKey, (key) => {
                   required
                   autocomplete="new-password"
                 />
+                <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                  Not used to sign in here — only for direct system access.
+                </p>
               </div>
             </div>
           </div>
@@ -438,7 +452,7 @@ watch(publicKey, (key) => {
                 </div>
                 <div class="tw:grid tw:gap-1.5">
                   <Label :for="`edit-password-${user.username}`"
-                    >New password (optional)</Label
+                    >New system password (optional)</Label
                   >
                   <Input
                     :id="`edit-password-${user.username}`"
@@ -446,6 +460,10 @@ watch(publicKey, (key) => {
                     type="password"
                     autocomplete="new-password"
                   />
+                  <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                    Leave blank to keep the current password. Only affects
+                    system-level access, not console sign-in.
+                  </p>
                 </div>
               </div>
               <Alert v-if="editError" variant="danger" role="alert">{{

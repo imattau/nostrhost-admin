@@ -149,8 +149,12 @@ export function setAgentMode(level: AgentModeLevel, confirm: boolean) {
   )
 }
 
-export function listExportableCycles() {
-  return request<ExportCycleSummary[]>('/package/agent/export/list', 'GET')
+export async function listExportableCycles() {
+  const result = await request<{ cycles: ExportCycleSummary[] }>(
+    '/package/agent/export/list',
+    'GET',
+  )
+  return result.cycles
 }
 
 export function runExport(cycleId: string) {

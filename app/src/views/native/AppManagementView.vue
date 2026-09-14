@@ -35,21 +35,31 @@ const action = ref<Action | null>(null)
 const error = ref('')
 const notice = ref('')
 const filter = ref<Filter>('all')
+const category = ref('all')
 const search = ref('')
 const busy = ref('')
+const categories = computed(() => {
+  const found = new Set<string>()
+  for (const app of apps.value) {
+    if (app.category) found.add(app.category)
+  }
+  return Array.from(found).sort()
+})
 const visibleApps = computed(() =>
   apps.value.filter((app) => {
     const matchesFilter =
       filter.value === 'all' ||
       app.status === filter.value ||
       (filter.value === 'installed' && app.installed)
+    const matchesCategory =
+      category.value === 'all' || app.category === category.value
     const needle = search.value.trim().toLocaleLowerCase()
     const matchesSearch =
       !needle ||
       `${app.name} ${app.id} ${app.description}`
         .toLocaleLowerCase()
         .includes(needle)
-    return matchesFilter && matchesSearch
+    return matchesFilter && matchesCategory && matchesSearch
   }),
 )
 
@@ -257,6 +267,19 @@ function cancelPlan() {
             <option value="version-differs">Version differs</option>
             <option value="installed-unlisted">Installed · unlisted</option>
           </select>
+          <label class="tw:sr-only" for="app-category"
+            >Filter by category</label
+          >
+          <select
+            id="app-category"
+            v-model="category"
+            class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+          >
+            <option value="all">All categories</option>
+            <option v-for="item in categories" :key="item" :value="item">
+              {{ item }}
+            </option>
+          </select>
           <Button variant="outline" :disabled="busy !== ''" @click="loadApps">{{
             busy === 'load' ? 'Loading…' : 'Refresh'
           }}</Button>
@@ -278,6 +301,11 @@ function cancelPlan() {
                 <code class="tw:text-xs tw:text-muted-foreground">{{
                   app.id
                 }}</code>
+                <span
+                  v-if="app.category"
+                  class="tw:ml-2 tw:text-xs tw:text-muted-foreground"
+                  >· {{ app.category }}</span
+                >
                 <span
                   v-if="app.description"
                   class="tw:mt-1 tw:block tw:line-clamp-2 tw:text-xs tw:text-muted-foreground"
@@ -322,6 +350,12 @@ function cancelPlan() {
           <dl
             class="tw:grid tw:grid-cols-[auto_1fr] tw:gap-x-3 tw:gap-y-1 tw:text-sm"
           >
+            <dt v-if="selected.category" class="tw:text-muted-foreground">
+              Category
+            </dt>
+            <dd v-if="selected.category" class="tw:m-0">
+              {{ selected.category }}
+            </dd>
             <dt class="tw:text-muted-foreground">Installed</dt>
             <dd class="tw:m-0">{{ selected.installed_version || 'No' }}</dd>
             <dt class="tw:text-muted-foreground">Catalogue</dt>

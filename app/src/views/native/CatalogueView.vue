@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { getCatalogueList, type CatalogueEntry } from '@/api/nativeCatalog'
 import { Alert } from '@/components/ui/alert'
@@ -13,6 +13,30 @@ const { publicKey, signerAvailable, sync } = useSigner()
 const entries = ref<CatalogueEntry[] | null>(null)
 const error = ref('')
 const loading = ref(false)
+const search = ref('')
+const category = ref('all')
+
+const categories = computed(() => {
+  const found = new Set<string>()
+  for (const entry of entries.value || []) {
+    if (entry.declaration.Category) found.add(entry.declaration.Category)
+  }
+  return Array.from(found).sort()
+})
+
+const visibleEntries = computed(() =>
+  (entries.value || []).filter((entry) => {
+    const matchesCategory =
+      category.value === 'all' || entry.declaration.Category === category.value
+    const needle = search.value.trim().toLocaleLowerCase()
+    const matchesSearch =
+      !needle ||
+      `${entry.declaration.Name} ${entry.declaration.AppID} ${entry.declaration.Description}`
+        .toLocaleLowerCase()
+        .includes(needle)
+    return matchesCategory && matchesSearch
+  }),
+)
 
 async function load() {
   loading.value = true
@@ -66,13 +90,46 @@ watch(publicKey, (key) => {
     </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
-    <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between">
+    <div
+      v-if="publicKey"
+      class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2"
+    >
       <p class="tw:text-sm tw:text-muted-foreground">
-        {{ entries ? `${entries.length} trusted app(s)` : '' }}
+        {{
+          entries
+            ? `${visibleEntries.length} of ${entries.length} trusted app(s)`
+            : ''
+        }}
       </p>
       <Button variant="outline" size="sm" :disabled="loading" @click="load">{{
         loading ? 'Refreshing…' : 'Refresh'
       }}</Button>
+    </div>
+
+    <div
+      v-if="publicKey && entries && entries.length"
+      class="tw:flex tw:flex-wrap tw:gap-2"
+    >
+      <label class="tw:sr-only" for="catalogue-search">Search catalogue</label>
+      <input
+        id="catalogue-search"
+        v-model="search"
+        class="tw:min-w-48 tw:flex-1 tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+        placeholder="Search trusted apps"
+      />
+      <label class="tw:sr-only" for="catalogue-category"
+        >Filter by category</label
+      >
+      <select
+        id="catalogue-category"
+        v-model="category"
+        class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+      >
+        <option value="all">All categories</option>
+        <option v-for="item in categories" :key="item" :value="item">
+          {{ item }}
+        </option>
+      </select>
     </div>
 
     <p
@@ -81,21 +138,41 @@ watch(publicKey, (key) => {
     >
       No trusted apps in the catalogue yet.
     </p>
+    <p
+      v-else-if="publicKey && entries && visibleEntries.length === 0"
+      class="tw:text-sm tw:text-muted-foreground"
+    >
+      No trusted apps match this search or category.
+    </p>
 
     <div
-      v-if="entries && entries.length"
+      v-if="visibleEntries.length"
       class="tw:grid tw:gap-4 tw:sm:grid-cols-2 tw:lg:grid-cols-3"
     >
-      <Card v-for="entry in entries" :key="entry.event_id">
+      <Card v-for="entry in visibleEntries" :key="entry.event_id">
         <CardHeader>
           <CardTitle
             class="tw:flex tw:items-center tw:justify-between tw:gap-2"
           >
-            <span class="tw:truncate">{{ entry.declaration.AppID }}</span>
+            <span class="tw:truncate">{{
+              entry.declaration.Name || entry.declaration.AppID
+            }}</span>
             <Badge variant="brand">v{{ entry.declaration.Version }}</Badge>
           </CardTitle>
+          <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">
+            {{ entry.declaration.AppID }}
+            <span v-if="entry.declaration.Category"
+              >· {{ entry.declaration.Category }}</span
+            >
+          </p>
         </CardHeader>
         <CardContent>
+          <p
+            v-if="entry.declaration.Description"
+            class="tw:mb-3 tw:line-clamp-2 tw:text-xs tw:text-muted-foreground"
+          >
+            {{ entry.declaration.Description }}
+          </p>
           <dl class="tw:grid tw:gap-1.5 tw:text-xs">
             <div class="tw:grid tw:gap-0.5">
               <dt class="tw:text-muted-foreground">Repository</dt>

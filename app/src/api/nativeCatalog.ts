@@ -6,6 +6,9 @@ import { request } from '@/api/client'
 // operator-signed action this UI does not expose.
 export type CatalogueDeclaration = {
   AppID: string
+  Name: string
+  Description: string
+  Category: string
   Repository: string
   Version: string
   Commit: string

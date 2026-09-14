@@ -1,12 +1,18 @@
 import type { Component } from 'vue'
 import {
   Activity,
+  Archive,
   AppWindow,
   ArrowUpCircle,
   Bot,
+  Flame,
+  Globe,
   LayoutGrid,
   Package,
+  Power,
   Server,
+  Settings,
+  ShieldCheck,
   Stethoscope,
   UserCog,
   Users,
@@ -91,6 +97,42 @@ const routes: RouteRecordRaw[] = [
     path: '/updates',
     component: () => import('@/views/native/UpdatesView.vue'),
     meta: { nav: { label: 'Updates', icon: ArrowUpCircle } },
+  },
+  {
+    name: 'native-domains',
+    path: '/domains',
+    component: () => import('@/views/native/DomainsView.vue'),
+    meta: { nav: { label: 'Domains', icon: Globe } },
+  },
+  {
+    name: 'native-backups',
+    path: '/backups',
+    component: () => import('@/views/native/BackupsView.vue'),
+    meta: { nav: { label: 'Backups', icon: Archive } },
+  },
+  {
+    name: 'native-firewall',
+    path: '/firewall',
+    component: () => import('@/views/native/FirewallView.vue'),
+    meta: { nav: { label: 'Firewall', icon: Flame } },
+  },
+  {
+    name: 'native-groups',
+    path: '/groups',
+    component: () => import('@/views/native/GroupsView.vue'),
+    meta: { nav: { label: 'Groups & permissions', icon: ShieldCheck } },
+  },
+  {
+    name: 'native-power',
+    path: '/power',
+    component: () => import('@/views/native/PowerView.vue'),
+    meta: { nav: { label: 'Power', icon: Power } },
+  },
+  {
+    name: 'native-settings',
+    path: '/settings',
+    component: () => import('@/views/native/SettingsView.vue'),
+    meta: { nav: { label: 'Settings', icon: Settings } },
   },
 ]
 

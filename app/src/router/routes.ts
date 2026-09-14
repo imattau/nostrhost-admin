@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   Package,
   Server,
+  Stethoscope,
   UserCog,
   Users,
 } from '@lucide/vue'
@@ -72,6 +73,12 @@ const routes: RouteRecordRaw[] = [
     path: '/services',
     component: () => import('@/views/native/ServiceControlView.vue'),
     meta: { nav: { label: 'Services', icon: Server } },
+  },
+  {
+    name: 'native-diagnosis',
+    path: '/diagnosis',
+    component: () => import('@/views/native/DiagnosisView.vue'),
+    meta: { nav: { label: 'Diagnosis', icon: Stethoscope } },
   },
   {
     name: 'native-ai',

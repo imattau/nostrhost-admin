@@ -152,6 +152,26 @@ watch(publicKey, (key) => {
 
     <Card v-if="publicKey">
       <CardHeader>
+        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <span>Diagnosis</span>
+          <RouterLink
+            :to="{ name: 'native-diagnosis' }"
+            class="tw:text-xs tw:font-medium tw:text-brand-500 tw:hover:underline"
+            >View report →</RouterLink
+          >
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p class="tw:text-sm tw:text-muted-foreground">
+          Per-category health checks — DNS, mail, ports, services, and more.
+          Reachability alone doesn't cover this; open the full report to see
+          current issues and manage ignore filters.
+        </p>
+      </CardContent>
+    </Card>
+
+    <Card v-if="publicKey">
+      <CardHeader>
         <CardTitle>Installed versions</CardTitle>
       </CardHeader>
       <CardContent class="tw:grid tw:gap-5">

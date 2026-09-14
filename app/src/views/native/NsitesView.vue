@@ -2,15 +2,19 @@
 import { computed, onMounted, ref, watch as watchRef } from 'vue'
 
 import {
+  attachNsiteDomain,
   configureNsiteGateway,
+  detachNsiteDomain,
   disableNsiteGateway,
   enableNsiteGateway,
+  getNsiteDomainList,
   getNsiteGatewayStatus,
   getNsiteList,
   publishNsite,
   unregisterNsite,
   type GatewayInput,
   type GatewayStatus,
+  type NsiteCustomDomain,
   type NsiteSite,
 } from '@/api/nativeNsites'
 import { getDomains } from '@/api/nativeDomains'
@@ -66,6 +70,7 @@ async function load() {
     status.value = statusResult.gateway
     domains.value = domainResult.domains
     await loadSites()
+    await loadDomains()
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Failed to load gateway status.'
@@ -292,6 +297,87 @@ async function confirmUnregister(site: NsiteSite) {
       cause instanceof Error ? cause.message : 'Failed to unregister the site.'
   } finally {
     unregistering.value = ''
+  }
+}
+
+// -- custom domains (Phase 4) ------------------------------------------------
+
+const customDomains = ref<NsiteCustomDomain[]>([])
+const domainsLoading = ref(false)
+const domainsError = ref('')
+const domainNotice = ref('')
+const attachBusy = ref(false)
+const detaching = ref('')
+const cdFqdn = ref('')
+const cdSiteKey = ref('')
+const cdMethod = ref<'cname' | 'txt'>('cname')
+
+const siteOptions = computed(() =>
+  sites.value.map((site) => ({
+    value: `${site.pubkey}:${site.d}`,
+    label: siteLabel(site),
+  })),
+)
+
+async function loadDomains() {
+  domainsLoading.value = true
+  domainsError.value = ''
+  try {
+    const result = await getNsiteDomainList()
+    customDomains.value = result.domains
+  } catch (cause) {
+    domainsError.value =
+      cause instanceof Error ? cause.message : 'Failed to load custom domains.'
+  } finally {
+    domainsLoading.value = false
+  }
+}
+
+function selectedSitePubkeyD() {
+  const [pubkey = '', d = ''] = cdSiteKey.value.split(':')
+  return { pubkey, d }
+}
+
+async function confirmAttachDomain() {
+  attachBusy.value = true
+  domainsError.value = ''
+  domainNotice.value = ''
+  try {
+    await sync()
+    const { pubkey, d } = selectedSitePubkeyD()
+    await attachNsiteDomain({
+      fqdn: cdFqdn.value.trim(),
+      pubkey,
+      d: d || undefined,
+      method: cdMethod.value,
+    })
+    domainNotice.value =
+      'Domain attach submitted; the ownership proof is checked against DNS.'
+    cdFqdn.value = ''
+    cdSiteKey.value = ''
+    await loadDomains()
+  } catch (cause) {
+    domainsError.value =
+      cause instanceof Error ? cause.message : 'Failed to attach the domain.'
+  } finally {
+    attachBusy.value = false
+  }
+}
+
+async function confirmDetachDomain(fqdn: string) {
+  detaching.value = fqdn
+  domainsError.value = ''
+  domainNotice.value = ''
+  try {
+    await sync()
+    await detachNsiteDomain({ fqdn })
+    domainNotice.value = `Domain ${fqdn} detach submitted.`
+    await loadDomains()
+  } catch (cause) {
+    domainsError.value =
+      cause instanceof Error ? cause.message : 'Failed to detach the domain.'
+  } finally {
+    detaching.value = ''
   }
 }
 
@@ -557,6 +643,12 @@ function siteLabel(site: NsiteSite): string {
   return site.kind === 35128
     ? `${site.pubkey.slice(0, 8)}…/d=${site.d}`
     : `${site.pubkey.slice(0, 16)}…`
+}
+
+function domainLabel(domain: NsiteCustomDomain): string {
+  return domain.d
+    ? `${domain.pubkey.slice(0, 8)}…/d=${domain.d}`
+    : `${domain.pubkey.slice(0, 16)}…`
 }
 
 function siteKindName(site: NsiteSite): string {
@@ -914,6 +1006,10 @@ function siteKindName(site: NsiteSite): string {
             class="tw:flex tw:items-center tw:justify-between tw:gap-2"
           >
             <span>Registered sites</span>
+            <span class="tw:text-xs tw:font-normal tw:text-muted-foreground"
+              >root/named manifests are mutable; snapshots are immutable
+              history</span
+            >
             <Button
               variant="outline"
               size="sm"
@@ -980,6 +1076,117 @@ function siteKindName(site: NsiteSite): string {
               >
             </li>
           </ul>
+        </CardContent>
+      </Card>
+
+      <!-- Custom domains (Phase 4) -->
+      <Card>
+        <CardHeader>
+          <CardTitle>Custom domains</CardTitle>
+          <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+            Attach an FQDN to a registered site so it is served on its own
+            domain. Ownership is proven against DNS (a CNAME to the gateway
+            domain, or a <code>nostrhost-site:&lt;pubkey&gt;</code> TXT record
+            under <code>_nostrhost-site.&lt;fqdn&gt;</code>) before the Caddy
+            route and mapping are added.
+          </p>
+        </CardHeader>
+        <CardContent class="tw:grid tw:gap-3">
+          <Alert v-if="domainsError" variant="danger">{{ domainsError }}</Alert>
+          <Alert v-if="domainNotice" variant="success" role="status">{{
+            domainNotice
+          }}</Alert>
+
+          <p
+            v-if="domainsLoading"
+            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
+          >
+            Loading…
+          </p>
+          <ul
+            v-else-if="customDomains.length"
+            class="tw:m-0 tw:grid tw:gap-2 tw:p-0 tw:list-none"
+          >
+            <li
+              v-for="domain in customDomains"
+              :key="domain.fqdn"
+              class="tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:rounded-md tw:border tw:px-3 tw:py-2"
+            >
+              <code class="tw:font-mono tw:text-sm">{{ domain.fqdn }}</code>
+              <Badge variant="neutral">{{ domain.method }}</Badge>
+              <span class="tw:text-xs tw:text-muted-foreground tw:font-mono">
+                → {{ domainLabel(domain) }}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="tw:ml-auto"
+                :disabled="detaching !== ''"
+                @click="confirmDetachDomain(domain.fqdn)"
+                >{{
+                  detaching === domain.fqdn ? 'Detaching…' : 'Detach'
+                }}</Button
+              >
+            </li>
+          </ul>
+          <EmptyState
+            v-else-if="!domainsLoading"
+            :icon="Globe2"
+            title="No custom domains"
+            description="Attach a domain you own to a registered site below."
+          />
+
+          <div class="tw:grid tw:grid-cols-1 tw:gap-2 sm:tw:grid-cols-2">
+            <div class="tw:grid tw:gap-1">
+              <Label for="cd-fqdn">FQDN</Label>
+              <Input
+                id="cd-fqdn"
+                v-model="cdFqdn"
+                placeholder="blog.example.com"
+                :disabled="!status?.enabled"
+              />
+            </div>
+            <div class="tw:grid tw:gap-1">
+              <Label for="cd-site">Site</Label>
+              <Select
+                id="cd-site"
+                v-model="cdSiteKey"
+                :disabled="!status?.enabled"
+              >
+                <option value="" disabled>Choose a registered site…</option>
+                <option
+                  v-for="opt in siteOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </Select>
+            </div>
+            <div class="tw:grid tw:gap-1">
+              <Label for="cd-method">Proof</Label>
+              <Select
+                id="cd-method"
+                v-model="cdMethod"
+                :disabled="!status?.enabled"
+              >
+                <option value="cname">CNAME to the gateway domain</option>
+                <option value="txt">
+                  TXT under _nostrhost-site.&lt;fqdn&gt;
+                </option>
+              </Select>
+            </div>
+            <div class="tw:flex tw:items-end">
+              <Button
+                class="tw:w-full"
+                :disabled="
+                  attachBusy || !status?.enabled || !cdFqdn.trim() || !cdSiteKey
+                "
+                @click="confirmAttachDomain"
+                >{{ attachBusy ? 'Attaching…' : 'Attach domain' }}</Button
+              >
+            </div>
+          </div>
         </CardContent>
       </Card>
 

@@ -257,3 +257,44 @@ export function snapshotNsite(input: {
     JSON.stringify(input),
   )
 }
+
+// -- Phase 4: custom domains -------------------------------------------------
+
+export type NsiteCustomDomain = {
+  fqdn: string
+  pubkey: string
+  d: string
+  method: 'cname' | 'txt'
+  verification: string
+  verified_at: string
+}
+
+export type NsiteDomainListEnvelope = {
+  domains: NsiteCustomDomain[]
+  count: number
+}
+
+export function getNsiteDomainList() {
+  return request<NsiteDomainListEnvelope>('/package/nsite/domain/list', 'GET')
+}
+
+export function attachNsiteDomain(input: {
+  fqdn: string
+  pubkey: string
+  d?: string
+  method: 'cname' | 'txt'
+}) {
+  return request<LifecycleOperation>(
+    '/package/nsite/domain/attach',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function detachNsiteDomain(input: { fqdn: string }) {
+  return request<LifecycleOperation>(
+    '/package/nsite/domain/detach',
+    'POST',
+    JSON.stringify(input),
+  )
+}

@@ -30,6 +30,7 @@ export type AppManagementEntry = {
   installed: boolean
   status: 'available' | 'installed' | 'version-differs' | 'installed-unlisted'
   installation?: { native: boolean; source?: string; legacy: boolean }
+  movable?: boolean
   catalogue?: {
     publisher?: string
     repository?: string
@@ -105,6 +106,35 @@ export function applyNativeAppSettings(
     `/package/app/${encodeURIComponent(appId)}/settings/apply`,
     'POST',
     JSON.stringify({ values, plan_sha256: plan.plan_sha256 }),
+  )
+}
+
+export type ChangeUrlPlan = PackagePlan & {
+  url_diff: { old: { domain: string; path: string }; new: { domain: string; path: string } }
+}
+
+export function planChangeUrl(appId: string, domain: string, path: string) {
+  return request<ChangeUrlPlan>(
+    `/package/app/${encodeURIComponent(appId)}/change-url/plan`,
+    'POST',
+    JSON.stringify({ domain, path }),
+  )
+}
+
+export function applyChangeUrl(
+  appId: string,
+  domain: string,
+  path: string,
+  plan: ChangeUrlPlan,
+) {
+  return request<{
+    operation: { ok: boolean; request_id?: string; result?: unknown }
+    action: string
+    url_diff: ChangeUrlPlan['url_diff']
+  }>(
+    `/package/app/${encodeURIComponent(appId)}/change-url/apply`,
+    'POST',
+    JSON.stringify({ domain, path, plan_sha256: plan.plan_sha256 }),
   )
 }
 

@@ -2,17 +2,32 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   applyCatalogueApp,
+  applyChangeUrl,
   applyNativeAppSettings,
   getAppManagement,
   getNativeAppSettings,
   planCatalogueApp,
+  planChangeUrl,
   planNativeAppSettings,
   type AppManagementEntry,
+  type ChangeUrlPlan,
   type NativeAppSettings,
   type PackagePlan,
 } from '@/api/nativePackages'
+import {
+  addPermission,
+  getGroups,
+  getPermissionInfo,
+  removePermission,
+  updatePermission,
+  type PermissionInfo,
+} from '@/api/nativeGroupsPermissions'
 import { Alert } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 import { useSigner } from '@/composables/useSigner'
@@ -23,7 +38,7 @@ type Filter =
   | 'available'
   | 'version-differs'
   | 'installed-unlisted'
-type Action = 'install' | 'upgrade' | 'remove' | 'settings'
+type Action = 'install' | 'upgrade' | 'remove' | 'settings' | 'change-url'
 
 const { publicKey, sync } = useSigner()
 
@@ -32,8 +47,16 @@ const catalogueError = ref('')
 const selected = ref<AppManagementEntry | null>(null)
 const settings = ref<NativeAppSettings | null>(null)
 const values = ref<Record<string, unknown>>({})
-const plan = ref<PackagePlan | null>(null)
+const plan = ref<PackagePlan | ChangeUrlPlan | null>(null)
 const action = ref<Action | null>(null)
+const newDomain = ref('')
+const newPath = ref('')
+const permission = ref<PermissionInfo | null>(null)
+const groupNames = ref<string[]>([])
+const editLabel = ref('')
+const editShowTile = ref(false)
+const grantPick = ref('')
+const confirmingRevoke = ref<string | null>(null)
 const error = ref('')
 const notice = ref('')
 const filter = ref<Filter>('all')
@@ -47,6 +70,11 @@ const categories = computed(() => {
   }
   return Array.from(found).sort()
 })
+const grantableGroups = computed(() =>
+  groupNames.value.filter(
+    (name) => !(permission.value?.allowed || []).includes(name),
+  ),
+)
 const visibleApps = computed(() =>
   apps.value.filter((app) => {
     const matchesFilter =
@@ -92,12 +120,36 @@ watch(publicKey, (key) => {
   if (key) loadApps()
 })
 
+async function loadPermission(app: AppManagementEntry) {
+  try {
+    permission.value = await getPermissionInfo(`${app.id}.main`)
+    editLabel.value = permission.value.label
+    editShowTile.value = Boolean(permission.value.show_tile)
+  } catch {
+    // This app has no `.main` permission (or it's not reachable yet) -
+    // the General section just doesn't render for it.
+    permission.value = null
+  }
+  if (groupNames.value.length === 0) {
+    try {
+      groupNames.value = Object.keys(await getGroups()).sort()
+    } catch {
+      // Non-fatal: the grant picker is just empty until a retry succeeds.
+    }
+  }
+}
+
 async function chooseApp(app: AppManagementEntry) {
   selected.value = app
   settings.value = null
   values.value = {}
   plan.value = null
   action.value = null
+  newDomain.value = ''
+  newPath.value = ''
+  permission.value = null
+  grantPick.value = ''
+  confirmingRevoke.value = null
   error.value = ''
   notice.value = ''
   if (!app.installed || !app.installation?.native) return
@@ -108,6 +160,78 @@ async function chooseApp(app: AppManagementEntry) {
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Could not load app settings.'
+  } finally {
+    busy.value = ''
+  }
+  await loadPermission(app)
+}
+
+async function saveGeneral() {
+  if (!selected.value) return
+  const appId = selected.value.id
+  busy.value = 'general-save'
+  error.value = ''
+  notice.value = ''
+  try {
+    await updatePermission(`${appId}.main`, {
+      label: editLabel.value.trim(),
+      show_tile: editShowTile.value,
+    })
+    notice.value = 'App details updated.'
+    await loadPermission(selected.value)
+    await loadApps()
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : 'Could not update app details.'
+  } finally {
+    busy.value = ''
+  }
+}
+
+async function grantGroup() {
+  if (!selected.value || !grantPick.value) return
+  const appId = selected.value.id
+  const name = grantPick.value
+  busy.value = 'general-grant'
+  error.value = ''
+  notice.value = ''
+  try {
+    await addPermission(`${appId}.main`, [name])
+    notice.value = `Granted ${name} access.`
+    grantPick.value = ''
+    await loadPermission(selected.value)
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : `Could not grant ${name} access.`
+  } finally {
+    busy.value = ''
+  }
+}
+
+function requestRevokeGroup(name: string) {
+  notice.value = ''
+  error.value = ''
+  confirmingRevoke.value = name
+}
+
+function cancelRevokeGroup() {
+  confirmingRevoke.value = null
+}
+
+async function confirmRevokeGroup(name: string) {
+  if (!selected.value) return
+  confirmingRevoke.value = null
+  const appId = selected.value.id
+  busy.value = `general-revoke-${name}`
+  error.value = ''
+  notice.value = ''
+  try {
+    await removePermission(`${appId}.main`, [name])
+    notice.value = `Revoked ${name} access.`
+    await loadPermission(selected.value)
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : `Could not revoke ${name} access.`
   } finally {
     busy.value = ''
   }
@@ -122,7 +246,9 @@ function updateValue(key: string, event: Event, type: string) {
   else values.value[key] = target.value
 }
 
-async function previewLifecycle(nextAction: Exclude<Action, 'settings'>) {
+async function previewLifecycle(
+  nextAction: Exclude<Action, 'settings' | 'change-url'>,
+) {
   if (!selected.value) return
   busy.value = `plan-${nextAction}`
   error.value = ''
@@ -160,6 +286,28 @@ async function previewSettings() {
   }
 }
 
+async function previewChangeUrl() {
+  if (!selected.value) return
+  busy.value = 'plan-change-url'
+  error.value = ''
+  notice.value = ''
+  plan.value = null
+  action.value = null
+  try {
+    plan.value = await planChangeUrl(
+      selected.value.id,
+      newDomain.value,
+      newPath.value,
+    )
+    action.value = 'change-url'
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : 'Could not build change-url plan.'
+  } finally {
+    busy.value = ''
+  }
+}
+
 async function applyPlan() {
   if (!selected.value || !plan.value || !action.value) return
   const chosenAction = action.value
@@ -171,12 +319,29 @@ async function applyPlan() {
       chosenAction === 'settings'
         ? await applyNativeAppSettings(
             selected.value.id,
-            plan.value,
+            plan.value as PackagePlan,
             values.value,
           )
-        : await applyCatalogueApp(selected.value.id, chosenAction, plan.value)
+        : chosenAction === 'change-url'
+          ? await applyChangeUrl(
+              selected.value.id,
+              newDomain.value,
+              newPath.value,
+              plan.value as ChangeUrlPlan,
+            )
+          : await applyCatalogueApp(
+              selected.value.id,
+              chosenAction,
+              plan.value as PackagePlan,
+            )
     const requestId = result.operation.request_id
-    notice.value = `${chosenAction === 'settings' ? 'Settings saved' : `App ${chosenAction} completed`}.${requestId ? ` Operation ${requestId}` : ''}`
+    const actionLabel =
+      chosenAction === 'settings'
+        ? 'Settings saved'
+        : chosenAction === 'change-url'
+          ? 'App URL changed'
+          : `App ${chosenAction} completed`
+    notice.value = `${actionLabel}.${requestId ? ` Operation ${requestId}` : ''}`
     plan.value = null
     action.value = null
     await loadApps()
@@ -390,6 +555,157 @@ function cancelPlan() {
           </div>
 
           <section
+            v-if="selected.installed && permission"
+            class="tw:space-y-3 tw:border-t tw:border-border-subtle tw:pt-4"
+            aria-labelledby="general-title"
+          >
+            <div>
+              <h3 id="general-title" class="tw:m-0 tw:text-base tw:font-semibold">
+                General
+              </h3>
+              <p class="tw:mb-0 tw:mt-1 tw:text-xs tw:text-muted-foreground">
+                Display name, portal tile, and who can access this app.
+              </p>
+            </div>
+            <label class="tw:block tw:space-y-1">
+              <span class="tw:block tw:text-sm tw:font-medium">Label</span>
+              <Input v-model="editLabel" />
+            </label>
+            <label class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
+              <input
+                v-model="editShowTile"
+                type="checkbox"
+                class="tw:size-4 tw:accent-brand-500"
+              />
+              Show tile on the portal
+            </label>
+            <Button
+              variant="outline"
+              :disabled="busy !== '' || !editLabel.trim()"
+              @click="saveGeneral"
+              >{{ busy === 'general-save' ? 'Saving…' : 'Save' }}</Button
+            >
+
+            <div class="tw:space-y-2 tw:border-t tw:border-border-subtle tw:pt-3">
+              <Label>Access groups</Label>
+              <div class="tw:flex tw:flex-wrap tw:gap-2">
+                <Badge
+                  v-for="name in permission.allowed"
+                  :key="name"
+                  variant="brand"
+                  class="tw:flex tw:items-center tw:gap-1"
+                >
+                  {{ name }}
+                  <template v-if="confirmingRevoke === name">
+                    <button
+                      type="button"
+                      class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-red-500"
+                      :disabled="busy !== ''"
+                      @click="confirmRevokeGroup(name)"
+                    >
+                      confirm
+                    </button>
+                    <button
+                      type="button"
+                      class="tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
+                      @click="cancelRevokeGroup"
+                    >
+                      ×
+                    </button>
+                  </template>
+                  <button
+                    v-else
+                    type="button"
+                    class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
+                    :disabled="busy !== ''"
+                    @click="requestRevokeGroup(name)"
+                  >
+                    revoke
+                  </button>
+                </Badge>
+                <span
+                  v-if="permission.allowed.length === 0"
+                  class="tw:text-xs tw:text-muted-foreground"
+                  >No groups have access yet.</span
+                >
+              </div>
+              <div class="tw:flex tw:items-center tw:gap-2">
+                <Select
+                  v-model="grantPick"
+                  class="tw:h-8 tw:max-w-[220px] tw:text-xs"
+                  aria-label="Grant access to"
+                >
+                  <option value="">Grant access to…</option>
+                  <option
+                    v-for="name in grantableGroups"
+                    :key="name"
+                    :value="name"
+                  >
+                    {{ name }}
+                  </option>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="busy !== '' || !grantPick"
+                  @click="grantGroup"
+                  >{{
+                    busy === 'general-grant' ? 'Granting…' : 'Grant'
+                  }}</Button
+                >
+              </div>
+            </div>
+          </section>
+
+          <section
+            v-if="
+              selected.installed &&
+              selected.installation?.native &&
+              selected.movable
+            "
+            class="tw:space-y-3 tw:border-t tw:border-border-subtle tw:pt-4"
+            aria-labelledby="change-url-title"
+          >
+            <div>
+              <h3
+                id="change-url-title"
+                class="tw:m-0 tw:text-base tw:font-semibold"
+              >
+                Change URL
+              </h3>
+              <p class="tw:mb-0 tw:mt-1 tw:text-xs tw:text-muted-foreground">
+                Move this app to a different domain and path.
+              </p>
+            </div>
+            <label class="tw:block tw:space-y-1">
+              <span class="tw:block tw:text-sm tw:font-medium">Domain</span>
+              <input
+                v-model="newDomain"
+                class="tw:w-full tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+                placeholder="example.com"
+              />
+            </label>
+            <label class="tw:block tw:space-y-1">
+              <span class="tw:block tw:text-sm tw:font-medium">Path</span>
+              <input
+                v-model="newPath"
+                class="tw:w-full tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+                placeholder="/"
+              />
+            </label>
+            <Button
+              variant="outline"
+              :disabled="busy !== '' || !newDomain"
+              @click="previewChangeUrl"
+              >{{
+                busy === 'plan-change-url'
+                  ? 'Building plan…'
+                  : 'Review URL change'
+              }}</Button
+            >
+          </section>
+
+          <section
             v-if="selected.installed && !selected.installation?.native"
             class="tw:rounded-lg tw:bg-surface-muted tw:p-3 tw:text-sm"
           >
@@ -519,6 +835,15 @@ function cancelPlan() {
           >: {{ change.old }} → {{ change.new }}
         </li>
       </ul>
+      <p
+        v-if="action === 'change-url' && 'url_diff' in plan"
+        class="tw:m-0 tw:rounded-lg tw:bg-surface-muted tw:p-3 tw:text-sm"
+      >
+        <strong>URL</strong>: {{ (plan as ChangeUrlPlan).url_diff.old.domain
+        }}{{ (plan as ChangeUrlPlan).url_diff.old.path }} →
+        {{ (plan as ChangeUrlPlan).url_diff.new.domain
+        }}{{ (plan as ChangeUrlPlan).url_diff.new.path }}
+      </p>
       <ol class="tw:m-0 tw:space-y-2 tw:pl-5 tw:text-sm">
         <li
           v-for="(operation, index) in plan.operations"

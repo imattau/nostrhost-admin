@@ -13,6 +13,8 @@ import {
 } from '@/api/nativePackages'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 import { useSigner } from '@/composables/useSigner'
 
 type Filter =
@@ -23,7 +25,7 @@ type Filter =
   | 'installed-unlisted'
 type Action = 'install' | 'upgrade' | 'remove' | 'settings'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const apps = ref<AppManagementEntry[]>([])
 const catalogueError = ref('')
@@ -207,31 +209,13 @@ function cancelPlan() {
 </script>
 
 <template>
-  <section class="tw:space-y-6" aria-labelledby="page-title">
-    <header
-      class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4"
-    >
-      <div>
-        <p
-          class="tw:mb-1 tw:font-mono tw:text-xs tw:uppercase tw:tracking-widest tw:text-brand-500"
-        >
-          NostrHost
-        </p>
-        <h1 id="page-title" class="tw:m-0 tw:text-2xl tw:font-semibold">
-          Applications
-        </h1>
-        <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-          Browse trusted releases and manage apps installed on this server.
-        </p>
-      </div>
-    </header>
+  <PageLayout width="workspace">
+    <PageHeader
+      eyebrow="NostrHost"
+      title="Applications"
+      description="Browse trusted releases and manage apps installed on this server."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="catalogueError" variant="warning" role="status">
       The trusted catalogue is unavailable. Showing installed apps only.
       {{ catalogueError }}
@@ -293,7 +277,7 @@ function cancelPlan() {
           <li v-for="app in visibleApps" :key="app.id">
             <button
               class="tw:flex tw:w-full tw:items-start tw:gap-3 tw:border-0 tw:bg-transparent tw:p-4 tw:text-left tw:text-foreground tw:[font:inherit] tw:transition-colors tw:hover:bg-surface-muted tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
-              :aria-current="selected?.id === app.id ? 'true' : undefined"
+              :aria-pressed="selected?.id === app.id"
               @click="chooseApp(app)"
             >
               <span class="tw:min-w-0 tw:flex-1">
@@ -557,5 +541,5 @@ function cancelPlan() {
         the signed operation and policy path.
       </p>
     </section>
-  </section>
+  </PageLayout>
 </template>

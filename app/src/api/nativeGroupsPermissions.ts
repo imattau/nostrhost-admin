@@ -29,8 +29,12 @@ export type LifecycleOperation = {
   [field: string]: unknown
 }
 
-export function getGroups() {
-  return request<UserGroupList>('/package/user/group/list', 'GET')
+export async function getGroups() {
+  const response = await request<{ groups: UserGroupList }>(
+    '/package/user/group/list',
+    'GET',
+  )
+  return response.groups
 }
 
 export function createGroup(groupname: string, gid?: string) {

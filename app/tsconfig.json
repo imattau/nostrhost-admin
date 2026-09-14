@@ -1,19 +1,6 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": [
-    "env.d.ts",
-    "src/App.vue",
-    "src/main.ts",
-    "src/router/**/*.ts",
-    "src/api/nativePackages.ts",
-    "src/types/nostr.d.ts",
-    "src/views/native/**/*.vue",
-    "src/components/ui/**/*",
-    "src/components/layouts/**/*",
-    "src/components/native/**/*",
-    "src/composables/**/*.ts",
-    "src/lib/utils.ts"
-  ],
+  "include": ["env.d.ts", "src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
   "compilerOptions": {
     "target": "ESNext",
     "noErrorTruncation": true,

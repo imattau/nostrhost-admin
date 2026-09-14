@@ -11,13 +11,14 @@ type BadgeVariants = VariantProps<typeof badgeVariants>
 const props = withDefaults(
   defineProps<{
     variant?: BadgeVariants['variant']
+    shape?: BadgeVariants['shape']
     class?: string
   }>(),
-  { variant: undefined, class: undefined },
+  { variant: undefined, shape: undefined, class: undefined },
 )
 
 const classes = computed(() =>
-  cn(badgeVariants({ variant: props.variant }), props.class),
+  cn(badgeVariants({ variant: props.variant, shape: props.shape }), props.class),
 )
 </script>
 

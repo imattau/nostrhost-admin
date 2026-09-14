@@ -32,6 +32,17 @@ export function getSystemVersions() {
   return request<SystemVersions>('/package/system/version', 'GET')
 }
 
+export type SystemStatus = {
+  versions: SystemVersions
+  platform: string
+  hostname: string
+  loadavg: [number, number, number] | null
+}
+
+export function getSystemStatus() {
+  return request<SystemStatus>('/package/system/status', 'GET')
+}
+
 export async function getIdentities() {
   const { identities } = await request<{ identities: Identity[] }>(
     '/package/identity/list',

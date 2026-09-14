@@ -16,8 +16,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const updates = ref<AvailableUpdates | null>(null)
 const migrations = ref<Migration[]>([])
@@ -159,29 +161,13 @@ function formatAge(seconds: number) {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        System maintenance
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Updates
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Pending apt/app package updates and platform migrations. Applying
-        updates or running a migration is disruptive and asks for confirmation
-        first — some migrations cannot be undone.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="System maintenance"
+      title="Updates"
+      description="Pending apt/app package updates and platform migrations. Applying updates or running a migration is disruptive and asks for confirmation first — some migrations cannot be undone."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
@@ -436,5 +422,5 @@ function formatAge(seconds: number) {
         </ul>
       </CardContent>
     </Card>
-  </section>
+  </PageLayout>
 </template>

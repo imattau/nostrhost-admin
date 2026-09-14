@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppShell from '@/components/layouts/AppShell.vue'
+import NotificationRegion from '@/components/native/NotificationRegion.vue'
 </script>
 
 <template>
@@ -9,4 +10,5 @@ import AppShell from '@/components/layouts/AppShell.vue'
     </AppShell>
     <component :is="Component" v-else />
   </RouterView>
+  <NotificationRegion />
 </template>

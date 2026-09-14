@@ -38,6 +38,23 @@ export function getBackups() {
   return request<BackupList>('/package/backup/list?with_info=true', 'GET')
 }
 
+export type BackupArchiveDetail = {
+  path: string
+  created_at: string
+  description: string
+  size: number | string
+  apps?: Record<string, { size?: number | string; [field: string]: unknown }>
+  system?: Record<string, { paths?: string[]; size?: number | string }>
+  from_yunohost_version?: string | null
+}
+
+export function getBackupInfo(name: string) {
+  return request<BackupArchiveDetail>(
+    `/package/backup/${encodeURIComponent(name)}?with_details=true`,
+    'GET',
+  )
+}
+
 export function createBackup(input: BackupCreateInput) {
   return request<LifecycleOperation>(
     '/package/backup/create',

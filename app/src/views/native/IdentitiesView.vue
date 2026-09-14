@@ -16,8 +16,10 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useSigner } from '@/composables/useSigner'
 import { shortenKey } from '@/lib/utils'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const identities = ref<Identity[] | null>(null)
 const error = ref('')
@@ -106,29 +108,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        Nostr identity administration
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Identities
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Link a signer's public key to a YunoHost admin account, or revoke a
-        linked identity. Linking and revoking publish signed events to the
-        control relay; there is no password store.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="Nostr identity administration"
+      title="Identities"
+      description="Link a signer's public key to a YunoHost admin account, or revoke a linked identity. Linking and revoking publish signed events to the control relay; there is no password store."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <Card v-if="publicKey">
@@ -257,5 +243,5 @@ watch(publicKey, (key) => {
         </p>
       </CardContent>
     </Card>
-  </section>
+  </PageLayout>
 </template>

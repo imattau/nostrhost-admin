@@ -15,8 +15,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useSigner } from '@/composables/useSigner'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const openPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
   tcp: [],
@@ -118,7 +121,14 @@ async function confirmOpen() {
 
 // -- close a port -------------------------------------------------------------
 
-const confirmingClose = ref<string | null>(null)
+const confirmingCloseTarget = ref<{ protocol: FirewallProtocol; port: number | string } | null>(
+  null,
+)
+
+// Closing one of these can lock the operator out of the server entirely
+// (SSH) or take the console/every app offline (HTTP/HTTPS) — worth a harder
+// confirmation than an ordinary port close.
+const CRITICAL_PORTS = new Set([22, 80, 443])
 
 function closeKey(protocol: FirewallProtocol, port: number | string) {
   return `${protocol}:${port}`
@@ -127,15 +137,15 @@ function closeKey(protocol: FirewallProtocol, port: number | string) {
 function requestClose(protocol: FirewallProtocol, port: number | string) {
   notice.value = ''
   error.value = ''
-  confirmingClose.value = closeKey(protocol, port)
+  confirmingCloseTarget.value = { protocol, port }
 }
 
 function cancelClose() {
-  confirmingClose.value = null
+  confirmingCloseTarget.value = null
 }
 
 async function confirmClose(protocol: FirewallProtocol, port: number | string) {
-  confirmingClose.value = null
+  confirmingCloseTarget.value = null
   const key = closeKey(protocol, port)
   busy.value = `close-${key}`
   error.value = ''
@@ -228,28 +238,13 @@ async function confirmReload() {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        Network
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Firewall
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Open and closed TCP/UDP ports and UPnP forwarding. Changes ask for
-        confirmation first — a reload can transiently drop connections.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="Network"
+      title="Firewall"
+      description="Open and closed TCP/UDP ports and UPnP forwarding. Changes ask for confirmation first — a reload can transiently drop connections."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
@@ -407,25 +402,7 @@ async function confirmReload() {
                 class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
               >
                 <code class="tw:font-mono">{{ port }}</code>
-                <template v-if="confirmingClose === closeKey(protocol, port)">
-                  <span class="tw:flex tw:items-center tw:gap-2">
-                    <span class="tw:text-xs tw:text-muted-foreground"
-                      >Close?</span
-                    >
-                    <Button variant="outline" size="sm" @click="cancelClose"
-                      >Cancel</Button
-                    >
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      :disabled="busy !== ''"
-                      @click="confirmClose(protocol, port)"
-                      >Confirm</Button
-                    >
-                  </span>
-                </template>
                 <Button
-                  v-else
                   variant="outline"
                   size="sm"
                   :disabled="busy !== ''"
@@ -505,5 +482,25 @@ async function confirmReload() {
         </CardContent>
       </Card>
     </template>
-  </section>
+
+    <ConfirmDialog
+      :open="confirmingCloseTarget !== null"
+      :tier="confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port)) ? 'destructive' : 'disruptive'"
+      title="Close this port?"
+      :description="
+        confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+          ? `Port ${confirmingCloseTarget.port} is commonly used for SSH/HTTP(S) — closing it can lock you out of the server or take every app offline.`
+          : 'A reload can transiently drop connections.'
+      "
+      confirm-label="Close"
+      :confirm-phrase="
+        confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+          ? String(confirmingCloseTarget.port)
+          : undefined
+      "
+      :busy="confirmingCloseTarget !== null && busy === `close-${closeKey(confirmingCloseTarget.protocol, confirmingCloseTarget.port)}`"
+      @confirm="confirmClose(confirmingCloseTarget!.protocol, confirmingCloseTarget!.port)"
+      @cancel="cancelClose"
+    />
+  </PageLayout>
 </template>

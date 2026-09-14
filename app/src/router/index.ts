@@ -24,13 +24,10 @@ router.beforeEach(async (to) => {
   const isConnectRoute = to.name === 'native-connect'
 
   if (!publicKey.value && !isConnectRoute) {
-    // Not signed in at all → portal login, redirecting back here. The console
-    // uses hash history with base /nostrhost/admin/, so `to.fullPath` is a
-    // bare path (e.g. "/apps") — the portal's post-login navigateTo would
-    // resolve it against the domain root. Send the absolute console URL
-    // (origin + hash-history base + # + path) so the user returns to admin.
-    const back = `${window.location.origin}${import.meta.env.BASE_URL}#${to.fullPath}`
-    return { name: 'native-connect', query: { redirect: back } }
+    // Not signed in at all → portal login, redirecting back here. `redirect`
+    // stays a bare in-app path (e.g. "/apps") here; ConnectGateView builds
+    // the absolute console URL from it when it sends the user to the portal.
+    return { name: 'native-connect', query: { redirect: to.fullPath } }
   }
   if (publicKey.value && !admin.value && !isConnectRoute) {
     // Signed in but not an admin → refuse, don't loop to login.
@@ -40,8 +37,12 @@ router.beforeEach(async (to) => {
     }
   }
   if (publicKey.value && isConnectRoute) {
+    // `redirect` is always a bare in-app path (see above) — safe to hand
+    // straight to vue-router rather than treating it as an external URL.
     const redirect = to.query.redirect
-    return typeof redirect === 'string' ? redirect : { name: 'native-overview' }
+    return typeof redirect === 'string' && redirect.startsWith('/')
+      ? redirect
+      : { name: 'native-overview' }
   }
   return true
 })

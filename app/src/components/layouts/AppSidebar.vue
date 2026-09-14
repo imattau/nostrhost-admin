@@ -1,37 +1,59 @@
 <script setup lang="ts">
-import { ExternalLink } from '@lucide/vue'
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ChevronDown, ExternalLink } from '@lucide/vue'
+import { computed, reactive } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+import { NAV_GROUP_ORDER } from '@/router/routes'
 
 const props = defineProps<{ open?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const router = useRouter()
+const route = useRoute()
 const baseUrl = import.meta.env.BASE_URL
 
 // Nav items are derived from the route table itself (routes.ts), not
 // hand-maintained here, so the sidebar can never link to a screen that
-// doesn't exist yet.
-const navItems = computed(() =>
-  router.options.routes
-    .filter((route) => route.meta?.nav)
-    .map((route) => ({
-      to: { name: route.name },
-      label: route.meta!.nav!.label,
-      icon: route.meta!.nav!.icon,
-    })),
-)
+// doesn't exist yet. Grouped by meta.nav.group, in NAV_GROUP_ORDER.
+const navGroups = computed(() => {
+  const byGroup = new Map<
+    string,
+    { to: { name: string }; label: string; icon: unknown }[]
+  >()
+  for (const r of router.options.routes) {
+    if (!r.meta?.nav) continue
+    const { group, label, icon } = r.meta.nav
+    if (!byGroup.has(group)) byGroup.set(group, [])
+    byGroup.get(group)!.push({ to: { name: r.name as string }, label, icon })
+  }
+  return NAV_GROUP_ORDER.filter((group) => byGroup.has(group)).map((group) => ({
+    group,
+    items: byGroup.get(group)!,
+  }))
+})
 
-function navigate(to: (typeof navItems.value)[number]['to']) {
+// Every group starts expanded; collapsed state persists only for the
+// session (not worth a localStorage entry for a handful of booleans).
+const collapsed = reactive<Record<string, boolean>>({})
+
+function toggleGroup(group: string) {
+  collapsed[group] = !collapsed[group]
+}
+
+function groupIsActive(items: { to: { name: string } }[]) {
+  return items.some((item) => item.to.name === route.name)
+}
+
+function navigate(to: { name: string }) {
   router.push(to)
   emit('close')
 }
 
-// The user portal is a separate SPA served by YunoHost at /yunohost/sso/ on
+// The user portal is a separate SPA served by YunoHost at /nostrhost/sso/ on
 // the same domain (see conf/caddy/caddy_domain.conf in nostrhost-yunohost) —
 // there is no native API route for it, so this is a plain same-origin link
 // rather than a router entry.
-const portalUrl = `${window.location.origin}/yunohost/sso/`
+const portalUrl = `${window.location.origin}/nostrhost/sso/`
 </script>
 
 <template>
@@ -47,7 +69,7 @@ const portalUrl = `${window.location.origin}/yunohost/sso/`
   >
     <div class="tw:flex tw:flex-col tw:gap-8">
       <RouterLink
-        :to="{ name: 'native-packages' }"
+        :to="{ name: 'native-overview' }"
         class="tw:flex tw:items-center tw:gap-3 tw:text-foreground tw:no-underline tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500 tw:rounded-lg"
         @click="emit('close')"
       >
@@ -70,32 +92,59 @@ const portalUrl = `${window.location.origin}/yunohost/sso/`
         </span>
       </RouterLink>
 
-      <nav class="tw:flex tw:w-full tw:flex-col tw:gap-2">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.label"
-          v-slot="{ isActive }"
-          :to="item.to"
-          custom
-        >
-          <a
-            :href="router.resolve(item.to).href"
-            class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:px-4 tw:py-3 tw:text-sm tw:no-underline tw:transition-colors"
-            :class="
-              isActive
-                ? 'tw:border-brand-500 tw:bg-brand-500/10 tw:font-semibold tw:text-foreground'
-                : 'tw:border-transparent tw:font-medium tw:text-muted-foreground tw:hover:bg-surface-muted'
-            "
-            @click.prevent="navigate(item.to)"
+      <nav class="tw:flex tw:w-full tw:flex-col tw:gap-4">
+        <div v-for="entry in navGroups" :key="entry.group">
+          <button
+            v-if="entry.items.length > 1"
+            type="button"
+            class="tw:flex tw:w-full tw:items-center tw:justify-between tw:px-2 tw:py-1 tw:font-mono tw:text-[10px] tw:font-semibold tw:uppercase tw:tracking-wider tw:text-muted-foreground"
+            :aria-expanded="!collapsed[entry.group]"
+            @click="toggleGroup(entry.group)"
           >
-            <component
-              :is="item.icon"
-              class="tw:size-[18px]"
+            {{ entry.group }}
+            <ChevronDown
+              class="tw:size-3.5 tw:transition-transform"
+              :class="collapsed[entry.group] ? '-tw:rotate-90' : ''"
               aria-hidden="true"
             />
-            {{ item.label }}
-          </a>
-        </RouterLink>
+          </button>
+          <p
+            v-else
+            class="tw:px-2 tw:py-1 tw:font-mono tw:text-[10px] tw:font-semibold tw:uppercase tw:tracking-wider tw:text-muted-foreground"
+          >
+            {{ entry.group }}
+          </p>
+          <div
+            v-show="!collapsed[entry.group] || groupIsActive(entry.items)"
+            class="tw:mt-1 tw:flex tw:flex-col tw:gap-1"
+          >
+            <RouterLink
+              v-for="item in entry.items"
+              :key="item.label"
+              v-slot="{ isActive }"
+              :to="item.to"
+              custom
+            >
+              <a
+                :href="router.resolve(item.to).href"
+                class="tw:flex tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:px-4 tw:py-2.5 tw:text-sm tw:no-underline tw:transition-colors"
+                :class="
+                  isActive
+                    ? 'tw:border-brand-500 tw:bg-brand-500/10 tw:font-semibold tw:text-foreground'
+                    : 'tw:border-transparent tw:font-medium tw:text-muted-foreground tw:hover:bg-surface-muted'
+                "
+                @click.prevent="navigate(item.to)"
+              >
+                <component
+                  :is="item.icon"
+                  class="tw:size-[18px]"
+                  aria-hidden="true"
+                />
+                {{ item.label }}
+              </a>
+            </RouterLink>
+          </div>
+        </div>
         <a
           :href="portalUrl"
           target="_blank"

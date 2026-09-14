@@ -16,6 +16,15 @@ const error = ref('')
 
 const sessionChecked = ref(false)
 
+// Every view calls sync() on load and before each write, and the router
+// guard probes on every navigation — without a cache that's a
+// /package/session round-trip per action. 30s is short enough that a
+// sign-out or role change elsewhere is picked up quickly, long enough that a
+// single screen full of actions costs one probe, not a dozen.
+const SESSION_TTL_MS = 30_000
+let lastCheckedAt = 0
+let inFlight: Promise<SessionInfo> | null = null
+
 const signerAvailable = computed(
   () => Boolean(window.nostr) || sessionChecked.value,
 )
@@ -28,8 +37,27 @@ export type SessionInfo = {
 }
 
 // Probe the native API's public /session endpoint (session cookie only — no
-// NIP-98 needed) to learn who is signed in.
-export async function refreshSession(): Promise<SessionInfo> {
+// NIP-98 needed) to learn who is signed in. Cached for SESSION_TTL_MS; pass
+// `force` to bypass the cache (e.g. right after sign-in/out).
+export async function refreshSession(force = false): Promise<SessionInfo> {
+  if (!force && sessionChecked.value && Date.now() - lastCheckedAt < SESSION_TTL_MS) {
+    return {
+      authenticated: publicKey.value !== null,
+      username: username.value,
+      pubkey: publicKey.value,
+      admin: admin.value,
+    }
+  }
+  if (inFlight) return inFlight
+  inFlight = _refreshSession()
+  try {
+    return await inFlight
+  } finally {
+    inFlight = null
+  }
+}
+
+async function _refreshSession(): Promise<SessionInfo> {
   try {
     const response = await fetch('/package/session', {
       method: 'GET',
@@ -43,12 +71,14 @@ export async function refreshSession(): Promise<SessionInfo> {
     username.value = info.username
     admin.value = info.admin
     sessionChecked.value = true
+    lastCheckedAt = Date.now()
     return info
   } catch (cause) {
     publicKey.value = null
     username.value = null
     admin.value = false
     sessionChecked.value = true
+    lastCheckedAt = Date.now()
     error.value =
       cause instanceof Error
         ? cause.message

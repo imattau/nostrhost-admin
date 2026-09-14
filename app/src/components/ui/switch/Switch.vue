@@ -3,10 +3,14 @@ import { computed } from 'vue'
 
 import { cn } from '@/lib/utils'
 
-const props = withDefaults(defineProps<{ class?: string; disabled?: boolean }>(), {
-  class: undefined,
-  disabled: false,
-})
+const props = withDefaults(
+  defineProps<{ class?: string; disabled?: boolean; ariaLabel?: string }>(),
+  {
+    class: undefined,
+    disabled: false,
+    ariaLabel: undefined,
+  },
+)
 
 const model = defineModel<boolean>({ default: false })
 
@@ -24,6 +28,7 @@ const trackClasses = computed(() =>
     type="button"
     role="switch"
     :aria-checked="model"
+    :aria-label="ariaLabel"
     :disabled="disabled"
     :class="trackClasses"
     @click="model = !model"

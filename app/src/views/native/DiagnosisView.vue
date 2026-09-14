@@ -2,7 +2,6 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import {
-  getIgnoreFilters,
   ignoreIssue,
   runDiagnosis,
   unignoreIssue,
@@ -15,8 +14,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, admin, signerAvailable, sync } = useSigner()
+const { publicKey, admin, sync } = useSigner()
 
 const reports = ref<DiagnosisReport[] | null>(null)
 const error = ref('')
@@ -62,10 +63,6 @@ async function load(force = false) {
   try {
     await sync()
     reports.value = await runDiagnosis([], force)
-    // Reconcile ignore filters in case they drifted from another session —
-    // the run response already carries `ignored` per-item, but this keeps
-    // the two views of the same state from silently diverging.
-    await getIgnoreFilters()
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Failed to load diagnosis.'
@@ -117,29 +114,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        System health
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Diagnosis
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Per-category health checks — DNS, mail, ports, services, and more.
-        Ignoring an issue keeps future runs from reporting it again until you
-        un-ignore it; it does not fix anything.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="System health"
+      title="Diagnosis"
+      description="Per-category health checks — DNS, mail, ports, services, and more. Ignoring an issue keeps future runs from reporting it again until you un-ignore it; it does not fix anything."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between tw:gap-3">
@@ -230,5 +211,5 @@ watch(publicKey, (key) => {
         {{ loading ? 'Loading…' : 'No diagnosis data yet.' }}
       </p>
     </template>
-  </section>
+  </PageLayout>
 </template>

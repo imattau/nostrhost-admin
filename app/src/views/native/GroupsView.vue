@@ -22,8 +22,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useSigner } from '@/composables/useSigner'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const CORE_GROUPS = new Set(['all_users', 'visitors', 'admins'])
 
@@ -307,28 +310,13 @@ async function saveEditPermission(permission: string) {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        Access control
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Groups &amp; permissions
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        User groups and which groups can access each app's permissions. Changes
-        ask for confirmation first.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="Access control"
+      title="Groups &amp; permissions"
+      description="User groups and which groups can access each app's permissions. Changes ask for confirmation first."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
@@ -415,28 +403,7 @@ async function saveEditPermission(permission: string) {
                   >
                 </span>
                 <template v-if="!CORE_GROUPS.has(groupname)">
-                  <template v-if="confirmingDeleteGroup === groupname">
-                    <span class="tw:flex tw:items-center tw:gap-2">
-                      <span class="tw:text-xs tw:text-muted-foreground"
-                        >Delete?</span
-                      >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        @click="cancelDeleteGroup"
-                        >Cancel</Button
-                      >
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        :disabled="busy !== ''"
-                        @click="confirmDeleteGroup(groupname)"
-                        >Confirm</Button
-                      >
-                    </span>
-                  </template>
                   <Button
-                    v-else
                     variant="outline"
                     size="sm"
                     :disabled="busy !== ''"
@@ -465,7 +432,7 @@ async function saveEditPermission(permission: string) {
                   >
                     <button
                       type="button"
-                      class="tw:ml-1 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-[10px] tw:text-red-500"
+                      class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-red-500"
                       :disabled="busy !== ''"
                       @click="confirmRemoveMember(groupname, member)"
                     >
@@ -473,7 +440,7 @@ async function saveEditPermission(permission: string) {
                     </button>
                     <button
                       type="button"
-                      class="tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-[10px]"
+                      class="tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
                       @click="cancelRemoveMember"
                     >
                       ×
@@ -482,7 +449,7 @@ async function saveEditPermission(permission: string) {
                   <button
                     v-else
                     type="button"
-                    class="tw:ml-1 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-[10px] tw:text-muted-foreground"
+                    class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-muted-foreground"
                     :disabled="busy !== ''"
                     @click="requestRemoveMember(groupname, member)"
                   >
@@ -495,6 +462,7 @@ async function saveEditPermission(permission: string) {
                 <Select
                   v-model="memberPicks[groupname]"
                   class="tw:h-8 tw:max-w-[220px] tw:text-xs"
+                  aria-label="Add member"
                 >
                   <option value="">Add member…</option>
                   <option
@@ -607,7 +575,7 @@ async function saveEditPermission(permission: string) {
                   >
                     <button
                       type="button"
-                      class="tw:ml-1 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-[10px] tw:text-red-500"
+                      class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-red-500"
                       :disabled="busy !== ''"
                       @click="confirmRevoke(permission, name)"
                     >
@@ -615,7 +583,7 @@ async function saveEditPermission(permission: string) {
                     </button>
                     <button
                       type="button"
-                      class="tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-[10px]"
+                      class="tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
                       @click="cancelRevoke"
                     >
                       ×
@@ -624,7 +592,7 @@ async function saveEditPermission(permission: string) {
                   <button
                     v-else
                     type="button"
-                    class="tw:ml-1 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-[10px]"
+                    class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
                     :disabled="busy !== ''"
                     @click="requestRevoke(permission, name)"
                   >
@@ -637,6 +605,7 @@ async function saveEditPermission(permission: string) {
                 <Select
                   v-model="grantPicks[permission]"
                   class="tw:h-8 tw:max-w-[220px] tw:text-xs"
+                  aria-label="Grant access to"
                 >
                   <option value="">Grant access to…</option>
                   <option v-for="name in groupNames" :key="name" :value="name">
@@ -660,5 +629,16 @@ async function saveEditPermission(permission: string) {
         </CardContent>
       </Card>
     </template>
-  </section>
+
+    <ConfirmDialog
+      :open="confirmingDeleteGroup !== null"
+      tier="disruptive"
+      title="Delete this group?"
+      :description="`Members of ${confirmingDeleteGroup} lose whatever access this group grants.`"
+      confirm-label="Delete"
+      :busy="busy === `delete-group-${confirmingDeleteGroup}`"
+      @confirm="confirmDeleteGroup(confirmingDeleteGroup!)"
+      @cancel="cancelDeleteGroup"
+    />
+  </PageLayout>
 </template>

@@ -4,8 +4,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import {
   createBackup,
   deleteBackup,
+  getBackupInfo,
   getBackups,
   restoreBackup,
+  type BackupArchiveDetail,
   type BackupArchiveInfo,
 } from '@/api/nativeBackups'
 import { Alert } from '@/components/ui/alert'
@@ -14,12 +16,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useSigner } from '@/composables/useSigner'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const archives = ref<Record<string, BackupArchiveInfo>>({})
 const loading = ref(false)
 const error = ref('')
+
+// -- archive contents (expand-in-place) --------------------------------------
+
+const expandedArchive = ref<string | null>(null)
+const archiveDetail = ref<BackupArchiveDetail | null>(null)
+
+async function toggleDetail(name: string) {
+  if (expandedArchive.value === name) {
+    expandedArchive.value = null
+    return
+  }
+  expandedArchive.value = name
+  archiveDetail.value = null
+  try {
+    await sync()
+    archiveDetail.value = await getBackupInfo(name)
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : `Failed to load contents of ${name}.`
+  }
+}
 const notice = ref('')
 const busy = ref('')
 
@@ -185,29 +211,13 @@ async function confirmDelete(name: string) {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        System maintenance
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Backups
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Local backup archives (apps and system configuration). Restoring
-        overwrites live state and deleting an archive cannot be undone — both
-        ask for confirmation first.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="System maintenance"
+      title="Backups"
+      description="Local backup archives (apps and system configuration). Restoring overwrites live state and deleting an archive cannot be undone — both ask for confirmation first."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
@@ -337,26 +347,37 @@ async function confirmDelete(name: string) {
             </p>
 
             <div
+              v-if="expandedArchive === archive.name"
+              class="tw:grid tw:gap-1 tw:rounded-md tw:bg-surface-muted tw:p-3 tw:text-xs"
+            >
+              <p v-if="!archiveDetail" class="tw:m-0 tw:text-muted-foreground">
+                Loading contents…
+              </p>
+              <template v-else>
+                <p class="tw:m-0 tw:font-semibold tw:text-muted-foreground">Apps</p>
+                <p v-if="!Object.keys(archiveDetail.apps ?? {}).length" class="tw:m-0 tw:text-muted-foreground">
+                  none
+                </p>
+                <code v-else class="tw:font-mono">{{ Object.keys(archiveDetail.apps ?? {}).join(', ') }}</code>
+                <p class="tw:m-0 tw:mt-2 tw:font-semibold tw:text-muted-foreground">System</p>
+                <p v-if="!Object.keys(archiveDetail.system ?? {}).length" class="tw:m-0 tw:text-muted-foreground">
+                  none
+                </p>
+                <code v-else class="tw:font-mono">{{ Object.keys(archiveDetail.system ?? {}).join(', ') }}</code>
+              </template>
+            </div>
+
+            <div
               class="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2"
             >
-              <template v-if="confirmingRestore === archive.name">
-                <span class="tw:text-xs tw:text-muted-foreground"
-                  >Restore {{ archive.name }}? This overwrites live state.</span
-                >
-                <Button variant="outline" size="sm" @click="cancelRestore"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="busy !== ''"
-                  @click="confirmRestore(archive.name)"
-                  >Confirm</Button
-                >
-              </template>
               <Button
-                v-else
                 variant="outline"
+                size="sm"
+                @click="toggleDetail(archive.name)"
+                >{{ expandedArchive === archive.name ? 'Hide contents' : 'Contents' }}</Button
+              >
+              <Button
+                variant="warning"
                 size="sm"
                 :disabled="busy !== ''"
                 @click="requestRestore(archive.name)"
@@ -364,24 +385,7 @@ async function confirmDelete(name: string) {
                   busy === `restore-${archive.name}` ? 'Restoring…' : 'Restore'
                 }}</Button
               >
-
-              <template v-if="confirmingDelete === archive.name">
-                <span class="tw:text-xs tw:text-muted-foreground"
-                  >Delete {{ archive.name }}? This cannot be undone.</span
-                >
-                <Button variant="outline" size="sm" @click="cancelDelete"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="busy !== ''"
-                  @click="confirmDelete(archive.name)"
-                  >Confirm</Button
-                >
-              </template>
               <Button
-                v-else
                 variant="danger"
                 size="sm"
                 :disabled="busy !== ''"
@@ -395,5 +399,27 @@ async function confirmDelete(name: string) {
         </ul>
       </CardContent>
     </Card>
-  </section>
+
+    <ConfirmDialog
+      :open="confirmingRestore !== null"
+      tier="disruptive"
+      title="Restore this backup?"
+      :description="`Restoring ${confirmingRestore} overwrites live state with the archive's contents.`"
+      confirm-label="Restore"
+      :busy="busy === `restore-${confirmingRestore}`"
+      @confirm="confirmRestore(confirmingRestore!)"
+      @cancel="cancelRestore"
+    />
+    <ConfirmDialog
+      :open="confirmingDelete !== null"
+      tier="destructive"
+      title="Delete this backup archive?"
+      description="This cannot be undone."
+      confirm-label="Delete"
+      :confirm-phrase="confirmingDelete ?? undefined"
+      :busy="busy === `delete-${confirmingDelete}`"
+      @confirm="confirmDelete(confirmingDelete!)"
+      @cancel="cancelDelete"
+    />
+  </PageLayout>
 </template>

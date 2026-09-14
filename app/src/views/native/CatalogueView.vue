@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const entries = ref<CatalogueEntry[] | null>(null)
 const error = ref('')
@@ -66,28 +68,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-6xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        Trusted native catalogue
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Catalogue
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Signed app declarations this node trusts, synced from the control relay.
-        Read-only; this screen cannot install or publish apps.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="Trusted native catalogue"
+      title="Catalogue"
+      description="Signed app declarations this node trusts, synced from the control relay. Read-only; this screen cannot install or publish apps."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <div
@@ -214,5 +201,5 @@ watch(publicKey, (key) => {
         </CardContent>
       </Card>
     </div>
-  </section>
+  </PageLayout>
 </template>

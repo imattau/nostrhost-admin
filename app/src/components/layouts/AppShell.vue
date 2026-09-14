@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { KeyRound, Menu } from '@lucide/vue'
+import { Menu } from '@lucide/vue'
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { Button } from '@/components/ui/button'
-import { useSigner } from '@/composables/useSigner'
+import IdentityMenu from '@/components/native/IdentityMenu.vue'
 
 import AppSidebar from './AppSidebar.vue'
-
-const { publicKey, username, admin, signerAvailable, connect } = useSigner()
 
 const route = useRoute()
 const mobileNavOpen = ref(false)
@@ -18,13 +16,6 @@ watch(
     mobileNavOpen.value = false
   },
 )
-
-function shortenKey(key: string) {
-  return `${key.slice(0, 8)}…${key.slice(-6)}`
-}
-
-const identity = () =>
-  username.value || (publicKey.value ? shortenKey(publicKey.value) : null)
 </script>
 
 <template>
@@ -56,22 +47,7 @@ const identity = () =>
         </div>
 
         <div class="tw:flex tw:items-center tw:gap-3">
-          <span
-            v-if="identity()"
-            class="tw:max-w-24 tw:truncate tw:font-mono tw:text-xs tw:text-brand-500 tw:sm:max-w-none"
-            :title="publicKey || username || ''"
-          >
-            {{ identity() }}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="!signerAvailable"
-            @click="connect"
-          >
-            <KeyRound class="tw:size-3.5" aria-hidden="true" />
-            {{ admin ? 'Sign out' : 'Sign in' }}
-          </Button>
+          <IdentityMenu />
         </div>
       </header>
 

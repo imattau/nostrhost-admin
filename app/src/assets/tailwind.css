@@ -16,10 +16,10 @@
 @import 'tailwindcss/utilities.css' layer(utilities) prefix(tw);
 
 /*
- * Dark mode follows the existing `data-bs-theme` attribute until the native
- * settings API defines its own theme preference.
+ * Dark mode follows the `data-theme` attribute set by useTheme() (system
+ * preference by default, overridable to light/dark and persisted).
  */
-@custom-variant dark (&:where([data-bs-theme='dark'], [data-bs-theme='dark'] *));
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme {
   --font-sans: 'Geist', 'FiraGO', ui-sans-serif, system-ui, sans-serif;
@@ -49,7 +49,7 @@
 }
 
 :root,
-:root[data-bs-theme='dark'] {
+:root[data-theme='dark'] {
   color-scheme: dark;
   --nh-background: #121222;
   --nh-foreground: #f1f5f9;
@@ -59,7 +59,7 @@
   --nh-border: #2a2a47;
 }
 
-:root[data-bs-theme='light'] {
+:root[data-theme='light'] {
   color-scheme: light;
   --nh-background: #f8f7fc;
   --nh-foreground: #201b2e;
@@ -67,4 +67,15 @@
   --nh-surface-muted: #f1eff7;
   --nh-muted-foreground: #686279;
   --nh-border: #e5e1ef;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

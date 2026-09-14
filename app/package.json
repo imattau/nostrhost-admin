@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint:js": "eslint src/App.vue src/main.ts src/router src/api/client.ts src/api/nativePackages.ts src/api/nativeSystem.ts src/api/nativeCatalog.ts src/api/nativeIdentity.ts src/api/nativeService.ts src/api/nativeAgent.ts src/api/nativeCapability.ts src/api/nativeMcp.ts src/api/nativeUsers.ts src/api/nativeUpdates.ts src/api/nativeDomains.ts src/api/nativeBackups.ts src/api/nativeDiagnosis.ts src/api/nativeFirewall.ts src/api/nativeGroupsPermissions.ts src/api/nativePower.ts src/api/nativeSettings.ts src/types/nostr.d.ts src/views/native src/components/ui src/components/layouts src/components/native src/composables src/lib/utils.ts vite.config.ts",
+    "lint:js": "eslint src vite.config.ts",
     "lint:prettier": "prettier --check .",
     "lint": "yarn lint:js && yarn lint:prettier",
     "lintfix": "prettier --write --list-different . && yarn lint:js --fix",
     "type-check": "vue-tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
     "upgrade-deps": "yarn upgrade-interactive --latest"
   },
   "dependencies": {
@@ -30,13 +31,16 @@
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/eslint-config-typescript": "^14.1.4",
+    "@vue/test-utils": "^2.5.0",
     "@vue/tsconfig": "^0.7.0",
     "eslint": "^9.17.0",
     "eslint-plugin-vue": "^9.32.0",
+    "jsdom": "^30.0.1",
     "prettier": "^3.4.2",
     "tailwindcss": "^4.3.3",
     "typescript": "5.7.2",
     "vite": "^6.4.2",
+    "vitest": "^5.0.0",
     "vue-tsc": "2.1.10"
   },
   "browserslist": [

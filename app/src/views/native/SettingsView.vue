@@ -15,8 +15,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useSigner } from '@/composables/useSigner'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const settings = ref<Record<string, SettingValue>>({})
 
@@ -162,59 +165,22 @@ async function confirmResetAll() {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        System
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Settings
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Global YunoHost settings. Changes ask for confirmation first.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="System"
+      title="Settings"
+      description="Global YunoHost settings. Changes ask for confirmation first."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <template v-if="publicKey">
       <Card>
         <CardHeader>
-          <CardTitle
-            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-          >
-            <span>Global settings</span>
-            <template v-if="confirmingResetAll">
-              <span class="tw:flex tw:items-center tw:gap-2">
-                <span class="tw:text-xs tw:text-muted-foreground"
-                  >Reset everything?</span
-                >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  @click="confirmingResetAll = false"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="busy !== ''"
-                  @click="confirmResetAll"
-                  >Confirm</Button
-                >
-              </span>
-            </template>
+          <CardTitle>Global settings</CardTitle>
+          <template #actions>
             <Button
-              v-else
               variant="outline"
               size="sm"
               :disabled="busy !== ''"
@@ -223,7 +189,7 @@ async function confirmResetAll() {
                 busy === 'reset-all' ? 'Resetting…' : 'Reset all to defaults'
               }}</Button
             >
-          </CardTitle>
+          </template>
         </CardHeader>
         <CardContent class="tw:grid tw:gap-3">
           <p v-if="loading" class="tw:m-0 tw:text-sm tw:text-muted-foreground">
@@ -312,5 +278,17 @@ async function confirmResetAll() {
         </CardContent>
       </Card>
     </template>
-  </section>
+
+    <ConfirmDialog
+      :open="confirmingResetAll"
+      tier="destructive"
+      title="Reset all settings to defaults?"
+      description="Every global setting reverts to its default value. This cannot be undone."
+      confirm-label="Reset all"
+      confirm-phrase="reset all"
+      :busy="busy === 'reset-all'"
+      @confirm="confirmResetAll"
+      @cancel="confirmingResetAll = false"
+    />
+  </PageLayout>
 </template>

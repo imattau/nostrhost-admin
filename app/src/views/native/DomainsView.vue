@@ -32,8 +32,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const domains = ref<string[]>([])
 const selectedDomain = ref<string | null>(null)
@@ -394,28 +396,13 @@ const driftBadge = computed(() => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        Network
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Domains
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Domains, DNS records and free-hostname claims. Registering, removing or
-        applying DNS for a domain asks for confirmation first.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="Network"
+      title="Domains"
+      description="Domains, DNS records and free-hostname claims. Registering, removing or applying DNS for a domain asks for confirmation first."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
@@ -967,5 +954,5 @@ const driftBadge = computed(() => {
         </CardContent>
       </Card>
     </template>
-  </section>
+  </PageLayout>
 </template>

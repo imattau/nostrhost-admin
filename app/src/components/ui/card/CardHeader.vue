@@ -17,6 +17,11 @@ const classes = computed(() =>
 
 <template>
   <div :class="classes">
-    <slot />
+    <div class="tw:min-w-0">
+      <slot />
+    </div>
+    <div v-if="$slots.actions" class="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
+      <slot name="actions" />
+    </div>
   </div>
 </template>

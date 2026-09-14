@@ -41,7 +41,7 @@ kept, deferred, or dropped.)
   from `router.options.routes` (a route opts in via `meta.nav`), so it can
   never link to a screen that doesn't exist yet. Below the routed items sits
   a plain `Portal` link (`ExternalLink` icon, opens in a new tab) to the
-  YunoHost user portal SPA at `/yunohost/sso/` on the same domain — it isn't
+  YunoHost user portal SPA at `/nostrhost/sso/` on the same domain — it isn't
   a route because the portal is a separate app with no native API route of
   its own (see `conf/caddy/caddy_domain.conf` in `nostrhost-yunohost`).
 - **Primitives** (`src/components/ui/`): `Button`, `Badge`, `Card` (+

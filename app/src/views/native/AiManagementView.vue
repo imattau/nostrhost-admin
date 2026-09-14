@@ -51,6 +51,8 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
 function formatBytes(bytes: number): string {
   if (!bytes) return '0 B'
@@ -67,7 +69,7 @@ function formatBytes(bytes: number): string {
 // the scope string alone doesn't say what it unlocks (e.g. "catalog.inspect"
 // governs catalog.list/catalog.get, not a tool named "catalog.inspect").
 const SCOPE_TOOLS: Record<string, string> = {
-  'system.read': 'system.status',
+  'server.read': 'system.status',
   'apps.read': 'app.list',
   'services.read': 'service.status',
   'services.restart': 'service.restart',
@@ -86,7 +88,7 @@ const SCOPE_PRESETS = [
     label: 'Read-only',
     recommended: true,
     scopes: [
-      'system.read',
+      'server.read',
       'apps.read',
       'services.read',
       'catalog.inspect',
@@ -99,7 +101,7 @@ const SCOPE_PRESETS = [
     label: 'Read + restart services',
     recommended: false,
     scopes: [
-      'system.read',
+      'server.read',
       'apps.read',
       'services.read',
       'services.restart',
@@ -117,7 +119,7 @@ const SCOPE_PRESETS = [
   { id: 'custom', label: 'Custom', recommended: false, scopes: [] as string[] },
 ] as const
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const agentStatus = ref<AgentStatus | null>(null)
 const agentError = ref('')
@@ -603,29 +605,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        AI &amp; agent administration
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        AI management
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Control the resident admin agent and grant MCP-connected agents scoped
-        access to this node. All actions publish signed events to the control
-        relay — there is no password store and no third-party account required.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="AI &amp; agent administration"
+      title="AI management"
+      description="Control the resident admin agent and grant MCP-connected agents scoped access to this node. All actions publish signed events to the control relay — there is no password store and no third-party account required."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -1464,7 +1450,7 @@ watch(publicKey, (key) => {
                 reviewing each candidate yourself before submitting.
               </p>
             </div>
-            <Switch v-model="pendingAutoSubmit" />
+            <Switch v-model="pendingAutoSubmit" aria-label="Automatic submission" />
           </div>
 
           <Alert v-if="turningOnAutoSubmit" variant="danger">
@@ -1506,5 +1492,5 @@ watch(publicKey, (key) => {
         </div>
       </CardContent>
     </Card>
-  </section>
+  </PageLayout>
 </template>

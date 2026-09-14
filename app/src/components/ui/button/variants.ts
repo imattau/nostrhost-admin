@@ -13,6 +13,7 @@ export const buttonVariants = cva(
           'tw:border tw:border-border-subtle tw:bg-transparent tw:text-foreground tw:hover:bg-surface-muted',
         ghost: 'tw:bg-transparent tw:text-foreground tw:hover:bg-surface-muted',
         danger: 'tw:bg-red-600 tw:text-white tw:hover:bg-red-700',
+        warning: 'tw:bg-amber-600 tw:text-white tw:hover:bg-amber-700',
       },
       size: {
         sm: 'tw:h-8 tw:px-3 tw:text-xs',

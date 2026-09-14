@@ -23,8 +23,11 @@ import {
   type IdentitySelection,
 } from '@/components/native/identitySelection'
 import { shortenKey } from '@/lib/utils'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 type UserRow = NativeUser & { username: string }
 
@@ -239,27 +242,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-5xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        Account administration
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">Users</h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Create, edit and delete server accounts, and optionally link or generate
-        a Nostr identity for each one. A pubkey can also be linked or revoked
-        later from the Identities screen.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="Account administration"
+      title="Users"
+      description="Create, edit and delete server accounts, and optionally link or generate a Nostr identity for each one. A pubkey can also be linked or revoked later from the Identities screen."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <Card v-if="publicKey">
@@ -465,30 +454,6 @@ watch(publicKey, (key) => {
               </div>
             </template>
 
-            <template v-else-if="deletePending === user.username">
-              <label
-                class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
-              >
-                <input v-model="deletePurge" type="checkbox" />
-                Also purge the account's data
-              </label>
-              <Alert v-if="deleteError" variant="danger" role="alert">{{
-                deleteError
-              }}</Alert>
-              <div class="tw:flex tw:justify-end tw:gap-2">
-                <Button variant="outline" size="sm" @click="cancelDelete"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="deleting"
-                  @click="confirmDelete(user.username)"
-                  >{{ deleting ? 'Deleting…' : 'Confirm delete' }}</Button
-                >
-              </div>
-            </template>
-
             <template v-else-if="linkPending === user.username">
               <div class="tw:rounded-lg tw:bg-surface-muted tw:p-3">
                 <IdentityFields
@@ -539,5 +504,25 @@ watch(publicKey, (key) => {
         </p>
       </CardContent>
     </Card>
-  </section>
+
+    <ConfirmDialog
+      :open="deletePending !== null"
+      tier="destructive"
+      title="Delete this user?"
+      description="This removes the account and its permission grants."
+      confirm-label="Delete"
+      :confirm-phrase="deletePending ?? undefined"
+      :busy="deleting"
+      @confirm="confirmDelete(deletePending!)"
+      @cancel="cancelDelete"
+    >
+      <label class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground">
+        <input v-model="deletePurge" type="checkbox" />
+        Also purge the account's data
+      </label>
+      <Alert v-if="deleteError" variant="danger" role="alert" class="tw:mt-2">{{
+        deleteError
+      }}</Alert>
+    </ConfirmDialog>
+  </PageLayout>
 </template>

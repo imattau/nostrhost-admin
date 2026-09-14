@@ -14,8 +14,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const services = ref<ServiceStatusMap | null>(null)
 const error = ref('')
@@ -85,6 +88,10 @@ function isPending(name: string, action: ServiceAction) {
   )
 }
 
+function isRunning(status: string) {
+  return status === 'running'
+}
+
 function statusVariant(status: string) {
   if (status === 'running') return 'success'
   if (status === 'dead' || status === 'failed') return 'danger'
@@ -105,29 +112,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        System services
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Service control
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Start, stop, or restart a managed system service. Stopping or restarting
-        a service is disruptive and asks for confirmation first — it can
-        interrupt the service you're using right now.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="System services"
+      title="Service control"
+      description="Start, stop, or restart a managed system service. Stopping or restarting a service is disruptive and asks for confirmation first — it can interrupt the service you're using right now."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
     <Alert v-if="actionError" variant="danger" role="alert">{{
       actionError
@@ -215,50 +206,31 @@ watch(publicKey, (key) => {
               </dd>
             </dl>
 
-            <template v-if="confirming?.name === name">
-              <div class="tw:flex tw:items-center tw:justify-end tw:gap-2">
-                <span class="tw:text-xs tw:text-muted-foreground"
-                  >{{ confirming.action === 'stop' ? 'Stop' : 'Restart' }}
-                  {{ name }}?</span
-                >
-                <Button variant="outline" size="sm" @click="cancelAction"
-                  >Cancel</Button
+            <div class="tw:flex tw:justify-end tw:gap-2">
+              <Button
+                v-if="!isRunning(services![name].status)"
+                variant="outline"
+                size="sm"
+                :disabled="pendingAction?.name === name"
+                @click="requestAction(name, 'start')"
+                >{{ isPending(name, 'start') ? 'Starting…' : 'Start' }}</Button
+              >
+              <template v-else>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="pendingAction?.name === name"
+                  @click="requestAction(name, 'restart')"
+                  >Restart</Button
                 >
                 <Button
                   variant="danger"
                   size="sm"
-                  :disabled="isPending(name, confirming.action)"
-                  @click="runAction(name, confirming.action)"
-                  >{{
-                    isPending(name, confirming.action)
-                      ? 'Working…'
-                      : `Confirm ${confirming.action}`
-                  }}</Button
+                  :disabled="pendingAction?.name === name"
+                  @click="requestAction(name, 'stop')"
+                  >Stop</Button
                 >
-              </div>
-            </template>
-            <div v-else class="tw:flex tw:justify-end tw:gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="!!pendingAction"
-                @click="requestAction(name, 'start')"
-                >{{ isPending(name, 'start') ? 'Starting…' : 'Start' }}</Button
-              >
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="!!pendingAction"
-                @click="requestAction(name, 'restart')"
-                >Restart</Button
-              >
-              <Button
-                variant="danger"
-                size="sm"
-                :disabled="!!pendingAction"
-                @click="requestAction(name, 'stop')"
-                >Stop</Button
-              >
+              </template>
             </div>
           </li>
         </ul>
@@ -267,5 +239,16 @@ watch(publicKey, (key) => {
         </p>
       </CardContent>
     </Card>
-  </section>
+
+    <ConfirmDialog
+      :open="confirming !== null"
+      tier="disruptive"
+      :title="confirming ? `${confirming.action === 'stop' ? 'Stop' : 'Restart'} ${confirming.name}?` : ''"
+      description="This can interrupt the service you're using right now."
+      :confirm-label="confirming?.action === 'stop' ? 'Stop' : 'Restart'"
+      :busy="confirming !== null && isPending(confirming.name, confirming.action)"
+      @confirm="runAction(confirming!.name, confirming!.action)"
+      @cancel="cancelAction"
+    />
+  </PageLayout>
 </template>

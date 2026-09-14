@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const manifest = ref(
   JSON.stringify({ app: { id: 'example-app', version: '0.1.0' } }, null, 2),
@@ -58,32 +60,17 @@ function riskVariant(risk: string | undefined) {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        NostrHost native package planner
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        Package authoring
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Draft a declarative package and inspect its resource plan. Planning is
-        read-only; this screen cannot install packages.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="NostrHost native package planner"
+      title="Package authoring"
+      description="Draft a declarative package and inspect its resource plan. Planning is read-only; this screen cannot install packages."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else variant="success">
+    <Alert variant="success">
       Signer connected ·
       <code class="tw:font-mono"
-        >{{ publicKey.slice(0, 12) }}…{{ publicKey.slice(-8) }}</code
+        >{{ publicKey?.slice(0, 12) }}…{{ publicKey?.slice(-8) }}</code
       >
     </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
@@ -149,5 +136,5 @@ function riskVariant(risk: string | undefined) {
         </ol>
       </CardContent>
     </Card>
-  </section>
+  </PageLayout>
 </template>

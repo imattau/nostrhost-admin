@@ -5,7 +5,7 @@ current native screen supports Nostr signer connection and read-only package
 manifest schema, validation, and plan review.
 The release package is built by the umbrella repository from
 `packaging/packages.yml` and installs static assets under
-`/usr/share/nostrhost/admin`, served at `/admin/`.
+`/usr/share/nostrhost/admin`, served at `/nostrhost/admin/`.
 
 ## Build
 
@@ -23,11 +23,12 @@ stale `dist/` files cannot enter a release.
 ## Development
 
 Run `corepack yarn@1.22.22 dev` from `app/`. The dev server listens on
-`http://127.0.0.1:8080` and proxies `/api/v1` to
+`http://127.0.0.1:8080` and proxies `/package` to
 `http://127.0.0.1:8190`. Set `VITE_API_TARGET` when the native API listens
-elsewhere. Requests use the same-origin URL signed by a NIP-07 extension;
-the proxy preserves its path and host and forwards the scheme for NIP-98
-verification.
+elsewhere. Requests are authenticated by the portal session cookie
+(`nostrhost.portal`), with a NIP-07 browser signer as a fallback when there
+is no session; the proxy preserves the request path and host and forwards
+the scheme for NIP-98 verification.
 
 Before submitting UI work, run:
 
@@ -36,9 +37,5 @@ corepack yarn@1.22.22 lint
 corepack yarn@1.22.22 type-check
 ```
 
-The shipped route table contains only native admin views. Legacy YunoHost
-screens and their cookie/form-data API client are not part of the native UI.
-The source tree still contains upstream files that are outside the active
-route graph; type-checking and linting intentionally follow the native entry
-points above. Do not add those legacy files to the router or restore their
-dependencies as part of native work.
+The shipped route table contains only native admin views; there is no legacy
+YunoHost screen or cookie/form-data API client left in the tree to avoid.

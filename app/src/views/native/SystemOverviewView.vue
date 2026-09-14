@@ -4,23 +4,30 @@ import { computed, onMounted, ref, watch } from 'vue'
 import {
   getHealth,
   getIdentities,
+  getSystemStatus,
   getSystemVersions,
   type Health,
   type Identity,
   type PackageVersion,
+  type SystemStatus,
   type SystemVersions,
 } from '@/api/nativeSystem'
+import { listOperations, type OperationEntry } from '@/api/nativeOperations'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
+import PageHeader from '@/components/native/PageHeader.vue'
+import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, signerAvailable, sync } = useSigner()
+const { publicKey, sync } = useSigner()
 
 const health = ref<Health | null>(null)
+const status = ref<SystemStatus | null>(null)
 const versions = ref<SystemVersions | null>(null)
 const identities = ref<Identity[] | null>(null)
+const recentOperations = ref<OperationEntry[] | null>(null)
 const error = ref('')
 const loading = ref(false)
 
@@ -29,20 +36,32 @@ async function load() {
   error.value = ''
   try {
     await sync()
-    const [healthResult, versionsResult, identitiesResult] = await Promise.all([
-      getHealth(),
-      getSystemVersions(),
-      getIdentities(),
-    ])
+    const [healthResult, statusResult, versionsResult, identitiesResult, operationsResult] =
+      await Promise.all([
+        getHealth(),
+        getSystemStatus(),
+        getSystemVersions(),
+        getIdentities(),
+        listOperations(5),
+      ])
     health.value = healthResult
+    status.value = statusResult
     versions.value = versionsResult
     identities.value = identitiesResult
+    recentOperations.value = operationsResult
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Failed to load system status.'
   } finally {
     loading.value = false
   }
+}
+
+function operationStateVariant(state: OperationEntry['state']) {
+  if (state === 'SUCCEEDED') return 'success'
+  if (state === 'FAILED' || state === 'REJECTED') return 'danger'
+  if (state === 'EXECUTING' || state === 'APPROVED') return 'warning'
+  return 'neutral'
 }
 
 function shortenKey(key: string) {
@@ -97,28 +116,13 @@ watch(publicKey, (key) => {
 </script>
 
 <template>
-  <section class="tw:mx-auto tw:grid tw:max-w-4xl tw:gap-6">
-    <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-      <p
-        class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-      >
-        NostrHost native status
-      </p>
-      <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">
-        System overview
-      </h1>
-      <p class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
-        Read-only reachability, version, and identity reads from the native API.
-        This screen cannot change host state.
-      </p>
-    </header>
+  <PageLayout>
+    <PageHeader
+      eyebrow="NostrHost native status"
+      title="System overview"
+      description="Read-only reachability, version, and identity reads from the native API. This screen cannot change host state."
+    />
 
-    <Alert v-if="!signerAvailable" variant="danger">
-      You are not signed in. Sign in at the portal to continue.
-    </Alert>
-    <Alert v-else-if="!publicKey" variant="info">
-      Sign in at the portal to continue.
-    </Alert>
     <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between">
@@ -133,19 +137,57 @@ watch(publicKey, (key) => {
 
     <Card v-if="publicKey">
       <CardHeader>
-        <CardTitle>API health</CardTitle>
+        <CardTitle>Host status</CardTitle>
       </CardHeader>
       <CardContent>
-        <div v-if="health" class="tw:flex tw:items-center tw:gap-2">
-          <Badge :variant="health.ok ? 'success' : 'danger'">
-            {{ health.ok ? 'Reachable' : 'Unreachable' }}
-          </Badge>
-          <span class="tw:text-sm tw:text-muted-foreground"
-            >API version {{ health.version }}</span
-          >
+        <div v-if="health || status" class="tw:flex tw:flex-wrap tw:items-center tw:gap-x-6 tw:gap-y-2">
+          <div v-if="health" class="tw:flex tw:items-center tw:gap-2">
+            <Badge :variant="health.ok ? 'success' : 'danger'">
+              {{ health.ok ? 'Reachable' : 'Unreachable' }}
+            </Badge>
+            <span class="tw:text-sm tw:text-muted-foreground"
+              >API version {{ health.version }}</span
+            >
+          </div>
+          <div v-if="status" class="tw:flex tw:items-center tw:gap-1.5 tw:text-sm">
+            <span class="tw:text-muted-foreground">Host</span>
+            <code class="tw:font-mono tw:text-foreground">{{ status.hostname }}</code>
+          </div>
+          <div v-if="status?.loadavg" class="tw:flex tw:items-center tw:gap-1.5 tw:text-sm">
+            <span class="tw:text-muted-foreground">Load</span>
+            <code class="tw:font-mono tw:text-foreground">{{ status.loadavg.join(' / ') }}</code>
+          </div>
         </div>
         <p v-else class="tw:text-sm tw:text-muted-foreground">
           {{ loading ? 'Checking…' : 'No health data yet.' }}
+        </p>
+      </CardContent>
+    </Card>
+
+    <Card v-if="publicKey">
+      <CardHeader>
+        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <span>Recent operations</span>
+          <RouterLink
+            :to="{ name: 'native-operations' }"
+            class="tw:text-xs tw:font-medium tw:text-brand-500 tw:hover:underline"
+            >View all →</RouterLink
+          >
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul v-if="recentOperations && recentOperations.length" class="tw:grid tw:gap-2">
+          <li
+            v-for="op in recentOperations"
+            :key="op.id"
+            class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
+          >
+            <code class="tw:font-mono tw:text-xs">{{ op.tool ?? op.request_id }}</code>
+            <Badge :variant="operationStateVariant(op.state)">{{ op.state }}</Badge>
+          </li>
+        </ul>
+        <p v-else class="tw:text-sm tw:text-muted-foreground">
+          {{ loading ? 'Loading…' : 'No operations recorded yet.' }}
         </p>
       </CardContent>
     </Card>
@@ -267,5 +309,5 @@ watch(publicKey, (key) => {
         </p>
       </CardContent>
     </Card>
-  </section>
+  </PageLayout>
 </template>

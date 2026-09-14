@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Flame,
   Globe,
+  Globe2,
   LayoutGrid,
   Package,
   Power,
@@ -100,6 +101,12 @@ const routes: RouteRecordRaw[] = [
     path: '/domains',
     component: () => import('@/views/native/DomainsView.vue'),
     meta: { nav: { label: 'Domains & DNS', icon: Globe, group: 'Network' } },
+  },
+  {
+    name: 'native-nsites',
+    path: '/sites',
+    component: () => import('@/views/native/NsitesView.vue'),
+    meta: { nav: { label: 'Sites', icon: Globe2, group: 'Network' } },
   },
   {
     name: 'native-firewall',

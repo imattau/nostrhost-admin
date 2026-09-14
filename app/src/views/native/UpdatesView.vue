@@ -45,7 +45,7 @@ async function load() {
     await sync()
     const [updatesResult, migrationsResult] = await Promise.all([
       getAvailableUpdates(),
-      getMigrations(),
+      getMigrations('pending'),
     ])
     updates.value = updatesResult
     migrations.value = migrationsResult.migrations
@@ -145,6 +145,7 @@ async function confirmMigration(migration: Migration) {
 }
 
 function canRun(migration: Migration) {
+  if (migration.state !== 'pending') return false
   return !migration.disclaimer || disclaimerAccepted.value[migration.id]
 }
 
@@ -363,7 +364,11 @@ function formatAge(seconds: number) {
           v-if="migrations.length === 0"
           class="tw:text-sm tw:text-muted-foreground"
         >
-          {{ loading ? 'Loading…' : 'No pending migrations.' }}
+          {{
+            loading
+              ? 'Loading…'
+              : 'The upstream YunoHost migrations subsystem is disabled on nostrhost — this platform only ever installs onto a fresh system, so no migration can legitimately apply.'
+          }}
         </p>
         <ul v-else class="tw:m-0 tw:grid tw:gap-3 tw:pl-0">
           <li

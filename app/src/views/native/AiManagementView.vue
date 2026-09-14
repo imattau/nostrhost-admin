@@ -456,7 +456,6 @@ const openCandidateId = ref<string | null>(null)
 const DEFAULT_DATASET_REPO = '0xx0lostcause0xx0/nostrhost-agent'
 
 const contributionSettings = ref<ContributionSettings | null>(null)
-const contributionEnabled = ref(false)
 const contributionRepo = ref('')
 const contributionToken = ref('')
 const contributionSaving = ref(false)
@@ -464,6 +463,14 @@ const contributionError = ref('')
 const submittingCandidateId = ref('')
 const submittedCandidateIds = ref<Set<string>>(new Set())
 const submittedPullRequestUrls = ref<Record<string, string>>({})
+
+// Automatic submission is a separate, stronger opt-in from having sharing
+// configured at all: it makes the resident daemon submit every completed
+// cycle itself with no human review. pendingAutoSubmit tracks the Switch's
+// value before Apply; autoSubmitConfirmChecked gates turning it on, the same
+// pattern as the dangerous operation-mode levels below.
+const pendingAutoSubmit = ref(false)
+const autoSubmitConfirmChecked = ref(false)
 
 async function loadExports() {
   exportsLoading.value = true
@@ -476,7 +483,8 @@ async function loadExports() {
     ])
     exportCycles.value = cycles
     contributionSettings.value = settings
-    contributionEnabled.value = settings.enabled
+    pendingAutoSubmit.value = settings.auto_submit
+    autoSubmitConfirmChecked.value = false
     contributionRepo.value = settings.dataset_repo || DEFAULT_DATASET_REPO
   } catch (cause) {
     exportsError.value =
@@ -525,17 +533,24 @@ async function toggleCandidateOpen(candidateFileId: string) {
   }
 }
 
+const turningOnAutoSubmit = computed(
+  () => pendingAutoSubmit.value && !contributionSettings.value?.auto_submit,
+)
+
 async function saveContributionSettings() {
+  if (turningOnAutoSubmit.value && !autoSubmitConfirmChecked.value) return
   contributionSaving.value = true
   contributionError.value = ''
   try {
     await sync()
     const settings = await setContributionSettings(
-      contributionEnabled.value,
       contributionRepo.value.trim(),
+      pendingAutoSubmit.value,
       contributionToken.value.trim() || undefined,
     )
     contributionSettings.value = settings
+    pendingAutoSubmit.value = settings.auto_submit
+    autoSubmitConfirmChecked.value = false
     contributionToken.value = ''
   } catch (cause) {
     contributionError.value =
@@ -1397,58 +1412,97 @@ watch(publicKey, (key) => {
         <div
           class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
         >
-          <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-            <div>
-              <p class="tw:text-sm tw:font-medium tw:text-foreground">
-                Share prepared candidates with Hugging Face
-              </p>
-              <p class="tw:text-xs tw:text-muted-foreground">
-                Off by default. When on, submitting a candidate above opens a
-                pull request with only that one file — never a direct commit,
-                never the raw audit journal, never automatic.
-              </p>
-            </div>
-            <Switch v-model="contributionEnabled" />
+          <div>
+            <p class="tw:text-sm tw:font-medium tw:text-foreground">
+              Hugging Face sharing
+            </p>
+            <p class="tw:text-xs tw:text-muted-foreground">
+              Off until a dataset repo and token are saved below. Once
+              configured, submitting a candidate above opens a pull request
+              with only that one file — never a direct commit, never the raw
+              audit journal.
+            </p>
           </div>
 
-          <template v-if="contributionEnabled">
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="hf-repo">Dataset repo</Label>
-              <Input
-                id="hf-repo"
-                v-model="contributionRepo"
-                placeholder="owner/dataset"
-                spellcheck="false"
-                autocomplete="off"
-              />
+          <div class="tw:grid tw:gap-1.5">
+            <Label for="hf-repo">Dataset repo</Label>
+            <Input
+              id="hf-repo"
+              v-model="contributionRepo"
+              placeholder="owner/dataset"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+          <div class="tw:grid tw:gap-1.5">
+            <Label for="hf-token">Hugging Face token</Label>
+            <Input
+              id="hf-token"
+              v-model="contributionToken"
+              type="password"
+              autocomplete="off"
+              :placeholder="
+                contributionSettings?.token_configured
+                  ? 'Token already saved — leave blank to keep it'
+                  : 'hf_…'
+              "
+            />
+          </div>
+
+          <div
+            class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+          >
+            <div>
+              <p class="tw:text-sm tw:font-medium tw:text-foreground">
+                Automatic submission
+              </p>
+              <p class="tw:text-xs tw:text-muted-foreground">
+                When on, the agent submits every completed cycle itself, the
+                moment it finishes — with no human review. The automated
+                redaction above is the only privacy check before it becomes a
+                public pull request. Off by default; leave off to keep
+                reviewing each candidate yourself before submitting.
+              </p>
             </div>
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="hf-token">Hugging Face token</Label>
-              <Input
-                id="hf-token"
-                v-model="contributionToken"
-                type="password"
-                autocomplete="off"
-                :placeholder="
-                  contributionSettings?.token_configured
-                    ? 'Token already saved — leave blank to keep it'
-                    : 'hf_…'
-                "
+            <Switch v-model="pendingAutoSubmit" />
+          </div>
+
+          <Alert v-if="turningOnAutoSubmit" variant="danger">
+            <p class="tw:m-0">
+              Every future completed cycle will be redacted and submitted as
+              a pull request automatically, with nobody checking it first.
+            </p>
+            <label
+              class="tw:mt-2 tw:flex tw:items-start tw:gap-2 tw:text-xs tw:text-foreground"
+            >
+              <input
+                v-model="autoSubmitConfirmChecked"
+                type="checkbox"
+                class="tw:mt-0.5 tw:size-4 tw:rounded tw:border-border-subtle"
               />
-            </div>
-            <Alert v-if="contributionError" variant="danger" role="alert">{{
-              contributionError
-            }}</Alert>
-            <div class="tw:flex tw:justify-end">
-              <Button
-                variant="primary"
-                size="sm"
-                :disabled="contributionSaving || !contributionRepo.trim()"
-                @click="saveContributionSettings"
-                >{{ contributionSaving ? 'Saving…' : 'Save' }}</Button
+              <span
+                >I understand submissions will happen automatically with no
+                review, and want to proceed.</span
               >
-            </div>
-          </template>
+            </label>
+          </Alert>
+
+          <Alert v-if="contributionError" variant="danger" role="alert">{{
+            contributionError
+          }}</Alert>
+          <div class="tw:flex tw:justify-end">
+            <Button
+              variant="primary"
+              size="sm"
+              :disabled="
+                contributionSaving ||
+                !contributionRepo.trim() ||
+                (turningOnAutoSubmit && !autoSubmitConfirmChecked)
+              "
+              @click="saveContributionSettings"
+              >{{ contributionSaving ? 'Saving…' : 'Save' }}</Button
+            >
+          </div>
         </div>
       </CardContent>
     </Card>

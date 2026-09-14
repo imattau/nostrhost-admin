@@ -96,6 +96,11 @@ export type ExportCandidate = {
 
 export type ContributionSettings = {
   enabled: boolean
+  // When true, the resident agent daemon itself submits every completed
+  // cycle as a pull request with no human review in between -- a stronger,
+  // separate opt-in from `enabled` (which only gates the manual "Prepare
+  // then Submit" flow below).
+  auto_submit: boolean
   dataset_repo: string
   token_configured: boolean
 }
@@ -177,16 +182,21 @@ export function getContributionSettings() {
 }
 
 // token is only ever sent, never returned — the GET result only reports
-// token_configured: boolean.
+// token_configured: boolean. autoSubmit requires datasetRepo and a saved
+// token to already (or now) exist -- the backend enforces this too.
 export function setContributionSettings(
-  enabled: boolean,
   datasetRepo: string,
+  autoSubmit: boolean,
   token?: string,
 ) {
   return request<ContributionSettings>(
     '/package/agent/contribution/settings',
     'POST',
-    JSON.stringify({ enabled, dataset_repo: datasetRepo, token: token || undefined }),
+    JSON.stringify({
+      dataset_repo: datasetRepo,
+      auto_submit: autoSubmit,
+      token: token || undefined,
+    }),
   )
 }
 

@@ -104,7 +104,8 @@ export type ContributionSubmitResult = {
   uploaded: boolean
   repo: string
   path: string
-  revision: string
+  base_revision: string
+  pull_request_url: string
   message: string
 }
 

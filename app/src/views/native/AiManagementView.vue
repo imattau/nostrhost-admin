@@ -463,6 +463,7 @@ const contributionSaving = ref(false)
 const contributionError = ref('')
 const submittingCandidateId = ref('')
 const submittedCandidateIds = ref<Set<string>>(new Set())
+const submittedPullRequestUrls = ref<Record<string, string>>({})
 
 async function loadExports() {
   exportsLoading.value = true
@@ -549,11 +550,15 @@ async function submitCandidate(candidateFileId: string) {
   exportsError.value = ''
   try {
     await sync()
-    await submitContribution(candidateFileId)
+    const result = await submitContribution(candidateFileId)
     submittedCandidateIds.value = new Set([
       ...submittedCandidateIds.value,
       candidateFileId,
     ])
+    submittedPullRequestUrls.value = {
+      ...submittedPullRequestUrls.value,
+      [candidateFileId]: result.pull_request_url,
+    }
   } catch (cause) {
     exportsError.value =
       cause instanceof Error ? cause.message : 'Failed to submit this candidate.'
@@ -1378,6 +1383,14 @@ watch(publicKey, (key) => {
               class="tw:m-0 tw:max-h-64 tw:overflow-auto tw:rounded tw:bg-surface-muted tw:p-2 tw:text-[11px]"
               >{{ JSON.stringify(candidate, null, 2) }}</pre
             >
+            <a
+              v-if="submittedPullRequestUrls[candidate.candidate_file_id]"
+              :href="submittedPullRequestUrls[candidate.candidate_file_id]"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="tw:text-xs tw:text-brand-500 tw:underline"
+              >View the pull request →</a
+            >
           </div>
         </div>
 
@@ -1390,9 +1403,9 @@ watch(publicKey, (key) => {
                 Share prepared candidates with Hugging Face
               </p>
               <p class="tw:text-xs tw:text-muted-foreground">
-                Off by default. When on, only a file you explicitly prepare
-                and submit above is ever sent — never the raw audit journal,
-                never automatic.
+                Off by default. When on, submitting a candidate above opens a
+                pull request with only that one file — never a direct commit,
+                never the raw audit journal, never automatic.
               </p>
             </div>
             <Switch v-model="contributionEnabled" />

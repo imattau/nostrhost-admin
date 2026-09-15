@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
@@ -19,7 +20,7 @@ const { run } = useActionRunner(busy, '')
 
 // -- reboot: disruptive but reversible — the server comes back on its own. --
 
-const confirmingReboot = ref(false)
+const { pending: confirmingReboot } = useConfirm(false)
 
 async function confirmReboot() {
   confirmingReboot.value = false
@@ -38,7 +39,7 @@ async function confirmReboot() {
 
 // -- shutdown: destructive — needs out-of-band access to bring back up. ----
 
-const confirmingShutdown = ref(false)
+const { pending: confirmingShutdown } = useConfirm(false)
 
 async function confirmShutdown() {
   confirmingShutdown.value = false

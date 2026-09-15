@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
@@ -56,14 +57,15 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
 
 const showCreateGroup = ref(false)
 const createGroupname = ref('')
-const confirmingCreateGroup = ref(false)
+const { pending: confirmingCreateGroup, request: requestCreateGroupConfirm } =
+  useConfirm(false)
 
 function requestCreateGroup() {
   if (!createGroupname.value.trim()) {
     danger('Enter a group name.')
     return
   }
-  confirmingCreateGroup.value = true
+  requestCreateGroupConfirm(true)
 }
 
 async function confirmCreateGroup() {
@@ -111,18 +113,18 @@ async function addMember(groupname: string) {
   )
 }
 
-const confirmingRemoveMember = ref<string | null>(null)
+const {
+  pending: confirmingRemoveMember,
+  request: requestRemoveMemberConfirm,
+  cancel: cancelRemoveMember,
+} = useConfirm<string | null>(null)
 
 function memberKey(groupname: string, username: string) {
   return `${groupname}:${username}`
 }
 
 function requestRemoveMember(groupname: string, username: string) {
-  confirmingRemoveMember.value = memberKey(groupname, username)
-}
-
-function cancelRemoveMember() {
-  confirmingRemoveMember.value = null
+  requestRemoveMemberConfirm(memberKey(groupname, username))
 }
 
 const pendingRemoveMember = computed(() => {
@@ -154,14 +156,14 @@ async function confirmRemoveMember(groupname: string, username: string) {
 
 // -- delete group ---------------------------------------------------------
 
-const confirmingDeleteGroup = ref<string | null>(null)
+const {
+  pending: confirmingDeleteGroup,
+  request: requestDeleteGroupConfirm,
+  cancel: cancelDeleteGroup,
+} = useConfirm<string | null>(null)
 
 function requestDeleteGroup(groupname: string) {
-  confirmingDeleteGroup.value = groupname
-}
-
-function cancelDeleteGroup() {
-  confirmingDeleteGroup.value = null
+  requestDeleteGroupConfirm(groupname)
 }
 
 async function confirmDeleteGroup(groupname: string) {
@@ -202,18 +204,18 @@ async function grantPermission(permission: string) {
   )
 }
 
-const confirmingRevoke = ref<string | null>(null)
+const {
+  pending: confirmingRevoke,
+  request: requestRevokeConfirm,
+  cancel: cancelRevoke,
+} = useConfirm<string | null>(null)
 
 function revokeKey(permission: string, name: string) {
   return `${permission}:${name}`
 }
 
 function requestRevoke(permission: string, name: string) {
-  confirmingRevoke.value = revokeKey(permission, name)
-}
-
-function cancelRevoke() {
-  confirmingRevoke.value = null
+  requestRevokeConfirm(revokeKey(permission, name))
 }
 
 const pendingRevoke = computed(() => {

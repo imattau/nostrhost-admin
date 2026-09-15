@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
@@ -103,7 +104,7 @@ const addIpv4 = ref(true)
 const addIpv6 = ref(true)
 const addWildcard = ref(true)
 const addNip05 = ref(false)
-const confirmingAdd = ref(false)
+const { pending: confirmingAdd, request: requestAddConfirm } = useConfirm(false)
 
 function resetAddForm() {
   addDomainName.value = ''
@@ -123,7 +124,7 @@ function requestAdd() {
     danger('Enter a domain name.')
     return
   }
-  confirmingAdd.value = true
+  requestAddConfirm(true)
 }
 
 async function confirmAdd() {
@@ -156,10 +157,12 @@ async function confirmAdd() {
 
 // -- remove / apply / verify -------------------------------------------------
 
-const confirmingRemove = ref<string | null>(null)
+const { pending: confirmingRemove, request: requestRemoveConfirm } = useConfirm<
+  string | null
+>(null)
 
 function requestRemove(domain: string) {
-  confirmingRemove.value = domain
+  requestRemoveConfirm(domain)
 }
 
 async function confirmRemove(domain: string) {
@@ -182,10 +185,11 @@ async function confirmRemove(domain: string) {
   )
 }
 
-const confirmingApply = ref<string | null>(null)
+const { pending: confirmingApply, request: requestApplyDnsConfirm } =
+  useConfirm<string | null>(null)
 
 function requestApplyDns(domain: string) {
-  confirmingApply.value = domain
+  requestApplyDnsConfirm(domain)
 }
 
 async function confirmApplyDns(domain: string) {
@@ -252,10 +256,11 @@ async function submitClaim() {
   )
 }
 
-const confirmingUnsubscribe = ref<string | null>(null)
+const { pending: confirmingUnsubscribe, request: requestUnsubscribeConfirm } =
+  useConfirm<string | null>(null)
 
 function requestUnsubscribe(hostname: string) {
-  confirmingUnsubscribe.value = hostname
+  requestUnsubscribeConfirm(hostname)
 }
 
 async function confirmUnsubscribe(hostname: string) {
@@ -314,10 +319,13 @@ async function submitCredential() {
   )
 }
 
-const confirmingRemoveCredential = ref<string | null>(null)
+const {
+  pending: confirmingRemoveCredential,
+  request: requestRemoveCredentialConfirm,
+} = useConfirm<string | null>(null)
 
 function requestRemoveCredential(ref: string) {
-  confirmingRemoveCredential.value = ref
+  requestRemoveCredentialConfirm(ref)
 }
 
 async function confirmRemoveCredential(ref: string) {

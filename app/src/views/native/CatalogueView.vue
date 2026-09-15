@@ -538,7 +538,7 @@ watch(publicKey, (key) => {
               <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
                 <dt class="tw:text-muted-foreground">Architectures</dt>
                 <dd class="tw:truncate tw:text-foreground">
-                  {{ entry.declaration.Architectures.join(', ') }}
+                  {{ (entry.declaration.Architectures || []).join(', ') }}
                 </dd>
               </div>
               <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">

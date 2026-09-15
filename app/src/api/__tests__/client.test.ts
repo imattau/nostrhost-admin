@@ -6,7 +6,9 @@ vi.mock('@/composables/useSigner', () => ({
     username: 'alice',
     pubkey: 'abc123',
     admin: true,
+    csrf_token: 'test-csrf',
   }),
+  csrfToken: { value: 'test-csrf' },
 }))
 
 import { refreshSession } from '@/composables/useSigner'

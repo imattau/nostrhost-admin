@@ -18,6 +18,13 @@ const error = ref('')
 
 const sessionChecked = ref(false)
 
+// Per-session CSRF token (H4). Returned by the native API's public
+// /package/session probe and required on every cookie-authenticated request:
+// a cross-origin page — even a same-site subdomain XSS — cannot read it and
+// cannot set the custom header, so the domain-wide SSO cookie can no longer
+// be ridden to drive the admin API.
+export const csrfToken = ref('')
+
 // Every view calls sync() on load and before each write, and the router
 // guard probes on every navigation — without a cache that's a
 // /package/session round-trip per action. 30s is short enough that a
@@ -36,6 +43,7 @@ export type SessionInfo = {
   username: string | null
   pubkey: string | null
   admin: boolean
+  csrf_token?: string | null
 }
 
 // Probe the native API's public /session endpoint (session cookie only — no
@@ -72,6 +80,7 @@ async function _refreshSession(): Promise<SessionInfo> {
     publicKey.value = info.pubkey
     username.value = info.username
     admin.value = info.admin
+    csrfToken.value = info.csrf_token ?? ''
     sessionChecked.value = true
     lastCheckedAt = Date.now()
     return info
@@ -141,6 +150,7 @@ export function useSigner() {
     publicKey,
     username,
     admin,
+    csrfToken,
     busy,
     error,
     signerAvailable,

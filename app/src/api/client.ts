@@ -1,4 +1,4 @@
-import { refreshSession } from '@/composables/useSigner'
+import { refreshSession, csrfToken } from '@/composables/useSigner'
 
 // A request that failed at the HTTP layer (4xx/5xx) — status + the backend's
 // own error code (from _json_error in api.py), not just a message string, so
@@ -67,6 +67,15 @@ export async function request<T>(
   // is always sent.
   const url = new URL(path, window.location.origin)
   const sessionActive = await sessionProbe()
+
+  if (sessionActive) {
+    // H4: cookie-authenticated requests must echo the per-session CSRF token
+    // the /package/session probe returned. A cross-origin attacker cannot read
+    // it (same-origin probe, no CORS) and cannot set the custom header, so a
+    // subdomain XSS can no longer drive the admin API via the SSO cookie.
+    const csrf = csrfToken.value
+    if (csrf) headers.set('X-Nostrhost-CSRF', csrf)
+  }
 
   if (!sessionActive && window.nostr) {
     try {

@@ -33,6 +33,7 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { truncatePubkey } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
@@ -86,8 +87,7 @@ const visibleEntries = computed(() =>
 )
 
 function shortHash(hash: string) {
-  if (!hash) return ''
-  return `${hash.slice(0, 8)}…${hash.slice(-6)}`
+  return hash ? truncatePubkey(hash, 8, 6) : ''
 }
 
 async function loadBrowse() {

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { truncatePubkey } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { Globe2 } from '@lucide/vue'
@@ -36,8 +37,8 @@ const siteOptions = computed(() =>
 
 function domainLabel(domain: NsiteCustomDomain): string {
   return domain.d
-    ? `${domain.pubkey.slice(0, 8)}…/d=${domain.d}`
-    : `${domain.pubkey.slice(0, 16)}…`
+    ? `${truncatePubkey(domain.pubkey, 8, 0)}/d=${domain.d}`
+    : truncatePubkey(domain.pubkey, 16, 0)
 }
 
 function selectedSitePubkeyD() {

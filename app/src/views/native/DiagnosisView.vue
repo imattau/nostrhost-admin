@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
 import {
   ignoreIssue,
@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
@@ -19,11 +20,10 @@ import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, admin, sync } = useSigner()
+const { admin } = useSigner()
 const { danger } = useNotifications()
 
 const reports = ref<DiagnosisReport[] | null>(null)
-const loading = ref(false)
 const running = ref(false)
 
 // Keyed by `${category}:${JSON.stringify(item.meta)}` — the same identity
@@ -69,17 +69,9 @@ function relatedRoute(categoryId: string): { name: string; label: string } | und
   return undefined
 }
 
-async function load(force = false) {
-  loading.value = true
-  try {
-    await sync()
-    reports.value = await runDiagnosis([], force)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load diagnosis.'))
-  } finally {
-    loading.value = false
-  }
-}
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  reports.value = await runDiagnosis([], false)
+}, 'Failed to load diagnosis.')
 
 async function runNow() {
   running.value = true
@@ -110,13 +102,6 @@ async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
     filterBusy[key] = false
   }
 }
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
 </script>
 
 <template>
@@ -141,7 +126,7 @@ watch(publicKey, (key) => {
         >
       </div>
       <div class="tw:flex tw:gap-2">
-        <Button variant="outline" size="sm" :disabled="loading || running" @click="load(false)">{{
+        <Button variant="outline" size="sm" :disabled="loading || running" @click="load">{{
           loading ? 'Refreshing…' : 'Refresh'
         }}</Button>
         <Button variant="primary" size="sm" :disabled="loading || running" @click="runNow">{{

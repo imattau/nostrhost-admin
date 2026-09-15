@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import {
   createBackup,
@@ -14,19 +14,23 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
+import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { success, danger } = useNotifications()
 
 const archives = ref<Record<string, BackupArchiveInfo>>({})
-const loading = ref(false)
+
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  const result = await getBackups()
+  archives.value = result.archives
+}, 'Failed to load backups.')
 
 // -- archive contents (expand-in-place) --------------------------------------
 
@@ -54,26 +58,6 @@ const archiveRows = computed(() =>
     .map(([name, info]) => ({ name, ...info }))
     .sort((a, b) => b.created_at.localeCompare(a.created_at)),
 )
-
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    const result = await getBackups()
-    archives.value = result.archives
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load backups.'))
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
 
 function formatSize(size: number | string) {
   if (typeof size !== 'number') return String(size)
@@ -103,13 +87,6 @@ function resetCreateForm() {
   createApps.value = ''
   createSystem.value = ''
   confirmingCreate.value = false
-}
-
-function parseList(value: string) {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
 }
 
 function requestCreate() {

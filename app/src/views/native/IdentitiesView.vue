@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { ref } from 'vue'
 
 import {
   linkIdentity,
@@ -13,8 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { shortenKey } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
@@ -22,11 +22,9 @@ import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { success, danger } = useNotifications()
 
 const identities = ref<Identity[] | null>(null)
-const loading = ref(false)
 
 const username = ref('')
 const pubkeyOrNpub = ref('')
@@ -37,17 +35,9 @@ const linking = ref(false)
 const revokePending = ref<string | null>(null)
 const revoking = ref(false)
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    identities.value = await getIdentities()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load identities.'))
-  } finally {
-    loading.value = false
-  }
-}
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  identities.value = await getIdentities()
+}, 'Failed to load identities.')
 
 async function submitLink() {
   linking.value = true
@@ -94,13 +84,6 @@ async function confirmRevoke(pubkey: string) {
     revoking.value = false
   }
 }
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
 </script>
 
 <template>

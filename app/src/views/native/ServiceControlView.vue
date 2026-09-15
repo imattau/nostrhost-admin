@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import { ChevronDown } from '@lucide/vue'
 
@@ -12,19 +12,17 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { danger } = useNotifications()
 
 const services = ref<ServiceStatusMap | null>(null)
-const loading = ref(false)
 
 const pendingAction = ref<{ name: string; action: ServiceAction } | null>(null)
 const confirming = ref<{ name: string; action: ServiceAction } | null>(null)
@@ -40,17 +38,9 @@ const serviceNames = computed(() =>
 
 const CONFIRM_ACTIONS: ServiceAction[] = ['stop', 'restart']
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    services.value = await getServiceStatus()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load service status.'))
-  } finally {
-    loading.value = false
-  }
-}
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  services.value = await getServiceStatus()
+}, 'Failed to load service status.')
 
 function requestAction(name: string, action: ServiceAction) {
   if (CONFIRM_ACTIONS.includes(action)) {
@@ -98,13 +88,6 @@ function statusVariant(status: string) {
 function bootVariant(startOnBoot: string) {
   return startOnBoot === 'enabled' ? 'brand' : 'neutral'
 }
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
 </script>
 
 <template>

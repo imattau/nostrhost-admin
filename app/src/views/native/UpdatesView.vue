@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import {
   applyUpdates,
@@ -15,20 +15,18 @@ import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { success, danger } = useNotifications()
 
 const updates = ref<AvailableUpdates | null>(null)
 const migrations = ref<Migration[]>([])
-const loading = ref(false)
 const busy = ref('')
 
 const confirmingApply = ref<'apps' | 'system' | null>(null)
@@ -43,29 +41,14 @@ const upgradableSystemCount = computed(() =>
   systemPackageGroups.value.reduce((sum, [, pkgs]) => sum + pkgs.length, 0),
 )
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    const [updatesResult, migrationsResult] = await Promise.all([
-      getAvailableUpdates(),
-      getMigrations('pending'),
-    ])
-    updates.value = updatesResult
-    migrations.value = migrationsResult.migrations
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load updates.'))
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  const [updatesResult, migrationsResult] = await Promise.all([
+    getAvailableUpdates(),
+    getMigrations('pending'),
+  ])
+  updates.value = updatesResult
+  migrations.value = migrationsResult.migrations
+}, 'Failed to load updates.')
 
 async function refresh(target: UpdateTarget) {
   busy.value = `refresh-${target}`

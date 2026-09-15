@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import { getDomains } from '@/api/nativeDomains'
 import { linkIdentity } from '@/api/nativeIdentity'
@@ -17,8 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
 import IdentityFields from '@/components/native/IdentityFields.vue'
 import {
@@ -31,7 +31,6 @@ import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { success, warning, danger } = useNotifications()
 
 type UserRow = NativeUser & { username: string }
@@ -39,7 +38,6 @@ type UserRow = NativeUser & { username: string }
 const users = ref<UserRow[] | null>(null)
 const identities = ref<Identity[] | null>(null)
 const domains = ref<string[]>([])
-const loading = ref(false)
 
 const identityByUsername = computed(() => {
   const map = new Map<string, Identity>()
@@ -110,30 +108,22 @@ const sortedUsers = computed(() =>
     .sort((a, b) => a.username.localeCompare(b.username)),
 )
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    const [userResult, identityResult, domainResult] = await Promise.all([
-      listUsers(),
-      getIdentities(),
-      getDomains(),
-    ])
-    users.value = Object.entries(userResult.users).map(([username, info]) => ({
-      ...info,
-      username,
-    }))
-    identities.value = identityResult
-    domains.value = domainResult.domains
-    if (!createDomain.value && domains.value.length) {
-      createDomain.value = domains.value[0]
-    }
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load users.'))
-  } finally {
-    loading.value = false
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  const [userResult, identityResult, domainResult] = await Promise.all([
+    listUsers(),
+    getIdentities(),
+    getDomains(),
+  ])
+  users.value = Object.entries(userResult.users).map(([username, info]) => ({
+    ...info,
+    username,
+  }))
+  identities.value = identityResult
+  domains.value = domainResult.domains
+  if (!createDomain.value && domains.value.length) {
+    createDomain.value = domains.value[0]
   }
-}
+}, 'Failed to load users.')
 
 async function submitCreate() {
   creating.value = true
@@ -303,13 +293,6 @@ async function copyRevealedPassword() {
 function dismissRevealedPassword() {
   revealedPassword.value = null
 }
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
 </script>
 
 <template>

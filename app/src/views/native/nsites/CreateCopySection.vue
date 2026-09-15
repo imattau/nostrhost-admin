@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import { KIND_ROOT, KIND_NAMED } from '@/lib/nsite/manifest'
 import { siteLabel } from './helpers'
@@ -47,12 +48,7 @@ async function buildCopyPlan() {
       pubkey: publicKey.value ?? '',
       kind: copyTargetKind(),
       d: copyD.value.trim(),
-      servers: copyServers.value
-        ? copyServers.value
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean)
-        : undefined,
+      servers: copyServers.value ? parseList(copyServers.value) : undefined,
       copy_of: copySourceKey.value,
     })
     copyPlan.value = result.plan

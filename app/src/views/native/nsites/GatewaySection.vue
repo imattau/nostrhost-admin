@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { Globe2 } from '@lucide/vue'
@@ -57,10 +58,7 @@ const formMaxBlobBytes = ref('')
 const formCacheQuota = ref('')
 
 function toList(text: string): string[] | undefined {
-  const values = text
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
+  const values = parseList(text)
   return values.length ? values : undefined
 }
 

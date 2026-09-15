@@ -31,8 +31,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
@@ -50,6 +50,8 @@ const dnsWatch = ref<DnsWatchStatus | null>(null)
 
 const inspectLoading = ref(false)
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
+const { run: runInspect } = useActionRunner(inspectLoading, false)
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   const [
@@ -79,15 +81,14 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
 async function selectDomain(domain: string) {
   selectedDomain.value = domain
   inspect.value = null
-  inspectLoading.value = true
-  try {
-    await sync()
-    inspect.value = await getDomainInspect(domain)
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to inspect ${domain}.`))
-  } finally {
-    inspectLoading.value = false
-  }
+  await runInspect(
+    true,
+    async () => {
+      await sync()
+      inspect.value = await getDomainInspect(domain)
+    },
+    `Failed to inspect ${domain}.`,
+  )
 }
 
 // -- add domain -------------------------------------------------------------
@@ -127,29 +128,30 @@ function requestAdd() {
 
 async function confirmAdd() {
   confirmingAdd.value = false
-  busy.value = 'add'
-  try {
-    await sync()
-    const result = await addDomain({
-      domain: addDomainName.value.trim(),
-      provider_type: addProviderType.value,
-      provider_zone: addProviderZone.value.trim() || null,
-      credential: addCredential.value.trim() || null,
-      primary: addPrimary.value,
-      ipv4: addIpv4.value,
-      ipv6: addIpv6.value,
-      wildcard: addWildcard.value,
-      nip05: addNip05.value,
-    })
-    success(`Domain registration submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    showAddForm.value = false
-    resetAddForm()
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to register domain.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'add',
+    async () => {
+      await sync()
+      const result = await addDomain({
+        domain: addDomainName.value.trim(),
+        provider_type: addProviderType.value,
+        provider_zone: addProviderZone.value.trim() || null,
+        credential: addCredential.value.trim() || null,
+        primary: addPrimary.value,
+        ipv4: addIpv4.value,
+        ipv6: addIpv6.value,
+        wildcard: addWildcard.value,
+        nip05: addNip05.value,
+      })
+      success(
+        `Domain registration submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      showAddForm.value = false
+      resetAddForm()
+      await load()
+    },
+    'Failed to register domain.',
+  )
 }
 
 // -- remove / apply / verify -------------------------------------------------
@@ -162,21 +164,22 @@ function requestRemove(domain: string) {
 
 async function confirmRemove(domain: string) {
   confirmingRemove.value = null
-  busy.value = `remove-${domain}`
-  try {
-    await sync()
-    const result = await removeDomain(domain)
-    success(`Removal of ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    if (selectedDomain.value === domain) {
-      selectedDomain.value = null
-      inspect.value = null
-    }
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to remove ${domain}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `remove-${domain}`,
+    async () => {
+      await sync()
+      const result = await removeDomain(domain)
+      success(
+        `Removal of ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      if (selectedDomain.value === domain) {
+        selectedDomain.value = null
+        inspect.value = null
+      }
+      await load()
+    },
+    `Failed to remove ${domain}.`,
+  )
 }
 
 const confirmingApply = ref<string | null>(null)
@@ -187,40 +190,40 @@ function requestApplyDns(domain: string) {
 
 async function confirmApplyDns(domain: string) {
   confirmingApply.value = null
-  busy.value = `apply-${domain}`
-  try {
-    await sync()
-    const result = await applyDns(domain)
-    success(`DNS apply for ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    if (selectedDomain.value === domain) await selectDomain(domain)
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to apply DNS for ${domain}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `apply-${domain}`,
+    async () => {
+      await sync()
+      const result = await applyDns(domain)
+      success(
+        `DNS apply for ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      if (selectedDomain.value === domain) await selectDomain(domain)
+    },
+    `Failed to apply DNS for ${domain}.`,
+  )
 }
 
 async function runVerify(domain: string) {
-  busy.value = `verify-${domain}`
-  try {
-    await sync()
-    const result = await verifyDns(domain)
-    const failing = result.verify.filter(
-      (row) =>
-        typeof row === 'object' &&
-        row !== null &&
-        (row as { ok?: boolean }).ok === false,
-    ).length
-    if (failing === 0) {
-      success(`${domain}: all DNS records verified.`)
-    } else {
-      danger(`${domain}: ${failing} record(s) did not verify.`)
-    }
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to verify ${domain}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `verify-${domain}`,
+    async () => {
+      await sync()
+      const result = await verifyDns(domain)
+      const failing = result.verify.filter(
+        (row) =>
+          typeof row === 'object' &&
+          row !== null &&
+          (row as { ok?: boolean }).ok === false,
+      ).length
+      if (failing === 0) {
+        success(`${domain}: all DNS records verified.`)
+      } else {
+        danger(`${domain}: ${failing} record(s) did not verify.`)
+      }
+    },
+    `Failed to verify ${domain}.`,
+  )
 }
 
 // -- free hostname subscriptions ---------------------------------------------
@@ -233,19 +236,20 @@ async function submitClaim() {
     danger('Enter a hostname label.')
     return
   }
-  busy.value = 'claim'
-  try {
-    await sync()
-    const result = await subscribeFreeHostname(claimHostname.value.trim())
-    success(`Free-hostname claim submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    claimHostname.value = ''
-    showClaimForm.value = false
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to claim hostname.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'claim',
+    async () => {
+      await sync()
+      const result = await subscribeFreeHostname(claimHostname.value.trim())
+      success(
+        `Free-hostname claim submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      claimHostname.value = ''
+      showClaimForm.value = false
+      await load()
+    },
+    'Failed to claim hostname.',
+  )
 }
 
 const confirmingUnsubscribe = ref<string | null>(null)
@@ -256,17 +260,18 @@ function requestUnsubscribe(hostname: string) {
 
 async function confirmUnsubscribe(hostname: string) {
   confirmingUnsubscribe.value = null
-  busy.value = `unsubscribe-${hostname}`
-  try {
-    await sync()
-    const result = await unsubscribeFreeHostname(hostname)
-    success(`Released ${hostname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to release ${hostname}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `unsubscribe-${hostname}`,
+    async () => {
+      await sync()
+      const result = await unsubscribeFreeHostname(hostname)
+      success(
+        `Released ${hostname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to release ${hostname}.`,
+  )
 }
 
 // -- DNS provider credentials -------------------------------------------------
@@ -288,24 +293,25 @@ async function submitCredential() {
     danger('Enter a name and a token value.')
     return
   }
-  busy.value = 'credential-set'
-  try {
-    await sync()
-    await setCredential(
-      credentialProvider.value,
-      credentialName.value.trim(),
-      credentialValue.value.trim(),
-    )
-    success(`Stored credential ${credentialProvider.value}/${credentialName.value.trim()}.`)
-    credentialName.value = ''
-    credentialValue.value = ''
-    showCredentialForm.value = false
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to store credential.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'credential-set',
+    async () => {
+      await sync()
+      await setCredential(
+        credentialProvider.value,
+        credentialName.value.trim(),
+        credentialValue.value.trim(),
+      )
+      success(
+        `Stored credential ${credentialProvider.value}/${credentialName.value.trim()}.`,
+      )
+      credentialName.value = ''
+      credentialValue.value = ''
+      showCredentialForm.value = false
+      await load()
+    },
+    'Failed to store credential.',
+  )
 }
 
 const confirmingRemoveCredential = ref<string | null>(null)
@@ -317,17 +323,16 @@ function requestRemoveCredential(ref: string) {
 async function confirmRemoveCredential(ref: string) {
   confirmingRemoveCredential.value = null
   const { provider, name } = parseCredentialRef(ref)
-  busy.value = `credential-remove-${ref}`
-  try {
-    await sync()
-    await removeCredential(provider, name)
-    success(`Removed credential ${provider}/${name}.`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to remove ${ref}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `credential-remove-${ref}`,
+    async () => {
+      await sync()
+      await removeCredential(provider, name)
+      success(`Removed credential ${provider}/${name}.`)
+      await load()
+    },
+    `Failed to remove ${ref}.`,
+  )
 }
 
 const driftBadge = computed(() => {

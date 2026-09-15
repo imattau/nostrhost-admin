@@ -5,9 +5,9 @@ import { unregisterNsite, type NsiteSite } from '@/api/nativeNsites'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
-import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { PackageOpen } from '@lucide/vue'
 import { siteLabel } from './helpers'
@@ -17,11 +17,12 @@ defineProps<{ wizardVisible: boolean }>()
 const emit = defineEmits<{ 'toggle-wizard': [] }>()
 
 const { sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 const nsite = inject(NSITE_STATE_KEY)!
 const { status, sites, sitesLoading } = nsite
 
 const unregistering = ref('')
+const { run } = useActionRunner(unregistering, '')
 
 function siteKindName(site: NsiteSite): string {
   return site.kind === 35128
@@ -32,26 +33,23 @@ function siteKindName(site: NsiteSite): string {
 }
 
 async function confirmUnregister(site: NsiteSite) {
-  unregistering.value = `${site.pubkey}:${site.d}`
-  try {
-    await sync()
-    await unregisterNsite({ pubkey: site.pubkey, d: site.d })
-    success('Site unregister submitted.')
-    await nsite.loadSites()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to unregister the site.'))
-  } finally {
-    unregistering.value = ''
-  }
+  await run(
+    `${site.pubkey}:${site.d}`,
+    async () => {
+      await sync()
+      await unregisterNsite({ pubkey: site.pubkey, d: site.d })
+      success('Site unregister submitted.')
+      await nsite.loadSites()
+    },
+    'Failed to unregister the site.',
+  )
 }
 </script>
 
 <template>
   <Card>
     <CardHeader>
-      <CardTitle
-        class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-      >
+      <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
         <span>Registered sites</span>
         <span class="tw:text-xs tw:font-normal tw:text-muted-foreground"
           >root/named manifests are mutable; snapshots are immutable
@@ -67,10 +65,7 @@ async function confirmUnregister(site: NsiteSite) {
       </CardTitle>
     </CardHeader>
     <CardContent class="tw:grid tw:gap-3">
-      <p
-        v-if="sitesLoading"
-        class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-      >
+      <p v-if="sitesLoading" class="tw:m-0 tw:text-sm tw:text-muted-foreground">
         Loading…
       </p>
       <EmptyState

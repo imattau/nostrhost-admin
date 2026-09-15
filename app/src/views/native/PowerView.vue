@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
 import { useNotifications } from '@/composables/useNotifications'
+import { useActionRunner } from '@/composables/useActionRunner'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
@@ -14,6 +15,7 @@ const { publicKey, sync } = useSigner()
 const notifications = useNotifications()
 
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 // -- reboot: disruptive but reversible — the server comes back on its own. --
 
@@ -21,18 +23,17 @@ const confirmingReboot = ref(false)
 
 async function confirmReboot() {
   confirmingReboot.value = false
-  busy.value = 'reboot'
-  try {
-    await sync()
-    const result = await reboot()
-    notifications.success(
-      `Reboot submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
-    )
-  } catch (cause) {
-    notifications.fromOperationError(cause, 'Failed to reboot.')
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'reboot',
+    async () => {
+      await sync()
+      const result = await reboot()
+      notifications.success(
+        `Reboot submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+    },
+    (cause) => notifications.fromOperationError(cause, 'Failed to reboot.'),
+  )
 }
 
 // -- shutdown: destructive — needs out-of-band access to bring back up. ----
@@ -41,18 +42,17 @@ const confirmingShutdown = ref(false)
 
 async function confirmShutdown() {
   confirmingShutdown.value = false
-  busy.value = 'shutdown'
-  try {
-    await sync()
-    const result = await shutdown()
-    notifications.success(
-      `Shutdown submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
-    )
-  } catch (cause) {
-    notifications.fromOperationError(cause, 'Failed to shut down.')
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'shutdown',
+    async () => {
+      await sync()
+      const result = await shutdown()
+      notifications.success(
+        `Shutdown submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+    },
+    (cause) => notifications.fromOperationError(cause, 'Failed to shut down.'),
+  )
 }
 </script>
 

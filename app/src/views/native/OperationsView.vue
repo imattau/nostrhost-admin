@@ -23,6 +23,7 @@ import PageLayout from '@/components/native/PageLayout.vue'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useBunkerSigner } from '@/composables/useBunkerSigner'
 import { useNotifications } from '@/composables/useNotifications'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { shortenKey } from '@/lib/utils'
 
 const notifications = useNotifications()
@@ -81,6 +82,7 @@ async function signDecision(
 const operations = ref<OperationEntry[] | null>(null)
 const filter = ref<'all' | 'pending' | OperationState>('all')
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const confirmingReject = ref<string | null>(null)
 
@@ -109,40 +111,43 @@ function stateVariant(state: OperationState) {
 }
 
 async function approve(requestId: string) {
-  busy.value = `approve-${requestId}`
-  try {
-    await sync()
-    const event = await signDecision('approval', requestId, undefined)
-    await approveOperation(requestId, undefined, event)
-    notifications.success(
-      event
-        ? `Approved ${requestId} with your remote signer.`
-        : `Approved ${requestId}.`,
-    )
-    await load()
-  } catch (cause) {
-    notifications.fromOperationError(cause, `Failed to approve ${requestId}.`)
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `approve-${requestId}`,
+    async () => {
+      await sync()
+      const event = await signDecision('approval', requestId, undefined)
+      await approveOperation(requestId, undefined, event)
+      notifications.success(
+        event
+          ? `Approved ${requestId} with your remote signer.`
+          : `Approved ${requestId}.`,
+      )
+      await load()
+    },
+    (cause) =>
+      notifications.fromOperationError(
+        cause,
+        `Failed to approve ${requestId}.`,
+      ),
+  )
 }
 
 async function confirmReject() {
   const requestId = confirmingReject.value
   if (!requestId) return
   confirmingReject.value = null
-  busy.value = `reject-${requestId}`
-  try {
-    await sync()
-    const event = await signDecision('rejection', requestId, undefined)
-    await rejectOperation(requestId, undefined, event)
-    notifications.success(`Rejected ${requestId}.`)
-    await load()
-  } catch (cause) {
-    notifications.fromOperationError(cause, `Failed to reject ${requestId}.`)
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `reject-${requestId}`,
+    async () => {
+      await sync()
+      const event = await signDecision('rejection', requestId, undefined)
+      await rejectOperation(requestId, undefined, event)
+      notifications.success(`Rejected ${requestId}.`)
+      await load()
+    },
+    (cause) =>
+      notifications.fromOperationError(cause, `Failed to reject ${requestId}.`),
+  )
 }
 
 const expanded = ref<string | null>(null)

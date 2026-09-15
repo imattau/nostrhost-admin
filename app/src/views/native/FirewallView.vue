@@ -14,8 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
@@ -32,6 +32,7 @@ const forwardedPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
 })
 
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   const [tcpOpen, udpOpen, tcpForwarded, udpForwarded] = await Promise.all([
@@ -74,31 +75,33 @@ function requestOpen() {
 
 async function confirmOpen() {
   confirmingOpen.value = false
-  busy.value = 'open'
-  try {
-    await sync()
-    const result = await openFirewallPort({
-      port: openPort.value.trim(),
-      protocol: openProtocol.value,
-      comment: openComment.value.trim() || undefined,
-      upnp: openUpnp.value,
-    })
-    success(`Port open submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    showOpenForm.value = false
-    resetOpenForm()
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to open port.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'open',
+    async () => {
+      await sync()
+      const result = await openFirewallPort({
+        port: openPort.value.trim(),
+        protocol: openProtocol.value,
+        comment: openComment.value.trim() || undefined,
+        upnp: openUpnp.value,
+      })
+      success(
+        `Port open submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      showOpenForm.value = false
+      resetOpenForm()
+      await load()
+    },
+    'Failed to open port.',
+  )
 }
 
 // -- close a port -------------------------------------------------------------
 
-const confirmingCloseTarget = ref<{ protocol: FirewallProtocol; port: number | string } | null>(
-  null,
-)
+const confirmingCloseTarget = ref<{
+  protocol: FirewallProtocol
+  port: number | string
+} | null>(null)
 
 // Closing one of these can lock the operator out of the server entirely
 // (SSH) or take the console/every app offline (HTTP/HTTPS) — worth a harder
@@ -120,17 +123,18 @@ function cancelClose() {
 async function confirmClose(protocol: FirewallProtocol, port: number | string) {
   confirmingCloseTarget.value = null
   const key = closeKey(protocol, port)
-  busy.value = `close-${key}`
-  try {
-    await sync()
-    const result = await closeFirewallPort({ port: String(port), protocol })
-    success(`Port close submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to close ${protocol}/${port}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `close-${key}`,
+    async () => {
+      await sync()
+      const result = await closeFirewallPort({ port: String(port), protocol })
+      success(
+        `Port close submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to close ${protocol}/${port}.`,
+  )
 }
 
 // -- remove UPnP forwarding ---------------------------------------------------
@@ -151,21 +155,22 @@ async function confirmUnforward(
 ) {
   confirmingUnforward.value = null
   const key = closeKey(protocol, port)
-  busy.value = `unforward-${key}`
-  try {
-    await sync()
-    const result = await closeFirewallPort({
-      port: String(port),
-      protocol,
-      upnp_only: true,
-    })
-    success(`UPnP forwarding removal submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to remove forwarding for ${protocol}/${port}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `unforward-${key}`,
+    async () => {
+      await sync()
+      const result = await closeFirewallPort({
+        port: String(port),
+        protocol,
+        upnp_only: true,
+      })
+      success(
+        `UPnP forwarding removal submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to remove forwarding for ${protocol}/${port}.`,
+  )
 }
 
 // -- reload -------------------------------------------------------------------
@@ -179,17 +184,18 @@ function requestReload() {
 
 async function confirmReload() {
   confirmingReload.value = false
-  busy.value = 'reload'
-  try {
-    await sync()
-    const result = await reloadFirewall(reloadSkipUpnp.value)
-    success(`Firewall reload submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to reload firewall.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'reload',
+    async () => {
+      await sync()
+      const result = await reloadFirewall(reloadSkipUpnp.value)
+      success(
+        `Firewall reload submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    'Failed to reload firewall.',
+  )
 }
 </script>
 
@@ -437,21 +443,37 @@ async function confirmReload() {
 
     <ConfirmDialog
       :open="confirmingCloseTarget !== null"
-      :tier="confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port)) ? 'destructive' : 'disruptive'"
+      :tier="
+        confirmingCloseTarget &&
+        CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+          ? 'destructive'
+          : 'disruptive'
+      "
       title="Close this port?"
       :description="
-        confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+        confirmingCloseTarget &&
+        CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
           ? `Port ${confirmingCloseTarget.port} is commonly used for SSH/HTTP(S) — closing it can lock you out of the server or take every app offline.`
           : 'A reload can transiently drop connections.'
       "
       confirm-label="Close"
       :confirm-phrase="
-        confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+        confirmingCloseTarget &&
+        CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
           ? String(confirmingCloseTarget.port)
           : undefined
       "
-      :busy="confirmingCloseTarget !== null && busy === `close-${closeKey(confirmingCloseTarget.protocol, confirmingCloseTarget.port)}`"
-      @confirm="confirmClose(confirmingCloseTarget!.protocol, confirmingCloseTarget!.port)"
+      :busy="
+        confirmingCloseTarget !== null &&
+        busy ===
+          `close-${closeKey(confirmingCloseTarget.protocol, confirmingCloseTarget.port)}`
+      "
+      @confirm="
+        confirmClose(
+          confirmingCloseTarget!.protocol,
+          confirmingCloseTarget!.port,
+        )
+      "
       @cancel="cancelClose"
     />
   </PageLayout>

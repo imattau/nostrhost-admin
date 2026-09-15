@@ -16,16 +16,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
-import { toErrorMessage } from '@/utils/errors'
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const exportCycles = ref<ExportCycleSummary[]>([])
 const exportsLoading = ref(false)
 const sharingCycleId = ref('')
+const { run: runLoad } = useActionRunner(exportsLoading, false)
+const { run: runShare } = useActionRunner(sharingCycleId, '')
 const sharedCycleIds = ref<Set<string>>(new Set())
 const sharedPullRequestUrls = ref<Record<string, string>>({})
 
@@ -38,6 +40,7 @@ const contributionSettings = ref<ContributionSettings | null>(null)
 const contributionRepo = ref('')
 const contributionToken = ref('')
 const contributionSaving = ref(false)
+const { run: runSave } = useActionRunner(contributionSaving, false)
 
 // Automatic submission is a standing authorization, not a stronger safety
 // tier: both it and the manual "Share" button below redact locally and rely
@@ -49,23 +52,22 @@ const pendingAutoSubmit = ref(false)
 const autoSubmitConfirmChecked = ref(false)
 
 async function loadExports() {
-  exportsLoading.value = true
-  try {
-    await sync()
-    const [cycles, settings] = await Promise.all([
-      listExportableCycles(),
-      getContributionSettings(),
-    ])
-    exportCycles.value = cycles
-    contributionSettings.value = settings
-    pendingAutoSubmit.value = settings.auto_submit
-    autoSubmitConfirmChecked.value = false
-    contributionRepo.value = settings.dataset_repo || DEFAULT_DATASET_REPO
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load export data.'))
-  } finally {
-    exportsLoading.value = false
-  }
+  await runLoad(
+    true,
+    async () => {
+      await sync()
+      const [cycles, settings] = await Promise.all([
+        listExportableCycles(),
+        getContributionSettings(),
+      ])
+      exportCycles.value = cycles
+      contributionSettings.value = settings
+      pendingAutoSubmit.value = settings.auto_submit
+      autoSubmitConfirmChecked.value = false
+      contributionRepo.value = settings.dataset_repo || DEFAULT_DATASET_REPO
+    },
+    'Failed to load export data.',
+  )
 }
 
 const turningOnAutoSubmit = computed(
@@ -74,46 +76,44 @@ const turningOnAutoSubmit = computed(
 
 async function saveContributionSettings() {
   if (turningOnAutoSubmit.value && !autoSubmitConfirmChecked.value) return
-  contributionSaving.value = true
-  try {
-    await sync()
-    const settings = await setContributionSettings(
-      contributionRepo.value.trim(),
-      pendingAutoSubmit.value,
-      contributionToken.value.trim() || undefined,
-    )
-    contributionSettings.value = settings
-    pendingAutoSubmit.value = settings.auto_submit
-    autoSubmitConfirmChecked.value = false
-    contributionToken.value = ''
-    success('Sharing settings saved.')
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to save sharing settings.'))
-  } finally {
-    contributionSaving.value = false
-  }
+  await runSave(
+    true,
+    async () => {
+      await sync()
+      const settings = await setContributionSettings(
+        contributionRepo.value.trim(),
+        pendingAutoSubmit.value,
+        contributionToken.value.trim() || undefined,
+      )
+      contributionSettings.value = settings
+      pendingAutoSubmit.value = settings.auto_submit
+      autoSubmitConfirmChecked.value = false
+      contributionToken.value = ''
+      success('Sharing settings saved.')
+    },
+    'Failed to save sharing settings.',
+  )
 }
 
 async function share(cycleId: string) {
-  sharingCycleId.value = cycleId
-  try {
-    await sync()
-    const result = await shareCycle(cycleId)
-    sharedCycleIds.value = new Set([...sharedCycleIds.value, cycleId])
-    sharedPullRequestUrls.value = {
-      ...sharedPullRequestUrls.value,
-      [cycleId]: result.pull_request_url,
-    }
-    success('Shared.')
-    // The backend now excludes this cycle from future listings; refresh so
-    // it actually disappears from "Completed cycles" instead of lingering
-    // until the next unrelated reload.
-    exportCycles.value = await listExportableCycles()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to share this cycle.'))
-  } finally {
-    sharingCycleId.value = ''
-  }
+  await runShare(
+    cycleId,
+    async () => {
+      await sync()
+      const result = await shareCycle(cycleId)
+      sharedCycleIds.value = new Set([...sharedCycleIds.value, cycleId])
+      sharedPullRequestUrls.value = {
+        ...sharedPullRequestUrls.value,
+        [cycleId]: result.pull_request_url,
+      }
+      success('Shared.')
+      // The backend now excludes this cycle from future listings; refresh so
+      // it actually disappears from "Completed cycles" instead of lingering
+      // until the next unrelated reload.
+      exportCycles.value = await listExportableCycles()
+    },
+    'Failed to share this cycle.',
+  )
 }
 
 onMounted(() => {
@@ -141,10 +141,10 @@ watch(publicKey, (key) => {
     <CardContent class="tw:grid tw:gap-4">
       <p class="tw:text-sm tw:text-muted-foreground">
         Nothing is ever uploaded automatically — sharing is off by default.
-        Sharing a cycle redacts it locally, then opens a pull request
-        against the community contribution repo, which validates it (format,
-        redaction, no duplicates) and merges it automatically; nobody on
-        this host or in that repo reads it by hand first.
+        Sharing a cycle redacts it locally, then opens a pull request against
+        the community contribution repo, which validates it (format, redaction,
+        no duplicates) and merges it automatically; nobody on this host or in
+        that repo reads it by hand first.
       </p>
 
       <div class="tw:grid tw:gap-2">
@@ -222,10 +222,9 @@ watch(publicKey, (key) => {
             Hugging Face sharing
           </p>
           <p class="tw:text-xs tw:text-muted-foreground">
-            Off until a dataset repo and token are saved below. Once
-            configured, sharing a cycle above opens a pull request with only
-            that one redacted cycle — never a direct commit, never the raw
-            audit journal.
+            Off until a dataset repo and token are saved below. Once configured,
+            sharing a cycle above opens a pull request with only that one
+            redacted cycle — never a direct commit, never the raw audit journal.
           </p>
         </div>
 
@@ -262,21 +261,24 @@ watch(publicKey, (key) => {
               Automatic submission
             </p>
             <p class="tw:text-xs tw:text-muted-foreground">
-              When on, the agent shares every completed cycle itself, the
-              moment it finishes — no click needed from you. It's the same
-              redaction and the same community-repo validation as sharing a
-              cycle yourself; the difference is that it keeps happening on
-              its own until you turn it off. Off by default, so you choose
-              which cycles to share.
+              When on, the agent shares every completed cycle itself, the moment
+              it finishes — no click needed from you. It's the same redaction
+              and the same community-repo validation as sharing a cycle
+              yourself; the difference is that it keeps happening on its own
+              until you turn it off. Off by default, so you choose which cycles
+              to share.
             </p>
           </div>
-          <Switch v-model="pendingAutoSubmit" aria-label="Automatic submission" />
+          <Switch
+            v-model="pendingAutoSubmit"
+            aria-label="Automatic submission"
+          />
         </div>
 
         <Alert v-if="turningOnAutoSubmit" variant="danger">
           <p class="tw:m-0">
-            Every future completed cycle will be shared automatically, with
-            no click from you, until you turn this off again.
+            Every future completed cycle will be shared automatically, with no
+            click from you, until you turn this off again.
           </p>
           <label
             class="tw:mt-2 tw:flex tw:items-start tw:gap-2 tw:text-xs tw:text-foreground"

@@ -14,17 +14,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const settings = ref<Record<string, SettingValue>>({})
 
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const settingKeys = computed(() => Object.keys(settings.value).sort())
 
@@ -64,19 +65,20 @@ function parsedEditValue(): SettingValue {
 }
 
 async function saveEdit(key: string) {
-  busy.value = `set-${key}`
-  try {
-    await sync()
-    const value = parsedEditValue()
-    const result = await setSetting(key, value)
-    success(`Updated ${key}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    editingKey.value = null
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to update ${key}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `set-${key}`,
+    async () => {
+      await sync()
+      const value = parsedEditValue()
+      const result = await setSetting(key, value)
+      success(
+        `Updated ${key}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      editingKey.value = null
+      await load()
+    },
+    `Failed to update ${key}.`,
+  )
 }
 
 // -- reset a setting --------------------------------------------------------
@@ -93,17 +95,18 @@ function cancelReset() {
 
 async function confirmReset(key: string) {
   confirmingReset.value = null
-  busy.value = `reset-${key}`
-  try {
-    await sync()
-    const result = await resetSetting(key)
-    success(`Reset ${key} to its default.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to reset ${key}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `reset-${key}`,
+    async () => {
+      await sync()
+      const result = await resetSetting(key)
+      success(
+        `Reset ${key} to its default.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to reset ${key}.`,
+  )
 }
 
 // -- reset all ----------------------------------------------------------------
@@ -116,17 +119,18 @@ function requestResetAll() {
 
 async function confirmResetAll() {
   confirmingResetAll.value = false
-  busy.value = 'reset-all'
-  try {
-    await sync()
-    const result = await resetAllSettings()
-    success(`All settings reset to their defaults.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to reset settings.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'reset-all',
+    async () => {
+      await sync()
+      const result = await resetAllSettings()
+      success(
+        `All settings reset to their defaults.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    'Failed to reset settings.',
+  )
 }
 </script>
 

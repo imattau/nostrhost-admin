@@ -33,8 +33,8 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { truncatePubkey } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
@@ -56,6 +56,7 @@ const activeTab = ref<TabId>('browse')
 const selfPublisher = ref('')
 
 const loading = ref(false)
+const { run: runLoading } = useActionRunner(loading, false)
 
 // -- browse ------------------------------------------------------------
 
@@ -63,6 +64,7 @@ const entries = ref<CatalogueEntry[] | null>(null)
 const search = ref('')
 const category = ref('all')
 const busyAppId = ref('')
+const { run: runBusyAppId } = useActionRunner(busyAppId, '')
 
 const categories = computed(() => {
   const found = new Set<string>()
@@ -100,35 +102,35 @@ async function loadBrowse() {
 }
 
 async function publishUnderMyKey(appId: string) {
-  busyAppId.value = appId
-  try {
-    await publishCatalogueEntry(appId)
-    success(`Published ${appId} under this node's publisher key.`)
-    await loadBrowse()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Publish failed.'))
-  } finally {
-    busyAppId.value = ''
-  }
+  await runBusyAppId(
+    appId,
+    async () => {
+      await publishCatalogueEntry(appId)
+      success(`Published ${appId} under this node's publisher key.`)
+      await loadBrowse()
+    },
+    'Publish failed.',
+  )
 }
 
 const reverifyResult = ref<CatalogueReverifyResult | null>(null)
 
 async function reverifyEntry(appId: string) {
-  busyAppId.value = appId
-  reverifyResult.value = null
-  try {
-    reverifyResult.value = await reverifyCatalogueEntry(appId)
-    if (reverifyResult.value.ok) {
-      success(`${appId} reverified: repository and hashes match the declaration.`)
-    } else {
-      danger(`${appId} reverify failed: ${reverifyResult.value.error}`)
-    }
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Reverify failed.'))
-  } finally {
-    busyAppId.value = ''
-  }
+  await runBusyAppId(
+    appId,
+    async () => {
+      reverifyResult.value = null
+      reverifyResult.value = await reverifyCatalogueEntry(appId)
+      if (reverifyResult.value.ok) {
+        success(
+          `${appId} reverified: repository and hashes match the declaration.`,
+        )
+      } else {
+        danger(`${appId} reverify failed: ${reverifyResult.value.error}`)
+      }
+    },
+    'Reverify failed.',
+  )
 }
 
 // -- attest --------------------------------------------------------------
@@ -139,6 +141,7 @@ const attestTarget = ref<CatalogueCandidate | null>(null)
 const attestClaim = ref<CatalogueClaim>('recommend')
 const attestComment = ref('')
 const attestBusy = ref(false)
+const { run: runAttest } = useActionRunner(attestBusy, false)
 
 async function loadAttest() {
   const [candidateResult, historyResult] = await Promise.all([
@@ -156,23 +159,23 @@ function pickCandidate(candidate: CatalogueCandidate) {
 }
 
 async function submitAttest() {
-  if (!attestTarget.value) return
-  attestBusy.value = true
-  try {
-    await attestCatalogueEntry({
-      appId: attestTarget.value.app_id,
-      publisher: attestTarget.value.publisher,
-      claim: attestClaim.value,
-      comment: attestComment.value,
-    })
-    success(`Endorsement published for ${attestTarget.value.app_id}.`)
-    attestTarget.value = null
-    await loadAttest()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Endorsement failed.'))
-  } finally {
-    attestBusy.value = false
-  }
+  const target = attestTarget.value
+  if (!target) return
+  await runAttest(
+    true,
+    async () => {
+      await attestCatalogueEntry({
+        appId: target.app_id,
+        publisher: target.publisher,
+        claim: attestClaim.value,
+        comment: attestComment.value,
+      })
+      success(`Endorsement published for ${target.app_id}.`)
+      attestTarget.value = null
+      await loadAttest()
+    },
+    'Endorsement failed.',
+  )
 }
 
 // -- trust -----------------------------------------------------------------
@@ -181,26 +184,27 @@ const trustEntries = ref<CatalogueTrustEntry[] | null>(null)
 const trustPolicy = ref<AttestationPolicyMode>('off')
 const trustMinAttestations = ref('1')
 const trustBusy = ref(false)
+const { run: runTrust } = useActionRunner(trustBusy, false)
 
 async function loadTrust() {
-  trustBusy.value = true
-  try {
-    const result = await getCatalogueTrust({
-      mode: trustPolicy.value,
-      minAttestations: Number(trustMinAttestations.value) || undefined,
-    })
-    trustEntries.value = result.entries
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load trust dashboard.'))
-  } finally {
-    trustBusy.value = false
-  }
+  await runTrust(
+    true,
+    async () => {
+      const result = await getCatalogueTrust({
+        mode: trustPolicy.value,
+        minAttestations: Number(trustMinAttestations.value) || undefined,
+      })
+      trustEntries.value = result.entries
+    },
+    'Failed to load trust dashboard.',
+  )
 }
 
 // -- profile -----------------------------------------------------------------
 
 const profileForm = ref<CatalogueProfile>({})
 const profileBusy = ref(false)
+const { run: runProfile } = useActionRunner(profileBusy, false)
 
 async function loadProfile() {
   const result = await getCatalogueProfile()
@@ -209,15 +213,14 @@ async function loadProfile() {
 }
 
 async function submitProfile() {
-  profileBusy.value = true
-  try {
-    await setCatalogueProfile(profileForm.value)
-    success('Profile published.')
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Publishing the profile failed.'))
-  } finally {
-    profileBusy.value = false
-  }
+  await runProfile(
+    true,
+    async () => {
+      await setCatalogueProfile(profileForm.value)
+      success('Profile published.')
+    },
+    'Publishing the profile failed.',
+  )
 }
 
 // -- announcements -----------------------------------------------------------
@@ -229,6 +232,7 @@ const ownEntries = computed(() =>
   ),
 )
 const announceBusyAppId = ref('')
+const { run: runAnnounceBusyAppId } = useActionRunner(announceBusyAppId, '')
 
 async function loadAnnounce() {
   const [announcementResult] = await Promise.all([
@@ -245,22 +249,22 @@ function alreadyAnnounced(appId: string, commit: string) {
 }
 
 async function announceEntry(appId: string) {
-  announceBusyAppId.value = appId
-  try {
-    await announceCatalogueEntry(appId)
-    success(`Announced ${appId}.`)
-    await loadAnnounce()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Announcement failed.'))
-  } finally {
-    announceBusyAppId.value = ''
-  }
+  await runAnnounceBusyAppId(
+    appId,
+    async () => {
+      await announceCatalogueEntry(appId)
+      success(`Announced ${appId}.`)
+      await loadAnnounce()
+    },
+    'Announcement failed.',
+  )
 }
 
 // -- verify ------------------------------------------------------------------
 
 const verifyInput = ref('')
 const verifyBusy = ref(false)
+const { run: runVerify } = useActionRunner(verifyBusy, false)
 const verifyResult = ref<{
   valid: boolean
   publisher: string
@@ -269,15 +273,14 @@ const verifyResult = ref<{
 } | null>(null)
 
 async function submitVerify() {
-  verifyBusy.value = true
-  verifyResult.value = null
-  try {
-    verifyResult.value = await verifyCatalogueEvent(verifyInput.value)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Verification failed.'))
-  } finally {
-    verifyBusy.value = false
-  }
+  await runVerify(
+    true,
+    async () => {
+      verifyResult.value = null
+      verifyResult.value = await verifyCatalogueEvent(verifyInput.value)
+    },
+    'Verification failed.',
+  )
 }
 
 // -- tab loading ---------------------------------------------------------
@@ -293,15 +296,14 @@ const tabLoaders: Record<TabId, () => Promise<void>> = {
 const loadedTabs = new Set<TabId>()
 
 async function loadTab(tab: TabId) {
-  loading.value = true
-  try {
-    await tabLoaders[tab]()
-    loadedTabs.add(tab)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load this tab.'))
-  } finally {
-    loading.value = false
-  }
+  await runLoading(
+    true,
+    async () => {
+      await tabLoaders[tab]()
+      loadedTabs.add(tab)
+    },
+    'Failed to load this tab.',
+  )
 }
 
 function selectTab(tab: TabId) {
@@ -315,15 +317,14 @@ async function refreshCurrentTab() {
 }
 
 async function bootstrap() {
-  loading.value = true
-  try {
-    await sync()
-    await loadTab('browse')
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load the catalogue.'))
-  } finally {
-    loading.value = false
-  }
+  await runLoading(
+    true,
+    async () => {
+      await sync()
+      await loadTab('browse')
+    },
+    'Failed to load the catalogue.',
+  )
 }
 
 onMounted(() => {
@@ -768,7 +769,6 @@ watch(publicKey, (key) => {
 
     <!-- Announcements -->
     <template v-if="publicKey && activeTab === 'announce'">
-
       <Card>
         <CardHeader>
           <CardTitle>My declarations</CardTitle>

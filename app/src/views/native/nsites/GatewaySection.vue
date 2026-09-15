@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 
-import { configureNsiteGateway, disableNsiteGateway, enableNsiteGateway, type GatewayInput } from '@/api/nativeNsites'
+import {
+  configureNsiteGateway,
+  disableNsiteGateway,
+  enableNsiteGateway,
+  type GatewayInput,
+} from '@/api/nativeNsites'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,10 +14,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { parseList } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { Globe2 } from '@lucide/vue'
 import { NSITE_STATE_KEY } from './useNsiteState'
@@ -23,6 +28,7 @@ const nsite = inject(NSITE_STATE_KEY)!
 const { status, domains, loading } = nsite
 
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const healthBadge = computed(() => {
   if (!status.value?.enabled)
@@ -111,18 +117,17 @@ function requestEnable() {
 
 async function confirmEnable() {
   confirmingEnable.value = false
-  busy.value = 'enable'
-  try {
-    await sync()
-    await enableNsiteGateway(buildInput())
-    success('Gateway enable submitted.')
-    showEnableForm.value = false
-    await nsite.load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to enable the gateway.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'enable',
+    async () => {
+      await sync()
+      await enableNsiteGateway(buildInput())
+      success('Gateway enable submitted.')
+      showEnableForm.value = false
+      await nsite.load()
+    },
+    'Failed to enable the gateway.',
+  )
 }
 
 // -- disable ---------------------------------------------------------------
@@ -131,17 +136,16 @@ const confirmingDisable = ref(false)
 
 async function confirmDisable() {
   confirmingDisable.value = false
-  busy.value = 'disable'
-  try {
-    await sync()
-    await disableNsiteGateway()
-    success('Gateway disable submitted.')
-    await nsite.load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to disable the gateway.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'disable',
+    async () => {
+      await sync()
+      await disableNsiteGateway()
+      success('Gateway disable submitted.')
+      await nsite.load()
+    },
+    'Failed to disable the gateway.',
+  )
 }
 
 // -- configure -------------------------------------------------------------
@@ -174,27 +178,24 @@ function requestConfigure() {
 
 async function confirmConfigure() {
   confirmingConfigure.value = false
-  busy.value = 'configure'
-  try {
-    await sync()
-    await configureNsiteGateway(buildInput())
-    success('Gateway configure submitted.')
-    showConfigureForm.value = false
-    await nsite.load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to reconfigure the gateway.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'configure',
+    async () => {
+      await sync()
+      await configureNsiteGateway(buildInput())
+      success('Gateway configure submitted.')
+      showConfigureForm.value = false
+      await nsite.load()
+    },
+    'Failed to reconfigure the gateway.',
+  )
 }
 </script>
 
 <template>
   <Card>
     <CardHeader>
-      <CardTitle
-        class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-      >
+      <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
         <span>Gateway</span>
         <Badge v-if="status" :variant="healthBadge.variant">{{
           healthBadge.label
@@ -240,10 +241,9 @@ async function confirmConfigure() {
           </p>
           <p class="tw:m-0">
             Service
-            <Badge
-              :variant="status.service_active ? 'success' : 'danger'"
-              >{{ status.service_active ? 'active' : 'inactive' }}</Badge
-            >
+            <Badge :variant="status.service_active ? 'success' : 'danger'">{{
+              status.service_active ? 'active' : 'inactive'
+            }}</Badge>
             <template v-if="status.internal">
               · internal probe
               <Badge
@@ -377,10 +377,7 @@ async function confirmConfigure() {
         </div>
       </div>
       <label class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
-        <Switch
-          v-model="formAllowHttp"
-          aria-label="Allow HTTP blob fetch"
-        />
+        <Switch v-model="formAllowHttp" aria-label="Allow HTTP blob fetch" />
         Allow fetching blobs over plain HTTP
       </label>
       <div
@@ -390,10 +387,7 @@ async function confirmConfigure() {
         <span class="tw:text-xs tw:text-muted-foreground"
           >Enable the gateway on {{ formDomain }}?</span
         >
-        <Button
-          variant="outline"
-          size="sm"
-          @click="confirmingEnable = false"
+        <Button variant="outline" size="sm" @click="confirmingEnable = false"
           >Cancel</Button
         >
         <Button
@@ -428,9 +422,7 @@ async function confirmConfigure() {
       </div>
       <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
         <div class="tw:grid tw:gap-1.5">
-          <Label for="configure-lookup"
-            >Lookup relays (comma-separated)</Label
-          >
+          <Label for="configure-lookup">Lookup relays (comma-separated)</Label>
           <Input
             id="configure-lookup"
             v-model="formLookupRelays"
@@ -480,10 +472,7 @@ async function confirmConfigure() {
         />
       </div>
       <label class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
-        <Switch
-          v-model="formAllowHttp"
-          aria-label="Allow HTTP blob fetch"
-        />
+        <Switch v-model="formAllowHttp" aria-label="Allow HTTP blob fetch" />
         Allow fetching blobs over plain HTTP
       </label>
       <div
@@ -493,10 +482,7 @@ async function confirmConfigure() {
         <span class="tw:text-xs tw:text-muted-foreground"
           >Apply these settings and reload the gateway?</span
         >
-        <Button
-          variant="outline"
-          size="sm"
-          @click="confirmingConfigure = false"
+        <Button variant="outline" size="sm" @click="confirmingConfigure = false"
           >Cancel</Button
         >
         <Button
@@ -508,14 +494,9 @@ async function confirmConfigure() {
         >
       </div>
       <div v-else class="tw:flex tw:justify-end">
-        <Button
-          size="sm"
-          :disabled="busy !== ''"
-          @click="requestConfigure"
-          >{{
-            busy === 'configure' ? 'Applying…' : 'Apply configuration'
-          }}</Button
-        >
+        <Button size="sm" :disabled="busy !== ''" @click="requestConfigure">{{
+          busy === 'configure' ? 'Applying…' : 'Apply configuration'
+        }}</Button>
       </div>
     </CardContent>
   </Card>

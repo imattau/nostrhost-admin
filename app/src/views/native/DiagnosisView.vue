@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
@@ -25,6 +26,7 @@ const { danger } = useNotifications()
 
 const reports = ref<DiagnosisReport[] | null>(null)
 const running = ref(false)
+const { run } = useActionRunner(running, false)
 
 // Keyed by `${category}:${JSON.stringify(item.meta)}` — the same identity
 // diagnosis_ignore matches issues by (see docs/reference/diagnosis-engine.md
@@ -61,9 +63,12 @@ function statusVariant(status: DiagnosisStatus) {
 // A diagnosis finding says something is wrong; it can't fix it. Point at the
 // screen that can, keyed by substrings of the category id since the backend
 // (YunoHost's diagnosis categories) doesn't expose a stable enum for these.
-function relatedRoute(categoryId: string): { name: string; label: string } | undefined {
+function relatedRoute(
+  categoryId: string,
+): { name: string; label: string } | undefined {
   const id = categoryId.toLowerCase()
-  if (id.includes('service')) return { name: 'native-services', label: 'Open Services' }
+  if (id.includes('service'))
+    return { name: 'native-services', label: 'Open Services' }
   if (id.includes('apt') || id.includes('update') || id.includes('upgrade'))
     return { name: 'native-updates', label: 'Open Updates' }
   return undefined
@@ -74,15 +79,14 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
 }, 'Failed to load diagnosis.')
 
 async function runNow() {
-  running.value = true
-  try {
-    await sync()
-    reports.value = await runDiagnosis([], true)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Diagnosis run failed.'))
-  } finally {
-    running.value = false
-  }
+  await run(
+    true,
+    async () => {
+      await sync()
+      reports.value = await runDiagnosis([], true)
+    },
+    'Diagnosis run failed.',
+  )
 }
 
 async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
@@ -112,33 +116,52 @@ async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
       description="Per-category health checks — DNS, mail, ports, services, and more. Ignoring an issue keeps future runs from reporting it again until you un-ignore it; it does not fix anything."
     />
 
-    <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between tw:gap-3">
+    <div
+      v-if="publicKey"
+      class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+    >
       <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-        <Badge v-if="totals.ERROR" variant="danger">{{ totals.ERROR }} error(s)</Badge>
+        <Badge v-if="totals.ERROR" variant="danger"
+          >{{ totals.ERROR }} error(s)</Badge
+        >
         <Badge v-if="totals.WARNING" variant="warning"
           >{{ totals.WARNING }} warning(s)</Badge
         >
-        <Badge v-if="!totals.ERROR && !totals.WARNING && reports" variant="success"
+        <Badge
+          v-if="!totals.ERROR && !totals.WARNING && reports"
+          variant="success"
           >All clear</Badge
         >
         <span v-if="reports" class="tw:text-xs tw:text-muted-foreground"
-          >{{ reports.length }} categor{{ reports.length === 1 ? 'y' : 'ies' }}</span
+          >{{ reports.length }} categor{{
+            reports.length === 1 ? 'y' : 'ies'
+          }}</span
         >
       </div>
       <div class="tw:flex tw:gap-2">
-        <Button variant="outline" size="sm" :disabled="loading || running" @click="load">{{
-          loading ? 'Refreshing…' : 'Refresh'
-        }}</Button>
-        <Button variant="primary" size="sm" :disabled="loading || running" @click="runNow">{{
-          running ? 'Running…' : 'Run diagnosis now'
-        }}</Button>
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="loading || running"
+          @click="load"
+          >{{ loading ? 'Refreshing…' : 'Refresh' }}</Button
+        >
+        <Button
+          variant="primary"
+          size="sm"
+          :disabled="loading || running"
+          @click="runNow"
+          >{{ running ? 'Running…' : 'Run diagnosis now' }}</Button
+        >
       </div>
     </div>
 
     <template v-if="publicKey">
       <Card v-for="report in reports ?? []" :key="report.id">
         <CardHeader>
-          <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <CardTitle
+            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
+          >
             <span>{{ report.description || report.id }}</span>
             <span class="tw:flex tw:items-center tw:gap-2">
               <RouterLink
@@ -147,9 +170,10 @@ async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
                 class="tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
                 >{{ relatedRoute(report.id)!.label }} →</RouterLink
               >
-              <code class="tw:text-xs tw:font-normal tw:text-muted-foreground">{{
-                report.id
-              }}</code>
+              <code
+                class="tw:text-xs tw:font-normal tw:text-muted-foreground"
+                >{{ report.id }}</code
+              >
             </span>
           </CardTitle>
         </CardHeader>
@@ -163,11 +187,18 @@ async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
             >
               <div class="tw:flex tw:items-start tw:justify-between tw:gap-3">
                 <div class="tw:flex tw:items-start tw:gap-2">
-                  <Badge :variant="statusVariant(item.status)">{{ item.status }}</Badge>
-                  <span class="tw:text-sm tw:text-foreground">{{ item.summary }}</span>
+                  <Badge :variant="statusVariant(item.status)">{{
+                    item.status
+                  }}</Badge>
+                  <span class="tw:text-sm tw:text-foreground">{{
+                    item.summary
+                  }}</span>
                 </div>
                 <div
-                  v-if="admin && (item.status === 'WARNING' || item.status === 'ERROR')"
+                  v-if="
+                    admin &&
+                    (item.status === 'WARNING' || item.status === 'ERROR')
+                  "
                   class="tw:flex tw:shrink-0 tw:items-center tw:gap-2"
                 >
                   <Badge v-if="item.ignored" variant="neutral">Ignored</Badge>
@@ -190,11 +221,15 @@ async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
                 v-if="item.details?.length"
                 class="tw:ml-1 tw:grid tw:gap-1 tw:border-l tw:border-border-subtle tw:pl-3 tw:text-xs tw:text-muted-foreground"
               >
-                <li v-for="(detail, index) in item.details" :key="index">{{ detail }}</li>
+                <li v-for="(detail, index) in item.details" :key="index">
+                  {{ detail }}
+                </li>
               </ul>
             </li>
           </ul>
-          <p v-else class="tw:text-sm tw:text-muted-foreground">No issues reported.</p>
+          <p v-else class="tw:text-sm tw:text-muted-foreground">
+            No issues reported.
+          </p>
         </CardContent>
       </Card>
 

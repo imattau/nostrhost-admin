@@ -13,16 +13,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
 import { shortenKey } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const identities = ref<Identity[] | null>(null)
 
@@ -31,35 +31,36 @@ const pubkeyOrNpub = ref('')
 const signerType = ref<SignerType>('nip07')
 const label = ref('')
 const linking = ref(false)
+const { run: runLink } = useActionRunner(linking, false)
 
 const revokePending = ref<string | null>(null)
 const revoking = ref(false)
+const { run: runRevoke } = useActionRunner(revoking, false)
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   identities.value = await getIdentities()
 }, 'Failed to load identities.')
 
 async function submitLink() {
-  linking.value = true
-  try {
-    await sync()
-    await linkIdentity({
-      username: username.value.trim(),
-      pubkeyOrNpub: pubkeyOrNpub.value.trim(),
-      signerType: signerType.value,
-      label: label.value.trim(),
-    })
-    success(`Linked an identity to ${username.value.trim()}.`)
-    username.value = ''
-    pubkeyOrNpub.value = ''
-    label.value = ''
-    signerType.value = 'nip07'
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to link identity.'))
-  } finally {
-    linking.value = false
-  }
+  await runLink(
+    true,
+    async () => {
+      await sync()
+      await linkIdentity({
+        username: username.value.trim(),
+        pubkeyOrNpub: pubkeyOrNpub.value.trim(),
+        signerType: signerType.value,
+        label: label.value.trim(),
+      })
+      success(`Linked an identity to ${username.value.trim()}.`)
+      username.value = ''
+      pubkeyOrNpub.value = ''
+      label.value = ''
+      signerType.value = 'nip07'
+      await load()
+    },
+    'Failed to link identity.',
+  )
 }
 
 function askRevoke(pubkey: string) {
@@ -71,18 +72,17 @@ function cancelRevoke() {
 }
 
 async function confirmRevoke(pubkey: string) {
-  revoking.value = true
-  try {
-    await sync()
-    await revokeIdentity(pubkey)
-    revokePending.value = null
-    success('Revoked the identity.')
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to revoke identity.'))
-  } finally {
-    revoking.value = false
-  }
+  await runRevoke(
+    true,
+    async () => {
+      await sync()
+      await revokeIdentity(pubkey)
+      revokePending.value = null
+      success('Revoked the identity.')
+      await load()
+    },
+    'Failed to revoke identity.',
+  )
 }
 </script>
 

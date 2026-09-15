@@ -16,15 +16,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { formatBytes } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 
 const emit = defineEmits<{ 'model-selected': [] }>()
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const hostProfile = ref<HostCapabilities | null>(null)
 const recommendations = ref<ModelRecommendation[]>([])
@@ -34,6 +34,9 @@ const selectedModelId = ref('')
 const downloadingModelId = ref('')
 const selectingModelId = ref('')
 const evalAcknowledged = ref(false)
+const { run: runLoad } = useActionRunner(modelsLoading, false)
+const { run: runDownload } = useActionRunner(downloadingModelId, '')
+const { run: runSelect } = useActionRunner(selectingModelId, '')
 
 const selectedRecommendation = computed(() =>
   recommendations.value.find((r) => r.model.id === selectedModelId.value),
@@ -43,58 +46,59 @@ const selectedIsDownloaded = computed(
 )
 
 async function loadModels() {
-  modelsLoading.value = true
-  try {
-    await sync()
-    const [profile, recommend, status] = await Promise.all([
-      getModelProfile(),
-      getModelRecommendations(),
-      getModelStatus(),
-    ])
-    hostProfile.value = profile
-    recommendations.value = recommend.models
-    modelStatus.value = status
-    if (!selectedModelId.value && recommendations.value.length) {
-      selectedModelId.value = recommendations.value[0].model.id
-    }
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load model catalog.'))
-  } finally {
-    modelsLoading.value = false
-  }
+  await runLoad(
+    true,
+    async () => {
+      await sync()
+      const [profile, recommend, status] = await Promise.all([
+        getModelProfile(),
+        getModelRecommendations(),
+        getModelStatus(),
+      ])
+      hostProfile.value = profile
+      recommendations.value = recommend.models
+      modelStatus.value = status
+      if (!selectedModelId.value && recommendations.value.length) {
+        selectedModelId.value = recommendations.value[0].model.id
+      }
+    },
+    'Failed to load model catalog.',
+  )
 }
 
 async function downloadSelectedModel() {
   const recommendation = selectedRecommendation.value
   if (!recommendation) return
-  downloadingModelId.value = recommendation.model.id
-  try {
-    await sync()
-    await downloadModel(recommendation.model.id, !recommendation.model.deployment_eligible)
-    await loadModels()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to download the model.'))
-  } finally {
-    downloadingModelId.value = ''
-  }
+  await runDownload(
+    recommendation.model.id,
+    async () => {
+      await sync()
+      await downloadModel(
+        recommendation.model.id,
+        !recommendation.model.deployment_eligible,
+      )
+      await loadModels()
+    },
+    'Failed to download the model.',
+  )
 }
 
 async function useSelectedModel() {
   const recommendation = selectedRecommendation.value
   if (!recommendation) return
-  if (!recommendation.model.deployment_eligible && !evalAcknowledged.value) return
-  selectingModelId.value = recommendation.model.id
-  try {
-    await sync()
-    await selectModel(recommendation.model.id)
-    success(`Now using ${recommendation.model.id}.`)
-    await loadModels()
-    emit('model-selected')
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to switch to this model.'))
-  } finally {
-    selectingModelId.value = ''
-  }
+  if (!recommendation.model.deployment_eligible && !evalAcknowledged.value)
+    return
+  await runSelect(
+    recommendation.model.id,
+    async () => {
+      await sync()
+      await selectModel(recommendation.model.id)
+      success(`Now using ${recommendation.model.id}.`)
+      await loadModels()
+      emit('model-selected')
+    },
+    'Failed to switch to this model.',
+  )
 }
 
 watch(selectedModelId, () => {
@@ -125,16 +129,13 @@ watch(publicKey, (key) => {
     </CardHeader>
     <CardContent class="tw:grid tw:gap-4">
       <p class="tw:text-sm tw:text-muted-foreground">
-        Run a local model on this node instead of a remote API. Every
-        candidate below currently fails the agent's own safety/quality
-        gate — they can be downloaded and used for testing (evaluation
-        only), but are not recommended for unattended operation.
+        Run a local model on this node instead of a remote API. Every candidate
+        below currently fails the agent's own safety/quality gate — they can be
+        downloaded and used for testing (evaluation only), but are not
+        recommended for unattended operation.
       </p>
 
-      <p
-        v-if="hostProfile"
-        class="tw:m-0 tw:text-xs tw:text-muted-foreground"
-      >
+      <p v-if="hostProfile" class="tw:m-0 tw:text-xs tw:text-muted-foreground">
         This host: {{ hostProfile.logical_cpus }} CPUs,
         {{ formatBytes(hostProfile.memory_available_bytes) }} available of
         {{ formatBytes(hostProfile.memory_total_bytes) }} RAM,
@@ -175,9 +176,7 @@ watch(publicKey, (key) => {
                   : 'does not fit this host'
               }}</Badge
             >
-            <Badge v-if="selectedIsDownloaded" variant="brand"
-              >in use</Badge
-            >
+            <Badge v-if="selectedIsDownloaded" variant="brand">in use</Badge>
           </div>
           <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
             {{ selectedRecommendation.model.evaluation_note }}
@@ -200,9 +199,7 @@ watch(publicKey, (key) => {
             >
           </div>
 
-          <template
-            v-if="!selectedRecommendation.model.deployment_eligible"
-          >
+          <template v-if="!selectedRecommendation.model.deployment_eligible">
             <label
               class="tw:flex tw:items-start tw:gap-2 tw:text-xs tw:text-foreground"
             >

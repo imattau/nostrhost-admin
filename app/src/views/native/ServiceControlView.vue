@@ -13,18 +13,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAsyncResource } from '@/composables/useAsyncResource'
-import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
+import { useActionRunner } from '@/composables/useActionRunner'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { danger } = useNotifications()
-
 const services = ref<ServiceStatusMap | null>(null)
 
 const pendingAction = ref<{ name: string; action: ServiceAction } | null>(null)
+const { run } = useActionRunner(pendingAction, null)
 const confirming = ref<{ name: string; action: ServiceAction } | null>(null)
 const expanded = ref<string | null>(null)
 
@@ -55,17 +53,16 @@ function cancelAction() {
 }
 
 async function runAction(name: string, action: ServiceAction) {
-  pendingAction.value = { name, action }
-  confirming.value = null
-  try {
-    await sync()
-    await controlService(name, action)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to ${action} ${name}.`))
-  } finally {
-    pendingAction.value = null
-  }
+  await run(
+    { name, action },
+    async () => {
+      confirming.value = null
+      await sync()
+      await controlService(name, action)
+      await load()
+    },
+    `Failed to ${action} ${name}.`,
+  )
 }
 
 function isPending(name: string, action: ServiceAction) {
@@ -218,10 +215,16 @@ function bootVariant(startOnBoot: string) {
     <ConfirmDialog
       :open="confirming !== null"
       tier="disruptive"
-      :title="confirming ? `${confirming.action === 'stop' ? 'Stop' : 'Restart'} ${confirming.name}?` : ''"
+      :title="
+        confirming
+          ? `${confirming.action === 'stop' ? 'Stop' : 'Restart'} ${confirming.name}?`
+          : ''
+      "
       description="This can interrupt the service you're using right now."
       :confirm-label="confirming?.action === 'stop' ? 'Stop' : 'Restart'"
-      :busy="confirming !== null && isPending(confirming.name, confirming.action)"
+      :busy="
+        confirming !== null && isPending(confirming.name, confirming.action)
+      "
       @confirm="runAction(confirming!.name, confirming!.action)"
       @cancel="cancelAction"
     />

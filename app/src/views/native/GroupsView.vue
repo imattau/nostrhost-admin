@@ -14,19 +14,21 @@ import {
   type UserGroup,
 } from '@/api/nativeGroupsPermissions'
 import { listUsers } from '@/api/nativeUsers'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const CORE_GROUPS = new Set(['all_users', 'visitors', 'admins'])
 
@@ -35,8 +37,6 @@ const permissions = ref<Record<string, PermissionInfo>>({})
 const usernames = ref<string[]>([])
 
 const loading = ref(false)
-const error = ref('')
-const notice = ref('')
 const busy = ref('')
 
 const groupNames = computed(() => Object.keys(groups.value).sort())
@@ -44,7 +44,6 @@ const permissionNames = computed(() => Object.keys(permissions.value).sort())
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const [groupResult, permissionResult, userResult] = await Promise.all([
@@ -56,8 +55,7 @@ async function load() {
     permissions.value = permissionResult.permissions
     usernames.value = Object.keys(userResult.users).sort()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load groups.'
+    danger(toErrorMessage(cause, 'Failed to load groups.'))
   } finally {
     loading.value = false
   }
@@ -75,32 +73,27 @@ watch(publicKey, (key) => {
 const showCreateGroup = ref(false)
 const createGroupname = ref('')
 const confirmingCreateGroup = ref(false)
-const createGroupError = ref('')
 
 function requestCreateGroup() {
   if (!createGroupname.value.trim()) {
-    createGroupError.value = 'Enter a group name.'
+    danger('Enter a group name.')
     return
   }
-  createGroupError.value = ''
   confirmingCreateGroup.value = true
 }
 
 async function confirmCreateGroup() {
   confirmingCreateGroup.value = false
   busy.value = 'create-group'
-  createGroupError.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await createGroup(createGroupname.value.trim())
-    notice.value = `Group creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Group creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     createGroupname.value = ''
     showCreateGroup.value = false
     await load()
   } catch (cause) {
-    createGroupError.value =
-      cause instanceof Error ? cause.message : 'Failed to create group.'
+    danger(toErrorMessage(cause, 'Failed to create group.'))
   } finally {
     busy.value = ''
   }
@@ -119,19 +112,14 @@ async function addMember(groupname: string) {
   const username = memberPicks.value[groupname]
   if (!username) return
   busy.value = `member-add-${groupname}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await updateGroup(groupname, { add: [username] })
-    notice.value = `Added ${username} to ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Added ${username} to ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     memberPicks.value[groupname] = ''
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to add ${username} to ${groupname}.`
+    danger(toErrorMessage(cause, `Failed to add ${username} to ${groupname}.`))
   } finally {
     busy.value = ''
   }
@@ -144,8 +132,6 @@ function memberKey(groupname: string, username: string) {
 }
 
 function requestRemoveMember(groupname: string, username: string) {
-  notice.value = ''
-  error.value = ''
   confirmingRemoveMember.value = memberKey(groupname, username)
 }
 
@@ -153,22 +139,24 @@ function cancelRemoveMember() {
   confirmingRemoveMember.value = null
 }
 
+const pendingRemoveMember = computed(() => {
+  const key = confirmingRemoveMember.value
+  if (!key) return null
+  const separator = key.indexOf(':')
+  return { groupname: key.slice(0, separator), username: key.slice(separator + 1) }
+})
+
 async function confirmRemoveMember(groupname: string, username: string) {
   confirmingRemoveMember.value = null
   const key = memberKey(groupname, username)
   busy.value = `member-remove-${key}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await updateGroup(groupname, { remove: [username] })
-    notice.value = `Removed ${username} from ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Revoked ${username}'s access via ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to remove ${username} from ${groupname}.`
+    danger(toErrorMessage(cause, `Failed to revoke ${username}'s access via ${groupname}.`))
   } finally {
     busy.value = ''
   }
@@ -179,8 +167,6 @@ async function confirmRemoveMember(groupname: string, username: string) {
 const confirmingDeleteGroup = ref<string | null>(null)
 
 function requestDeleteGroup(groupname: string) {
-  notice.value = ''
-  error.value = ''
   confirmingDeleteGroup.value = groupname
 }
 
@@ -191,16 +177,13 @@ function cancelDeleteGroup() {
 async function confirmDeleteGroup(groupname: string) {
   confirmingDeleteGroup.value = null
   busy.value = `delete-group-${groupname}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await deleteGroup(groupname)
-    notice.value = `Deletion of ${groupname} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Deletion of ${groupname} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to delete ${groupname}.`
+    danger(toErrorMessage(cause, `Failed to delete ${groupname}.`))
   } finally {
     busy.value = ''
   }
@@ -214,19 +197,14 @@ async function grantPermission(permission: string) {
   const name = grantPicks.value[permission]
   if (!name) return
   busy.value = `permission-add-${permission}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await addPermission(permission, [name])
-    notice.value = `Granted ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Granted ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     grantPicks.value[permission] = ''
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to grant access to ${permission}.`
+    danger(toErrorMessage(cause, `Failed to grant access to ${permission}.`))
   } finally {
     busy.value = ''
   }
@@ -239,8 +217,6 @@ function revokeKey(permission: string, name: string) {
 }
 
 function requestRevoke(permission: string, name: string) {
-  notice.value = ''
-  error.value = ''
   confirmingRevoke.value = revokeKey(permission, name)
 }
 
@@ -248,22 +224,24 @@ function cancelRevoke() {
   confirmingRevoke.value = null
 }
 
+const pendingRevoke = computed(() => {
+  const key = confirmingRevoke.value
+  if (!key) return null
+  const separator = key.indexOf(':')
+  return { permission: key.slice(0, separator), name: key.slice(separator + 1) }
+})
+
 async function confirmRevoke(permission: string, name: string) {
   confirmingRevoke.value = null
   const key = revokeKey(permission, name)
   busy.value = `permission-remove-${key}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await removePermission(permission, [name])
-    notice.value = `Revoked ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Revoked ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to revoke access to ${permission}.`
+    danger(toErrorMessage(cause, `Failed to revoke access to ${permission}.`))
   } finally {
     busy.value = ''
   }
@@ -276,8 +254,6 @@ const editLabel = ref('')
 const editShowTile = ref(false)
 
 function startEditPermission(permission: string, info: PermissionInfo) {
-  notice.value = ''
-  error.value = ''
   editingPermission.value = permission
   editLabel.value = info.label
   editShowTile.value = Boolean(info.show_tile)
@@ -289,20 +265,17 @@ function cancelEditPermission() {
 
 async function saveEditPermission(permission: string) {
   busy.value = `permission-update-${permission}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await updatePermission(permission, {
       label: editLabel.value.trim(),
       show_tile: editShowTile.value,
     })
-    notice.value = `Updated ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Updated ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     editingPermission.value = null
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to update ${permission}.`
+    danger(toErrorMessage(cause, `Failed to update ${permission}.`))
   } finally {
     busy.value = ''
   }
@@ -316,9 +289,6 @@ async function saveEditPermission(permission: string) {
       title="Groups &amp; permissions"
       description="User groups and which groups can access each app's permissions. Changes ask for confirmation first."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <template v-if="publicKey">
       <Card>
@@ -350,9 +320,6 @@ async function saveEditPermission(permission: string) {
                 spellcheck="false"
               />
             </div>
-            <Alert v-if="createGroupError" variant="danger">{{
-              createGroupError
-            }}</Alert>
             <div
               v-if="confirmingCreateGroup"
               class="tw:flex tw:items-center tw:justify-end tw:gap-2"
@@ -425,35 +392,13 @@ async function saveEditPermission(permission: string) {
                   class="tw:flex tw:items-center tw:gap-1"
                 >
                   {{ member }}
-                  <template
-                    v-if="
-                      confirmingRemoveMember === memberKey(groupname, member)
-                    "
-                  >
-                    <button
-                      type="button"
-                      class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-red-500"
-                      :disabled="busy !== ''"
-                      @click="confirmRemoveMember(groupname, member)"
-                    >
-                      confirm
-                    </button>
-                    <button
-                      type="button"
-                      class="tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
-                      @click="cancelRemoveMember"
-                    >
-                      ×
-                    </button>
-                  </template>
                   <button
-                    v-else
                     type="button"
                     class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-muted-foreground"
                     :disabled="busy !== ''"
                     @click="requestRemoveMember(groupname, member)"
                   >
-                    remove
+                    revoke
                   </button>
                 </Badge>
               </div>
@@ -510,6 +455,12 @@ async function saveEditPermission(permission: string) {
                   <code
                     class="tw:font-mono tw:text-xs tw:text-muted-foreground"
                     >{{ permission }}</code
+                  >
+                  <RouterLink
+                    v-if="permission.endsWith('.main')"
+                    :to="{ name: 'app-management' }"
+                    class="tw:ml-2 tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
+                    >Manage in Applications →</RouterLink
                   >
                 </div>
                 <Button
@@ -570,27 +521,7 @@ async function saveEditPermission(permission: string) {
                   class="tw:flex tw:items-center tw:gap-1"
                 >
                   {{ name }}
-                  <template
-                    v-if="confirmingRevoke === revokeKey(permission, name)"
-                  >
-                    <button
-                      type="button"
-                      class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-red-500"
-                      :disabled="busy !== ''"
-                      @click="confirmRevoke(permission, name)"
-                    >
-                      confirm
-                    </button>
-                    <button
-                      type="button"
-                      class="tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
-                      @click="cancelRevoke"
-                    >
-                      ×
-                    </button>
-                  </template>
                   <button
-                    v-else
                     type="button"
                     class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
                     :disabled="busy !== ''"
@@ -639,6 +570,26 @@ async function saveEditPermission(permission: string) {
       :busy="busy === `delete-group-${confirmingDeleteGroup}`"
       @confirm="confirmDeleteGroup(confirmingDeleteGroup!)"
       @cancel="cancelDeleteGroup"
+    />
+    <ConfirmDialog
+      :open="confirmingRemoveMember !== null"
+      tier="disruptive"
+      title="Revoke this member's access?"
+      :description="`${pendingRemoveMember?.username} loses whatever access ${pendingRemoveMember?.groupname} grants.`"
+      confirm-label="Revoke"
+      :busy="busy === `member-remove-${confirmingRemoveMember}`"
+      @confirm="confirmRemoveMember(pendingRemoveMember!.groupname, pendingRemoveMember!.username)"
+      @cancel="cancelRemoveMember"
+    />
+    <ConfirmDialog
+      :open="confirmingRevoke !== null"
+      tier="disruptive"
+      title="Revoke this group's access?"
+      :description="`${pendingRevoke?.name} loses access to ${pendingRevoke?.permission}.`"
+      confirm-label="Revoke"
+      :busy="busy === `permission-remove-${confirmingRevoke}`"
+      @confirm="confirmRevoke(pendingRevoke!.permission, pendingRevoke!.name)"
+      @cancel="cancelRevoke"
     />
   </PageLayout>
 </template>

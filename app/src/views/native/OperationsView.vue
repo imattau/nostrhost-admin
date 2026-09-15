@@ -24,6 +24,7 @@ import { useBunkerSigner } from '@/composables/useBunkerSigner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { shortenKey } from '@/lib/utils'
+import { toErrorMessage } from '@/utils/errors'
 
 const { publicKey, sync } = useSigner()
 const notifications = useNotifications()
@@ -81,7 +82,6 @@ async function signDecision(
 
 const operations = ref<OperationEntry[] | null>(null)
 const loading = ref(false)
-const error = ref('')
 const filter = ref<'all' | 'pending' | OperationState>('all')
 const busy = ref('')
 
@@ -89,13 +89,11 @@ const confirmingReject = ref<string | null>(null)
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     operations.value = await listOperations(200)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load operations.'
+    notifications.danger(toErrorMessage(cause, 'Failed to load operations.'))
   } finally {
     loading.value = false
   }
@@ -192,8 +190,6 @@ async function toggleExpanded(requestId: string) {
       title="History &amp; approvals"
       description="Every signed write this console (or another caller) has submitted, with its outcome. Requests parked for approval can be approved or rejected here."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <template v-if="publicKey">
       <Card>

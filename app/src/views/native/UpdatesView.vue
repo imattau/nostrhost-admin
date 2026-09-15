@@ -15,16 +15,19 @@ import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const updates = ref<AvailableUpdates | null>(null)
 const migrations = ref<Migration[]>([])
-const error = ref('')
-const notice = ref('')
 const loading = ref(false)
 const busy = ref('')
 
@@ -42,7 +45,6 @@ const upgradableSystemCount = computed(() =>
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const [updatesResult, migrationsResult] = await Promise.all([
@@ -52,8 +54,7 @@ async function load() {
     updates.value = updatesResult
     migrations.value = migrationsResult.migrations
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load updates.'
+    danger(toErrorMessage(cause, 'Failed to load updates.'))
   } finally {
     loading.value = false
   }
@@ -68,22 +69,17 @@ watch(publicKey, (key) => {
 
 async function refresh(target: UpdateTarget) {
   busy.value = `refresh-${target}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     updates.value = await refreshUpdates(target)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to refresh updates.'
+    danger(toErrorMessage(cause, 'Failed to refresh updates.'))
   } finally {
     busy.value = ''
   }
 }
 
 function requestApply(target: 'apps' | 'system') {
-  notice.value = ''
-  error.value = ''
   confirmingApply.value = target
 }
 
@@ -96,26 +92,19 @@ async function confirmApply() {
   if (!target) return
   busy.value = `apply-${target}`
   confirmingApply.value = null
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await applyUpdates(target)
-    notice.value = `${target === 'system' ? 'System' : 'App'} upgrade submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`${target === 'system' ? 'System' : 'App'} upgrade submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to apply ${target} upgrade.`
+    danger(toErrorMessage(cause, `Failed to apply ${target} upgrade.`))
   } finally {
     busy.value = ''
   }
 }
 
 function requestMigration(id: string) {
-  notice.value = ''
-  error.value = ''
   confirmingMigration.value = id
 }
 
@@ -123,24 +112,20 @@ function cancelMigration() {
   confirmingMigration.value = null
 }
 
-async function confirmMigration(migration: Migration) {
+const confirmingMigrationRecord = computed(() =>
+  migrations.value.find((m) => m.id === confirmingMigration.value) ?? null,
+)
+
+async function confirmMigration(id: string) {
   confirmingMigration.value = null
-  busy.value = `migrate-${migration.id}`
-  error.value = ''
-  notice.value = ''
+  busy.value = `migrate-${id}`
   try {
     await sync()
-    const result = await runMigration(
-      migration.id,
-      Boolean(disclaimerAccepted.value[migration.id]),
-    )
-    notice.value = `Migration ${migration.id} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    const result = await runMigration(id, Boolean(disclaimerAccepted.value[id]))
+    success(`Migration ${id} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to run migration ${migration.id}.`
+    danger(toErrorMessage(cause, `Failed to run migration ${id}.`))
   } finally {
     busy.value = ''
   }
@@ -167,9 +152,6 @@ function formatAge(seconds: number) {
       title="Updates"
       description="Pending apt/app package updates and platform migrations. Applying updates or running a migration is disruptive and asks for confirmation first — some migrations cannot be undone."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -198,9 +180,10 @@ function formatAge(seconds: number) {
         </CardTitle>
       </CardHeader>
       <CardContent class="tw:grid tw:gap-4">
-        <p v-if="!updates" class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No update data yet.' }}
+        <p v-if="!updates && loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else-if="!updates" title="No update data yet" />
         <template v-else>
           <p class="tw:text-xs tw:text-muted-foreground">
             apt cache refreshed {{ formatAge(updates.last_apt_update) }} · app
@@ -218,25 +201,8 @@ function formatAge(seconds: number) {
                 System packages
                 <Badge variant="neutral">{{ upgradableSystemCount }}</Badge>
               </h3>
-              <template v-if="confirmingApply === 'system'">
-                <span class="tw:flex tw:items-center tw:gap-2">
-                  <span class="tw:text-xs tw:text-muted-foreground"
-                    >Apply system upgrade?</span
-                  >
-                  <Button variant="outline" size="sm" @click="cancelApply"
-                    >Cancel</Button
-                  >
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    :disabled="busy !== ''"
-                    @click="confirmApply"
-                    >Confirm</Button
-                  >
-                </span>
-              </template>
               <Button
-                v-else-if="upgradableSystemCount > 0"
+                v-if="upgradableSystemCount > 0"
                 variant="outline"
                 size="sm"
                 :disabled="busy !== ''"
@@ -290,25 +256,8 @@ function formatAge(seconds: number) {
                 Apps
                 <Badge variant="neutral">{{ upgradableAppCount }}</Badge>
               </h3>
-              <template v-if="confirmingApply === 'apps'">
-                <span class="tw:flex tw:items-center tw:gap-2">
-                  <span class="tw:text-xs tw:text-muted-foreground"
-                    >Apply app upgrades?</span
-                  >
-                  <Button variant="outline" size="sm" @click="cancelApply"
-                    >Cancel</Button
-                  >
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    :disabled="busy !== ''"
-                    @click="confirmApply"
-                    >Confirm</Button
-                  >
-                </span>
-              </template>
               <Button
-                v-else-if="upgradableAppCount > 0"
+                v-if="upgradableAppCount > 0"
                 variant="outline"
                 size="sm"
                 :disabled="busy !== ''"
@@ -390,24 +339,7 @@ function formatAge(seconds: number) {
               </label>
             </Alert>
 
-            <template v-if="confirmingMigration === migration.id">
-              <div class="tw:flex tw:items-center tw:justify-end tw:gap-2">
-                <span class="tw:text-xs tw:text-muted-foreground"
-                  >Run {{ migration.id }}? This may not be reversible.</span
-                >
-                <Button variant="outline" size="sm" @click="cancelMigration"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="busy !== ''"
-                  @click="confirmMigration(migration)"
-                  >Confirm</Button
-                >
-              </div>
-            </template>
-            <div v-else class="tw:flex tw:justify-end">
+            <div class="tw:flex tw:justify-end">
               <Button
                 variant="danger"
                 size="sm"
@@ -422,5 +354,37 @@ function formatAge(seconds: number) {
         </ul>
       </CardContent>
     </Card>
+
+    <ConfirmDialog
+      :open="confirmingApply === 'system'"
+      tier="disruptive"
+      title="Apply the system upgrade?"
+      description="System packages are updated now; some services may briefly restart."
+      confirm-label="Apply"
+      :busy="busy === 'apply-system'"
+      @confirm="confirmApply"
+      @cancel="cancelApply"
+    />
+    <ConfirmDialog
+      :open="confirmingApply === 'apps'"
+      tier="disruptive"
+      title="Apply app upgrades?"
+      description="Installed apps are updated now; each app may be briefly unavailable during its own upgrade."
+      confirm-label="Apply"
+      :busy="busy === 'apply-apps'"
+      @confirm="confirmApply"
+      @cancel="cancelApply"
+    />
+    <ConfirmDialog
+      :open="confirmingMigration !== null"
+      tier="destructive"
+      title="Run this migration?"
+      :description="`${confirmingMigrationRecord?.description ?? confirmingMigration} may not be reversible and can affect every app.`"
+      confirm-label="Run"
+      :confirm-phrase="confirmingMigration ?? undefined"
+      :busy="busy === `migrate-${confirmingMigration}`"
+      @confirm="confirmMigration(confirmingMigration!)"
+      @cancel="cancelMigration"
+    />
   </PageLayout>
 </template>

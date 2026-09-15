@@ -10,21 +10,23 @@ import {
   type BackupArchiveDetail,
   type BackupArchiveInfo,
 } from '@/api/nativeBackups'
-import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const archives = ref<Record<string, BackupArchiveInfo>>({})
 const loading = ref(false)
-const error = ref('')
 
 // -- archive contents (expand-in-place) --------------------------------------
 
@@ -42,11 +44,9 @@ async function toggleDetail(name: string) {
     await sync()
     archiveDetail.value = await getBackupInfo(name)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to load contents of ${name}.`
+    danger(toErrorMessage(cause, `Failed to load contents of ${name}.`))
   }
 }
-const notice = ref('')
 const busy = ref('')
 
 const archiveRows = computed(() =>
@@ -57,14 +57,12 @@ const archiveRows = computed(() =>
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const result = await getBackups()
     archives.value = result.archives
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load backups.'
+    danger(toErrorMessage(cause, 'Failed to load backups.'))
   } finally {
     loading.value = false
   }
@@ -98,7 +96,6 @@ const createDescription = ref('')
 const createApps = ref('')
 const createSystem = ref('')
 const confirmingCreate = ref(false)
-const createError = ref('')
 
 function resetCreateForm() {
   createName.value = ''
@@ -106,7 +103,6 @@ function resetCreateForm() {
   createApps.value = ''
   createSystem.value = ''
   confirmingCreate.value = false
-  createError.value = ''
 }
 
 function parseList(value: string) {
@@ -117,15 +113,12 @@ function parseList(value: string) {
 }
 
 function requestCreate() {
-  createError.value = ''
   confirmingCreate.value = true
 }
 
 async function confirmCreate() {
   confirmingCreate.value = false
   busy.value = 'create'
-  createError.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await createBackup({
@@ -134,13 +127,12 @@ async function confirmCreate() {
       apps: parseList(createApps.value),
       system: parseList(createSystem.value),
     })
-    notice.value = `Backup creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Backup creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     showCreateForm.value = false
     resetCreateForm()
     await load()
   } catch (cause) {
-    createError.value =
-      cause instanceof Error ? cause.message : 'Failed to create backup.'
+    danger(toErrorMessage(cause, 'Failed to create backup.'))
   } finally {
     busy.value = ''
   }
@@ -151,8 +143,6 @@ async function confirmCreate() {
 const confirmingRestore = ref<string | null>(null)
 
 function requestRestore(name: string) {
-  notice.value = ''
-  error.value = ''
   confirmingRestore.value = name
 }
 
@@ -163,15 +153,12 @@ function cancelRestore() {
 async function confirmRestore(name: string) {
   confirmingRestore.value = null
   busy.value = `restore-${name}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await restoreBackup({ name })
-    notice.value = `Restore of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Restore of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to restore ${name}.`
+    danger(toErrorMessage(cause, `Failed to restore ${name}.`))
   } finally {
     busy.value = ''
   }
@@ -182,8 +169,6 @@ async function confirmRestore(name: string) {
 const confirmingDelete = ref<string | null>(null)
 
 function requestDelete(name: string) {
-  notice.value = ''
-  error.value = ''
   confirmingDelete.value = name
 }
 
@@ -194,16 +179,13 @@ function cancelDelete() {
 async function confirmDelete(name: string) {
   confirmingDelete.value = null
   busy.value = `delete-${name}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await deleteBackup(name)
-    notice.value = `Deletion of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Deletion of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to delete ${name}.`
+    danger(toErrorMessage(cause, `Failed to delete ${name}.`))
   } finally {
     busy.value = ''
   }
@@ -217,9 +199,6 @@ async function confirmDelete(name: string) {
       title="Backups"
       description="Local backup archives (apps and system configuration). Restoring overwrites live state and deleting an archive cannot be undone — both ask for confirmation first."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -284,7 +263,6 @@ async function confirmDelete(name: string) {
               />
             </div>
           </div>
-          <Alert v-if="createError" variant="danger">{{ createError }}</Alert>
           <div
             v-if="confirmingCreate"
             class="tw:flex tw:items-center tw:justify-end tw:gap-2"
@@ -313,12 +291,11 @@ async function confirmDelete(name: string) {
           </div>
         </div>
 
-        <p
+        <EmptyState
           v-if="!loading && archiveRows.length === 0"
-          class="tw:text-sm tw:text-muted-foreground"
-        >
-          No backup archives yet.
-        </p>
+          title="No backup archives yet"
+          description="Create a backup above to snapshot apps and system configuration."
+        />
         <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
           Loading…
         </p>

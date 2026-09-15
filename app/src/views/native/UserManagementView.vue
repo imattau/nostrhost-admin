@@ -11,14 +11,15 @@ import {
   updateUser,
   type NativeUser,
 } from '@/api/nativeUsers'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 import IdentityFields from '@/components/native/IdentityFields.vue'
 import {
   defaultIdentitySelection,
@@ -26,17 +27,18 @@ import {
 } from '@/components/native/identitySelection'
 import { shortenKey } from '@/lib/utils'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, warning, danger } = useNotifications()
 
 type UserRow = NativeUser & { username: string }
 
 const users = ref<UserRow[] | null>(null)
 const identities = ref<Identity[] | null>(null)
 const domains = ref<string[]>([])
-const error = ref('')
 const loading = ref(false)
 
 const identityByUsername = computed(() => {
@@ -82,27 +84,21 @@ const createDomain = ref('')
 const createFullname = ref('')
 const createIdentity = ref<IdentitySelection>(defaultIdentitySelection())
 const creating = ref(false)
-const createError = ref('')
-const createIdentityNotice = ref('')
 
 const editPending = ref<string | null>(null)
 const editFullname = ref('')
 const editing = ref(false)
-const editError = ref('')
 
 const deletePending = ref<string | null>(null)
 const deletePurge = ref(false)
 const deleting = ref(false)
-const deleteError = ref('')
 
 const linkPending = ref<string | null>(null)
 const linkSelection = ref<IdentitySelection>(defaultIdentitySelection())
 const linking = ref(false)
-const linkError = ref('')
 
 const rotatePending = ref<string | null>(null)
 const rotating = ref(false)
-const rotateError = ref('')
 const revealedPassword = ref<{ username: string; password: string } | null>(
   null,
 )
@@ -116,7 +112,6 @@ const sortedUsers = computed(() =>
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const [userResult, identityResult, domainResult] = await Promise.all([
@@ -134,8 +129,7 @@ async function load() {
       createDomain.value = domains.value[0]
     }
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load users.'
+    danger(toErrorMessage(cause, 'Failed to load users.'))
   } finally {
     loading.value = false
   }
@@ -143,8 +137,6 @@ async function load() {
 
 async function submitCreate() {
   creating.value = true
-  createError.value = ''
-  createIdentityNotice.value = ''
   try {
     await sync()
     const username = createUsername.value.trim()
@@ -168,23 +160,24 @@ async function submitCreate() {
           signerType: identity.signerType,
           label: identity.label.trim() || undefined,
         })
+        success(`Created user "${username}" and linked its Nostr identity.`)
       } catch (cause) {
-        createIdentityNotice.value = `User "${username}" was created, but linking the Nostr identity failed: ${
-          cause instanceof Error ? cause.message : 'unknown error'
-        }. Use "Link identity" below to retry.`
+        warning(
+          `User "${username}" was created, but linking the Nostr identity failed: ${toErrorMessage(cause, 'unknown error')}. Use "Link identity" below to retry.`,
+        )
       }
+    } else {
+      success(`Created user "${username}".`)
     }
     await load()
   } catch (cause) {
-    createError.value =
-      cause instanceof Error ? cause.message : 'Failed to create user.'
+    danger(toErrorMessage(cause, 'Failed to create user.'))
   } finally {
     creating.value = false
   }
 }
 
 function askEdit(user: UserRow) {
-  editError.value = ''
   editFullname.value = user.fullname ?? ''
   editPending.value = user.username
 }
@@ -195,7 +188,6 @@ function cancelEdit() {
 
 async function confirmEdit(username: string) {
   editing.value = true
-  editError.value = ''
   try {
     await sync()
     await updateUser({
@@ -203,17 +195,16 @@ async function confirmEdit(username: string) {
       fullname: editFullname.value.trim() || undefined,
     })
     editPending.value = null
+    success(`Updated ${username}.`)
     await load()
   } catch (cause) {
-    editError.value =
-      cause instanceof Error ? cause.message : 'Failed to update user.'
+    danger(toErrorMessage(cause, 'Failed to update user.'))
   } finally {
     editing.value = false
   }
 }
 
 function askDelete(username: string) {
-  deleteError.value = ''
   deletePurge.value = false
   deletePending.value = username
 }
@@ -224,22 +215,20 @@ function cancelDelete() {
 
 async function confirmDelete(username: string) {
   deleting.value = true
-  deleteError.value = ''
   try {
     await sync()
     await deleteUser({ username, purge: deletePurge.value })
     deletePending.value = null
+    success(`Deleted ${username}.`)
     await load()
   } catch (cause) {
-    deleteError.value =
-      cause instanceof Error ? cause.message : 'Failed to delete user.'
+    danger(toErrorMessage(cause, 'Failed to delete user.'))
   } finally {
     deleting.value = false
   }
 }
 
 function askLink(username: string) {
-  linkError.value = ''
   linkSelection.value = {
     ...defaultIdentitySelection(),
     mode: 'existing',
@@ -254,7 +243,6 @@ function cancelLink() {
 
 async function confirmLink(username: string) {
   linking.value = true
-  linkError.value = ''
   try {
     await sync()
     const selection = linkSelection.value
@@ -265,17 +253,16 @@ async function confirmLink(username: string) {
       label: selection.label.trim() || undefined,
     })
     linkPending.value = null
+    success(`Linked a Nostr identity to ${username}.`)
     await load()
   } catch (cause) {
-    linkError.value =
-      cause instanceof Error ? cause.message : 'Failed to link identity.'
+    danger(toErrorMessage(cause, 'Failed to link identity.'))
   } finally {
     linking.value = false
   }
 }
 
 function askRotate(username: string) {
-  rotateError.value = ''
   revealedPassword.value = null
   rotatePending.value = username
 }
@@ -286,7 +273,6 @@ function cancelRotate() {
 
 async function confirmRotate(username: string) {
   rotating.value = true
-  rotateError.value = ''
   try {
     await sync()
     const password = generateSystemPassword()
@@ -294,8 +280,7 @@ async function confirmRotate(username: string) {
     revealedPassword.value = { username, password }
     rotatePending.value = null
   } catch (cause) {
-    rotateError.value =
-      cause instanceof Error ? cause.message : 'Failed to rotate password.'
+    danger(toErrorMessage(cause, 'Failed to rotate password.'))
   } finally {
     rotating.value = false
   }
@@ -334,8 +319,6 @@ watch(publicKey, (key) => {
       title="Users"
       description="Create, edit and delete server accounts, and optionally link or generate a Nostr identity for each one. A pubkey can also be linked or revoked later from the Identities screen."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -420,12 +403,6 @@ watch(publicKey, (key) => {
             />
           </div>
 
-          <Alert v-if="createError" variant="danger" role="alert">{{
-            createError
-          }}</Alert>
-          <Alert v-if="createIdentityNotice" variant="warning" role="status">{{
-            createIdentityNotice
-          }}</Alert>
           <div>
             <Button
               type="submit"
@@ -515,9 +492,6 @@ watch(publicKey, (key) => {
                   autocomplete="off"
                 />
               </div>
-              <Alert v-if="editError" variant="danger" role="alert">{{
-                editError
-              }}</Alert>
               <div class="tw:flex tw:justify-end tw:gap-2">
                 <Button variant="outline" size="sm" @click="cancelEdit"
                   >Cancel</Button
@@ -540,9 +514,6 @@ watch(publicKey, (key) => {
                   :allow-none="false"
                 />
               </div>
-              <Alert v-if="linkError" variant="danger" role="alert">{{
-                linkError
-              }}</Alert>
               <div class="tw:flex tw:justify-end tw:gap-2">
                 <Button variant="outline" size="sm" @click="cancelLink"
                   >Cancel</Button
@@ -563,9 +534,6 @@ watch(publicKey, (key) => {
                 never needed to sign in to this console — only for direct
                 system-level access (e.g. SSH).
               </p>
-              <Alert v-if="rotateError" variant="danger" role="alert">{{
-                rotateError
-              }}</Alert>
               <div class="tw:flex tw:justify-end tw:gap-2">
                 <Button variant="outline" size="sm" @click="cancelRotate"
                   >Cancel</Button
@@ -637,9 +605,10 @@ watch(publicKey, (key) => {
             </div>
           </li>
         </ul>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No users yet.' }}
+        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else title="No users yet" />
       </CardContent>
     </Card>
 
@@ -658,11 +627,8 @@ watch(publicKey, (key) => {
         class="tw:flex tw:items-center tw:gap-2 tw:text-xs tw:text-muted-foreground"
       >
         <input v-model="deletePurge" type="checkbox" />
-        Also purge the account's data
+        Also delete the account's data
       </label>
-      <Alert v-if="deleteError" variant="danger" role="alert" class="tw:mt-2">{{
-        deleteError
-      }}</Alert>
     </ConfirmDialog>
   </PageLayout>
 </template>

@@ -8,38 +8,36 @@ import {
   setSetting,
   type SettingValue,
 } from '@/api/nativeSettings'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const settings = ref<Record<string, SettingValue>>({})
 
 const loading = ref(false)
-const error = ref('')
-const notice = ref('')
 const busy = ref('')
 
 const settingKeys = computed(() => Object.keys(settings.value).sort())
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const result = await getSettings()
     settings.value = result.settings
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load settings.'
+    danger(toErrorMessage(cause, 'Failed to load settings.'))
   } finally {
     loading.value = false
   }
@@ -67,8 +65,6 @@ function kindOf(value: SettingValue): EditorKind {
 }
 
 function startEdit(key: string) {
-  notice.value = ''
-  error.value = ''
   editingKey.value = key
   editorKind.value = kindOf(settings.value[key])
   editValue.value = String(settings.value[key] ?? '')
@@ -86,18 +82,15 @@ function parsedEditValue(): SettingValue {
 
 async function saveEdit(key: string) {
   busy.value = `set-${key}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const value = parsedEditValue()
     const result = await setSetting(key, value)
-    notice.value = `Updated ${key}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Updated ${key}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     editingKey.value = null
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to update ${key}.`
+    danger(toErrorMessage(cause, `Failed to update ${key}.`))
   } finally {
     busy.value = ''
   }
@@ -108,8 +101,6 @@ async function saveEdit(key: string) {
 const confirmingReset = ref<string | null>(null)
 
 function requestReset(key: string) {
-  notice.value = ''
-  error.value = ''
   confirmingReset.value = key
 }
 
@@ -120,16 +111,13 @@ function cancelReset() {
 async function confirmReset(key: string) {
   confirmingReset.value = null
   busy.value = `reset-${key}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await resetSetting(key)
-    notice.value = `Reset ${key} to its default.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Reset ${key} to its default.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to reset ${key}.`
+    danger(toErrorMessage(cause, `Failed to reset ${key}.`))
   } finally {
     busy.value = ''
   }
@@ -140,24 +128,19 @@ async function confirmReset(key: string) {
 const confirmingResetAll = ref(false)
 
 function requestResetAll() {
-  notice.value = ''
-  error.value = ''
   confirmingResetAll.value = true
 }
 
 async function confirmResetAll() {
   confirmingResetAll.value = false
   busy.value = 'reset-all'
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await resetAllSettings()
-    notice.value = `All settings reset to their defaults.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`All settings reset to their defaults.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to reset settings.'
+    danger(toErrorMessage(cause, 'Failed to reset settings.'))
   } finally {
     busy.value = ''
   }
@@ -171,9 +154,6 @@ async function confirmResetAll() {
       title="Settings"
       description="Global YunoHost settings. Changes ask for confirmation first."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <template v-if="publicKey">
       <Card>

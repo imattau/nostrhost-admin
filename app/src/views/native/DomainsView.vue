@@ -24,18 +24,22 @@ import {
   type FreeHostnameSubscription,
   type PublicIp,
 } from '@/api/nativeDomains'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const domains = ref<string[]>([])
 const selectedDomain = ref<string | null>(null)
@@ -47,13 +51,10 @@ const dnsWatch = ref<DnsWatchStatus | null>(null)
 
 const loading = ref(false)
 const inspectLoading = ref(false)
-const error = ref('')
-const notice = ref('')
 const busy = ref('')
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const [
@@ -79,8 +80,7 @@ async function load() {
       inspect.value = null
     }
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load domains.'
+    danger(toErrorMessage(cause, 'Failed to load domains.'))
   } finally {
     loading.value = false
   }
@@ -97,13 +97,11 @@ async function selectDomain(domain: string) {
   selectedDomain.value = domain
   inspect.value = null
   inspectLoading.value = true
-  error.value = ''
   try {
     await sync()
     inspect.value = await getDomainInspect(domain)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to inspect ${domain}.`
+    danger(toErrorMessage(cause, `Failed to inspect ${domain}.`))
   } finally {
     inspectLoading.value = false
   }
@@ -122,7 +120,6 @@ const addIpv6 = ref(true)
 const addWildcard = ref(true)
 const addNip05 = ref(false)
 const confirmingAdd = ref(false)
-const addError = ref('')
 
 function resetAddForm() {
   addDomainName.value = ''
@@ -135,23 +132,19 @@ function resetAddForm() {
   addWildcard.value = true
   addNip05.value = false
   confirmingAdd.value = false
-  addError.value = ''
 }
 
 function requestAdd() {
   if (!addDomainName.value.trim()) {
-    addError.value = 'Enter a domain name.'
+    danger('Enter a domain name.')
     return
   }
-  addError.value = ''
   confirmingAdd.value = true
 }
 
 async function confirmAdd() {
   confirmingAdd.value = false
   busy.value = 'add'
-  addError.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await addDomain({
@@ -165,13 +158,12 @@ async function confirmAdd() {
       wildcard: addWildcard.value,
       nip05: addNip05.value,
     })
-    notice.value = `Domain registration submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Domain registration submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     showAddForm.value = false
     resetAddForm()
     await load()
   } catch (cause) {
-    addError.value =
-      cause instanceof Error ? cause.message : 'Failed to register domain.'
+    danger(toErrorMessage(cause, 'Failed to register domain.'))
   } finally {
     busy.value = ''
   }
@@ -182,28 +174,23 @@ async function confirmAdd() {
 const confirmingRemove = ref<string | null>(null)
 
 function requestRemove(domain: string) {
-  notice.value = ''
-  error.value = ''
   confirmingRemove.value = domain
 }
 
 async function confirmRemove(domain: string) {
   confirmingRemove.value = null
   busy.value = `remove-${domain}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await removeDomain(domain)
-    notice.value = `Removal of ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Removal of ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     if (selectedDomain.value === domain) {
       selectedDomain.value = null
       inspect.value = null
     }
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to remove ${domain}.`
+    danger(toErrorMessage(cause, `Failed to remove ${domain}.`))
   } finally {
     busy.value = ''
   }
@@ -212,26 +199,19 @@ async function confirmRemove(domain: string) {
 const confirmingApply = ref<string | null>(null)
 
 function requestApplyDns(domain: string) {
-  notice.value = ''
-  error.value = ''
   confirmingApply.value = domain
 }
 
 async function confirmApplyDns(domain: string) {
   confirmingApply.value = null
   busy.value = `apply-${domain}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await applyDns(domain)
-    notice.value = `DNS apply for ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`DNS apply for ${domain} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     if (selectedDomain.value === domain) await selectDomain(domain)
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to apply DNS for ${domain}.`
+    danger(toErrorMessage(cause, `Failed to apply DNS for ${domain}.`))
   } finally {
     busy.value = ''
   }
@@ -239,8 +219,6 @@ async function confirmApplyDns(domain: string) {
 
 async function runVerify(domain: string) {
   busy.value = `verify-${domain}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await verifyDns(domain)
@@ -250,13 +228,13 @@ async function runVerify(domain: string) {
         row !== null &&
         (row as { ok?: boolean }).ok === false,
     ).length
-    notice.value =
-      failing === 0
-        ? `${domain}: all DNS records verified.`
-        : `${domain}: ${failing} record(s) did not verify.`
+    if (failing === 0) {
+      success(`${domain}: all DNS records verified.`)
+    } else {
+      danger(`${domain}: ${failing} record(s) did not verify.`)
+    }
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to verify ${domain}.`
+    danger(toErrorMessage(cause, `Failed to verify ${domain}.`))
   } finally {
     busy.value = ''
   }
@@ -266,26 +244,22 @@ async function runVerify(domain: string) {
 
 const showClaimForm = ref(false)
 const claimHostname = ref('')
-const claimError = ref('')
 
 async function submitClaim() {
   if (!claimHostname.value.trim()) {
-    claimError.value = 'Enter a hostname label.'
+    danger('Enter a hostname label.')
     return
   }
-  claimError.value = ''
   busy.value = 'claim'
-  notice.value = ''
   try {
     await sync()
     const result = await subscribeFreeHostname(claimHostname.value.trim())
-    notice.value = `Free-hostname claim submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Free-hostname claim submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     claimHostname.value = ''
     showClaimForm.value = false
     await load()
   } catch (cause) {
-    claimError.value =
-      cause instanceof Error ? cause.message : 'Failed to claim hostname.'
+    danger(toErrorMessage(cause, 'Failed to claim hostname.'))
   } finally {
     busy.value = ''
   }
@@ -294,24 +268,19 @@ async function submitClaim() {
 const confirmingUnsubscribe = ref<string | null>(null)
 
 function requestUnsubscribe(hostname: string) {
-  notice.value = ''
-  error.value = ''
   confirmingUnsubscribe.value = hostname
 }
 
 async function confirmUnsubscribe(hostname: string) {
   confirmingUnsubscribe.value = null
   busy.value = `unsubscribe-${hostname}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await unsubscribeFreeHostname(hostname)
-    notice.value = `Released ${hostname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Released ${hostname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to release ${hostname}.`
+    danger(toErrorMessage(cause, `Failed to release ${hostname}.`))
   } finally {
     busy.value = ''
   }
@@ -323,7 +292,6 @@ const showCredentialForm = ref(false)
 const credentialProvider = ref<DnsProviderType>('cloudflare')
 const credentialName = ref('')
 const credentialValue = ref('')
-const credentialError = ref('')
 
 function parseCredentialRef(ref: string): { provider: string; name: string } {
   const match = ref.match(/^secret:dns\/([^/]+)\/(.+)$/)
@@ -334,12 +302,10 @@ function parseCredentialRef(ref: string): { provider: string; name: string } {
 
 async function submitCredential() {
   if (!credentialName.value.trim() || !credentialValue.value.trim()) {
-    credentialError.value = 'Enter a name and a token value.'
+    danger('Enter a name and a token value.')
     return
   }
-  credentialError.value = ''
   busy.value = 'credential-set'
-  notice.value = ''
   try {
     await sync()
     await setCredential(
@@ -347,14 +313,13 @@ async function submitCredential() {
       credentialName.value.trim(),
       credentialValue.value.trim(),
     )
-    notice.value = `Stored credential ${credentialProvider.value}/${credentialName.value.trim()}.`
+    success(`Stored credential ${credentialProvider.value}/${credentialName.value.trim()}.`)
     credentialName.value = ''
     credentialValue.value = ''
     showCredentialForm.value = false
     await load()
   } catch (cause) {
-    credentialError.value =
-      cause instanceof Error ? cause.message : 'Failed to store credential.'
+    danger(toErrorMessage(cause, 'Failed to store credential.'))
   } finally {
     busy.value = ''
   }
@@ -363,8 +328,6 @@ async function submitCredential() {
 const confirmingRemoveCredential = ref<string | null>(null)
 
 function requestRemoveCredential(ref: string) {
-  notice.value = ''
-  error.value = ''
   confirmingRemoveCredential.value = ref
 }
 
@@ -372,16 +335,13 @@ async function confirmRemoveCredential(ref: string) {
   confirmingRemoveCredential.value = null
   const { provider, name } = parseCredentialRef(ref)
   busy.value = `credential-remove-${ref}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     await removeCredential(provider, name)
-    notice.value = `Removed credential ${provider}/${name}.`
+    success(`Removed credential ${provider}/${name}.`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Failed to remove ${ref}.`
+    danger(toErrorMessage(cause, `Failed to remove ${ref}.`))
   } finally {
     busy.value = ''
   }
@@ -402,9 +362,6 @@ const driftBadge = computed(() => {
       title="Domains"
       description="Domains, DNS records and free-hostname claims. Registering, removing or applying DNS for a domain asks for confirmation first."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <template v-if="publicKey">
       <Card>
@@ -519,39 +476,18 @@ const driftBadge = computed(() => {
                 NIP-05
               </label>
             </div>
-            <Alert v-if="addError" variant="danger">{{ addError }}</Alert>
-            <div
-              v-if="confirmingAdd"
-              class="tw:flex tw:items-center tw:justify-end tw:gap-2"
-            >
-              <span class="tw:text-xs tw:text-muted-foreground"
-                >Register {{ addDomainName.trim() }}? This applies DNS and
-                stands up routes.</span
-              >
-              <Button variant="outline" size="sm" @click="confirmingAdd = false"
-                >Cancel</Button
-              >
-              <Button
-                variant="danger"
-                size="sm"
-                :disabled="busy !== ''"
-                @click="confirmAdd"
-                >Confirm</Button
-              >
-            </div>
-            <div v-else class="tw:flex tw:justify-end">
+            <div class="tw:flex tw:justify-end">
               <Button size="sm" :disabled="busy !== ''" @click="requestAdd">{{
                 busy === 'add' ? 'Registering…' : 'Register domain'
               }}</Button>
             </div>
           </div>
 
-          <p
+          <EmptyState
             v-if="!loading && domains.length === 0"
-            class="tw:text-sm tw:text-muted-foreground"
-          >
-            No domains registered yet.
-          </p>
+            title="No domains registered yet"
+            description="Register a domain above to start provisioning apps and sites on it."
+          />
           <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
             Loading…
           </p>
@@ -574,28 +510,7 @@ const driftBadge = computed(() => {
                 >
                   {{ domain }}
                 </button>
-                <template v-if="confirmingRemove === domain">
-                  <span class="tw:flex tw:items-center tw:gap-2">
-                    <span class="tw:text-xs tw:text-muted-foreground"
-                      >Remove?</span
-                    >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      @click="confirmingRemove = null"
-                      >Cancel</Button
-                    >
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      :disabled="busy !== ''"
-                      @click="confirmRemove(domain)"
-                      >Confirm</Button
-                    >
-                  </span>
-                </template>
                 <Button
-                  v-else
                   variant="outline"
                   size="sm"
                   :disabled="busy !== ''"
@@ -616,9 +531,16 @@ const driftBadge = computed(() => {
             class="tw:flex tw:items-center tw:justify-between tw:gap-2"
           >
             <span class="tw:font-mono">{{ selectedDomain }}</span>
-            <Badge v-if="inspect" :variant="driftBadge.variant">{{
-              driftBadge.label
-            }}</Badge>
+            <span class="tw:flex tw:items-center tw:gap-2">
+              <RouterLink
+                :to="{ name: 'native-nsites' }"
+                class="tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
+                >View sites →</RouterLink
+              >
+              <Badge v-if="inspect" :variant="driftBadge.variant">{{
+                driftBadge.label
+              }}</Badge>
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent class="tw:grid tw:gap-4">
@@ -682,26 +604,7 @@ const driftBadge = computed(() => {
                     : 'Verify DNS'
                 }}</Button
               >
-              <template v-if="confirmingApply === selectedDomain">
-                <span class="tw:text-xs tw:text-muted-foreground"
-                  >Apply DNS plan?</span
-                >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  @click="confirmingApply = null"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="busy !== ''"
-                  @click="confirmApplyDns(selectedDomain)"
-                  >Confirm</Button
-                >
-              </template>
               <Button
-                v-else
                 variant="outline"
                 size="sm"
                 :disabled="busy !== ''"
@@ -750,7 +653,6 @@ const driftBadge = computed(() => {
                 spellcheck="false"
               />
             </div>
-            <Alert v-if="claimError" variant="danger">{{ claimError }}</Alert>
             <div class="tw:flex tw:justify-end">
               <Button size="sm" :disabled="busy !== ''" @click="submitClaim">{{
                 busy === 'claim' ? 'Claiming…' : 'Claim'
@@ -758,12 +660,10 @@ const driftBadge = computed(() => {
             </div>
           </div>
 
-          <p
+          <EmptyState
             v-if="subscriptions.length === 0"
-            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-          >
-            No free-hostname claims yet.
-          </p>
+            title="No free-hostname claims yet"
+          />
           <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
             <li
               v-for="sub in subscriptions"
@@ -771,28 +671,7 @@ const driftBadge = computed(() => {
               class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
             >
               <code class="tw:font-mono">{{ sub.hostname }}</code>
-              <template v-if="confirmingUnsubscribe === sub.hostname">
-                <span class="tw:flex tw:items-center tw:gap-2">
-                  <span class="tw:text-xs tw:text-muted-foreground"
-                    >Release?</span
-                  >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    @click="confirmingUnsubscribe = null"
-                    >Cancel</Button
-                  >
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    :disabled="busy !== ''"
-                    @click="confirmUnsubscribe(sub.hostname)"
-                    >Confirm</Button
-                  >
-                </span>
-              </template>
               <Button
-                v-else
                 variant="outline"
                 size="sm"
                 :disabled="busy !== ''"
@@ -866,9 +745,6 @@ const driftBadge = computed(() => {
                 />
               </div>
             </div>
-            <Alert v-if="credentialError" variant="danger">{{
-              credentialError
-            }}</Alert>
             <div class="tw:flex tw:justify-end">
               <Button
                 size="sm"
@@ -881,12 +757,10 @@ const driftBadge = computed(() => {
             </div>
           </div>
 
-          <p
+          <EmptyState
             v-if="credentials.length === 0"
-            class="tw:m-0 tw:text-sm tw:text-muted-foreground"
-          >
-            No DNS credentials configured.
-          </p>
+            title="No DNS credentials configured"
+          />
           <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
             <li
               v-for="cred in credentials"
@@ -894,28 +768,7 @@ const driftBadge = computed(() => {
               class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
             >
               <code class="tw:font-mono">{{ cred.ref }}</code>
-              <template v-if="confirmingRemoveCredential === cred.ref">
-                <span class="tw:flex tw:items-center tw:gap-2">
-                  <span class="tw:text-xs tw:text-muted-foreground"
-                    >Remove?</span
-                  >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    @click="confirmingRemoveCredential = null"
-                    >Cancel</Button
-                  >
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    :disabled="busy !== ''"
-                    @click="confirmRemoveCredential(cred.ref)"
-                    >Confirm</Button
-                  >
-                </span>
-              </template>
               <Button
-                v-else
                 variant="outline"
                 size="sm"
                 :disabled="busy !== ''"
@@ -954,5 +807,57 @@ const driftBadge = computed(() => {
         </CardContent>
       </Card>
     </template>
+
+    <ConfirmDialog
+      :open="confirmingAdd"
+      tier="soft"
+      title="Register this domain?"
+      :description="`Registering ${addDomainName.trim()} applies DNS and stands up routes.`"
+      confirm-label="Register"
+      :busy="busy === 'add'"
+      @confirm="confirmAdd"
+      @cancel="confirmingAdd = false"
+    />
+    <ConfirmDialog
+      :open="confirmingRemove !== null"
+      tier="destructive"
+      title="Remove this domain?"
+      description="Every app and permission referencing this domain breaks. This cannot be undone from here."
+      confirm-label="Remove"
+      :confirm-phrase="confirmingRemove ?? undefined"
+      :busy="busy === `remove-${confirmingRemove}`"
+      @confirm="confirmRemove(confirmingRemove!)"
+      @cancel="confirmingRemove = null"
+    />
+    <ConfirmDialog
+      :open="confirmingApply !== null"
+      tier="disruptive"
+      title="Apply the DNS plan?"
+      description="This updates DNS records at the provider to match the pending plan."
+      confirm-label="Apply"
+      :busy="busy === `apply-${confirmingApply}`"
+      @confirm="confirmApplyDns(confirmingApply!)"
+      @cancel="confirmingApply = null"
+    />
+    <ConfirmDialog
+      :open="confirmingUnsubscribe !== null"
+      tier="disruptive"
+      title="Release this hostname?"
+      description="The free-hostname claim is released and stops resolving to this server."
+      confirm-label="Release"
+      :busy="busy === `unsubscribe-${confirmingUnsubscribe}`"
+      @confirm="confirmUnsubscribe(confirmingUnsubscribe!)"
+      @cancel="confirmingUnsubscribe = null"
+    />
+    <ConfirmDialog
+      :open="confirmingRemoveCredential !== null"
+      tier="disruptive"
+      title="Remove this credential?"
+      description="Any domain relying on it for automated DNS provisioning will need a replacement."
+      confirm-label="Remove"
+      :busy="busy === `credential-remove-${confirmingRemoveCredential}`"
+      @confirm="confirmRemoveCredential(confirmingRemoveCredential!)"
+      @cancel="confirmingRemoveCredential = null"
+    />
   </PageLayout>
 </template>

@@ -9,18 +9,20 @@ import {
   type DiagnosisReport,
   type DiagnosisStatus,
 } from '@/api/nativeDiagnosis'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, admin, sync } = useSigner()
+const { danger } = useNotifications()
 
 const reports = ref<DiagnosisReport[] | null>(null)
-const error = ref('')
 const loading = ref(false)
 const running = ref(false)
 
@@ -28,7 +30,6 @@ const running = ref(false)
 // diagnosis_ignore matches issues by (see docs/reference/diagnosis-engine.md
 // §The ignore-filter workflow).
 const filterBusy = reactive<Record<string, boolean>>({})
-const filterError = reactive<Record<string, string>>({})
 
 function itemKey(categoryId: string, item: DiagnosisItem) {
   return `${categoryId}:${JSON.stringify(item.meta ?? {})}`
@@ -57,15 +58,24 @@ function statusVariant(status: DiagnosisStatus) {
   return 'neutral'
 }
 
+// A diagnosis finding says something is wrong; it can't fix it. Point at the
+// screen that can, keyed by substrings of the category id since the backend
+// (YunoHost's diagnosis categories) doesn't expose a stable enum for these.
+function relatedRoute(categoryId: string): { name: string; label: string } | undefined {
+  const id = categoryId.toLowerCase()
+  if (id.includes('service')) return { name: 'native-services', label: 'Open Services' }
+  if (id.includes('apt') || id.includes('update') || id.includes('upgrade'))
+    return { name: 'native-updates', label: 'Open Updates' }
+  return undefined
+}
+
 async function load(force = false) {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     reports.value = await runDiagnosis([], force)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load diagnosis.'
+    danger(toErrorMessage(cause, 'Failed to load diagnosis.'))
   } finally {
     loading.value = false
   }
@@ -73,13 +83,11 @@ async function load(force = false) {
 
 async function runNow() {
   running.value = true
-  error.value = ''
   try {
     await sync()
     reports.value = await runDiagnosis([], true)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Diagnosis run failed.'
+    danger(toErrorMessage(cause, 'Diagnosis run failed.'))
   } finally {
     running.value = false
   }
@@ -88,7 +96,6 @@ async function runNow() {
 async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
   const key = itemKey(categoryId, item)
   filterBusy[key] = true
-  filterError[key] = ''
   try {
     await sync()
     if (item.ignored) {
@@ -98,8 +105,7 @@ async function toggleIgnore(categoryId: string, item: DiagnosisItem) {
     }
     item.ignored = !item.ignored
   } catch (cause) {
-    filterError[key] =
-      cause instanceof Error ? cause.message : 'Failed to update the ignore filter.'
+    danger(toErrorMessage(cause, 'Failed to update the ignore filter.'))
   } finally {
     filterBusy[key] = false
   }
@@ -120,8 +126,6 @@ watch(publicKey, (key) => {
       title="Diagnosis"
       description="Per-category health checks — DNS, mail, ports, services, and more. Ignoring an issue keeps future runs from reporting it again until you un-ignore it; it does not fix anything."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between tw:gap-3">
       <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
@@ -151,9 +155,17 @@ watch(publicKey, (key) => {
         <CardHeader>
           <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
             <span>{{ report.description || report.id }}</span>
-            <code class="tw:text-xs tw:font-normal tw:text-muted-foreground">{{
-              report.id
-            }}</code>
+            <span class="tw:flex tw:items-center tw:gap-2">
+              <RouterLink
+                v-if="relatedRoute(report.id)"
+                :to="{ name: relatedRoute(report.id)!.name }"
+                class="tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
+                >{{ relatedRoute(report.id)!.label }} →</RouterLink
+              >
+              <code class="tw:text-xs tw:font-normal tw:text-muted-foreground">{{
+                report.id
+              }}</code>
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -195,21 +207,16 @@ watch(publicKey, (key) => {
               >
                 <li v-for="(detail, index) in item.details" :key="index">{{ detail }}</li>
               </ul>
-              <Alert
-                v-if="filterError[itemKey(report.id, item)]"
-                variant="danger"
-                role="alert"
-                >{{ filterError[itemKey(report.id, item)] }}</Alert
-              >
             </li>
           </ul>
           <p v-else class="tw:text-sm tw:text-muted-foreground">No issues reported.</p>
         </CardContent>
       </Card>
 
-      <p v-if="!reports" class="tw:text-sm tw:text-muted-foreground">
-        {{ loading ? 'Loading…' : 'No diagnosis data yet.' }}
+      <p v-if="!reports && loading" class="tw:text-sm tw:text-muted-foreground">
+        Loading…
       </p>
+      <EmptyState v-else-if="!reports" title="No diagnosis data yet" />
     </template>
   </PageLayout>
 </template>

@@ -9,24 +9,25 @@ import {
   type ServiceAction,
   type ServiceStatusMap,
 } from '@/api/nativeService'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { danger } = useNotifications()
 
 const services = ref<ServiceStatusMap | null>(null)
-const error = ref('')
 const loading = ref(false)
 
 const pendingAction = ref<{ name: string; action: ServiceAction } | null>(null)
 const confirming = ref<{ name: string; action: ServiceAction } | null>(null)
-const actionError = ref('')
 const expanded = ref<string | null>(null)
 
 function toggleExpanded(name: string) {
@@ -41,20 +42,17 @@ const CONFIRM_ACTIONS: ServiceAction[] = ['stop', 'restart']
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     services.value = await getServiceStatus()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load service status.'
+    danger(toErrorMessage(cause, 'Failed to load service status.'))
   } finally {
     loading.value = false
   }
 }
 
 function requestAction(name: string, action: ServiceAction) {
-  actionError.value = ''
   if (CONFIRM_ACTIONS.includes(action)) {
     confirming.value = { name, action }
   } else {
@@ -69,14 +67,12 @@ function cancelAction() {
 async function runAction(name: string, action: ServiceAction) {
   pendingAction.value = { name, action }
   confirming.value = null
-  actionError.value = ''
   try {
     await sync()
     await controlService(name, action)
     await load()
   } catch (cause) {
-    actionError.value =
-      cause instanceof Error ? cause.message : `Failed to ${action} ${name}.`
+    danger(toErrorMessage(cause, `Failed to ${action} ${name}.`))
   } finally {
     pendingAction.value = null
   }
@@ -118,11 +114,6 @@ watch(publicKey, (key) => {
       title="Service control"
       description="Start, stop, or restart a managed system service. Stopping or restarting a service is disruptive and asks for confirmation first — it can interrupt the service you're using right now."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="actionError" variant="danger" role="alert">{{
-      actionError
-    }}</Alert>
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -234,9 +225,10 @@ watch(publicKey, (key) => {
             </div>
           </li>
         </ul>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No services reported.' }}
+        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else title="No services reported" />
       </CardContent>
     </Card>
 

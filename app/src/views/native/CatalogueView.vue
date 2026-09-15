@@ -24,7 +24,6 @@ import {
   type CatalogueReverifyResult,
   type CatalogueTrustEntry,
 } from '@/api/nativeCatalog'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,11 +31,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const TABS = [
   { id: 'browse', label: 'Browse' },
@@ -51,7 +54,6 @@ const activeTab = ref<TabId>('browse')
 
 const selfPublisher = ref('')
 
-const error = ref('')
 const loading = ref(false)
 
 // -- browse ------------------------------------------------------------
@@ -60,8 +62,6 @@ const entries = ref<CatalogueEntry[] | null>(null)
 const search = ref('')
 const category = ref('all')
 const busyAppId = ref('')
-const actionNotice = ref('')
-const actionError = ref('')
 
 const categories = computed(() => {
   const found = new Set<string>()
@@ -101,15 +101,12 @@ async function loadBrowse() {
 
 async function publishUnderMyKey(appId: string) {
   busyAppId.value = appId
-  actionError.value = ''
-  actionNotice.value = ''
   try {
     await publishCatalogueEntry(appId)
-    actionNotice.value = `Published ${appId} under this node's publisher key.`
+    success(`Published ${appId} under this node's publisher key.`)
     await loadBrowse()
   } catch (cause) {
-    actionError.value =
-      cause instanceof Error ? cause.message : 'Publish failed.'
+    danger(toErrorMessage(cause, 'Publish failed.'))
   } finally {
     busyAppId.value = ''
   }
@@ -119,17 +116,16 @@ const reverifyResult = ref<CatalogueReverifyResult | null>(null)
 
 async function reverifyEntry(appId: string) {
   busyAppId.value = appId
-  actionError.value = ''
-  actionNotice.value = ''
   reverifyResult.value = null
   try {
     reverifyResult.value = await reverifyCatalogueEntry(appId)
-    actionNotice.value = reverifyResult.value.ok
-      ? `${appId} reverified: repository and hashes match the declaration.`
-      : `${appId} reverify failed: ${reverifyResult.value.error}`
+    if (reverifyResult.value.ok) {
+      success(`${appId} reverified: repository and hashes match the declaration.`)
+    } else {
+      danger(`${appId} reverify failed: ${reverifyResult.value.error}`)
+    }
   } catch (cause) {
-    actionError.value =
-      cause instanceof Error ? cause.message : 'Reverify failed.'
+    danger(toErrorMessage(cause, 'Reverify failed.'))
   } finally {
     busyAppId.value = ''
   }
@@ -143,8 +139,6 @@ const attestTarget = ref<CatalogueCandidate | null>(null)
 const attestClaim = ref<CatalogueClaim>('recommend')
 const attestComment = ref('')
 const attestBusy = ref(false)
-const attestNotice = ref('')
-const attestError = ref('')
 
 async function loadAttest() {
   const [candidateResult, historyResult] = await Promise.all([
@@ -159,15 +153,11 @@ function pickCandidate(candidate: CatalogueCandidate) {
   attestTarget.value = candidate
   attestClaim.value = 'recommend'
   attestComment.value = ''
-  attestNotice.value = ''
-  attestError.value = ''
 }
 
 async function submitAttest() {
   if (!attestTarget.value) return
   attestBusy.value = true
-  attestError.value = ''
-  attestNotice.value = ''
   try {
     await attestCatalogueEntry({
       appId: attestTarget.value.app_id,
@@ -175,12 +165,11 @@ async function submitAttest() {
       claim: attestClaim.value,
       comment: attestComment.value,
     })
-    attestNotice.value = `Endorsement published for ${attestTarget.value.app_id}.`
+    success(`Endorsement published for ${attestTarget.value.app_id}.`)
     attestTarget.value = null
     await loadAttest()
   } catch (cause) {
-    attestError.value =
-      cause instanceof Error ? cause.message : 'Endorsement failed.'
+    danger(toErrorMessage(cause, 'Endorsement failed.'))
   } finally {
     attestBusy.value = false
   }
@@ -192,11 +181,9 @@ const trustEntries = ref<CatalogueTrustEntry[] | null>(null)
 const trustPolicy = ref<AttestationPolicyMode>('off')
 const trustMinAttestations = ref('1')
 const trustBusy = ref(false)
-const trustError = ref('')
 
 async function loadTrust() {
   trustBusy.value = true
-  trustError.value = ''
   try {
     const result = await getCatalogueTrust({
       mode: trustPolicy.value,
@@ -204,8 +191,7 @@ async function loadTrust() {
     })
     trustEntries.value = result.entries
   } catch (cause) {
-    trustError.value =
-      cause instanceof Error ? cause.message : 'Failed to load trust dashboard.'
+    danger(toErrorMessage(cause, 'Failed to load trust dashboard.'))
   } finally {
     trustBusy.value = false
   }
@@ -215,8 +201,6 @@ async function loadTrust() {
 
 const profileForm = ref<CatalogueProfile>({})
 const profileBusy = ref(false)
-const profileNotice = ref('')
-const profileError = ref('')
 
 async function loadProfile() {
   const result = await getCatalogueProfile()
@@ -226,14 +210,11 @@ async function loadProfile() {
 
 async function submitProfile() {
   profileBusy.value = true
-  profileError.value = ''
-  profileNotice.value = ''
   try {
     await setCatalogueProfile(profileForm.value)
-    profileNotice.value = 'Profile published.'
+    success('Profile published.')
   } catch (cause) {
-    profileError.value =
-      cause instanceof Error ? cause.message : 'Publishing the profile failed.'
+    danger(toErrorMessage(cause, 'Publishing the profile failed.'))
   } finally {
     profileBusy.value = false
   }
@@ -248,8 +229,6 @@ const ownEntries = computed(() =>
   ),
 )
 const announceBusyAppId = ref('')
-const announceNotice = ref('')
-const announceError = ref('')
 
 async function loadAnnounce() {
   const [announcementResult] = await Promise.all([
@@ -267,15 +246,12 @@ function alreadyAnnounced(appId: string, commit: string) {
 
 async function announceEntry(appId: string) {
   announceBusyAppId.value = appId
-  announceError.value = ''
-  announceNotice.value = ''
   try {
     await announceCatalogueEntry(appId)
-    announceNotice.value = `Announced ${appId}.`
+    success(`Announced ${appId}.`)
     await loadAnnounce()
   } catch (cause) {
-    announceError.value =
-      cause instanceof Error ? cause.message : 'Announcement failed.'
+    danger(toErrorMessage(cause, 'Announcement failed.'))
   } finally {
     announceBusyAppId.value = ''
   }
@@ -291,17 +267,14 @@ const verifyResult = ref<{
   app_id: string
   event_id: string
 } | null>(null)
-const verifyError = ref('')
 
 async function submitVerify() {
   verifyBusy.value = true
-  verifyError.value = ''
   verifyResult.value = null
   try {
     verifyResult.value = await verifyCatalogueEvent(verifyInput.value)
   } catch (cause) {
-    verifyError.value =
-      cause instanceof Error ? cause.message : 'Verification failed.'
+    danger(toErrorMessage(cause, 'Verification failed.'))
   } finally {
     verifyBusy.value = false
   }
@@ -321,13 +294,11 @@ const loadedTabs = new Set<TabId>()
 
 async function loadTab(tab: TabId) {
   loading.value = true
-  error.value = ''
   try {
     await tabLoaders[tab]()
     loadedTabs.add(tab)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load this tab.'
+    danger(toErrorMessage(cause, 'Failed to load this tab.'))
   } finally {
     loading.value = false
   }
@@ -345,13 +316,11 @@ async function refreshCurrentTab() {
 
 async function bootstrap() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     await loadTab('browse')
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load the catalogue.'
+    danger(toErrorMessage(cause, 'Failed to load the catalogue.'))
   } finally {
     loading.value = false
   }
@@ -372,8 +341,6 @@ watch(publicKey, (key) => {
       title="Catalogue"
       description="Browse, publish, endorse and verify signed app declarations this node trusts, synced from the control relay."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <div
       v-if="publicKey"
@@ -420,12 +387,6 @@ watch(publicKey, (key) => {
         </p>
       </div>
 
-      <Alert v-if="actionError" variant="danger" role="alert">{{
-        actionError
-      }}</Alert>
-      <Alert v-if="actionNotice" variant="success" role="status">{{
-        actionNotice
-      }}</Alert>
       <Alert
         v-if="reverifyResult && !reverifyResult.ok"
         variant="warning"
@@ -463,18 +424,14 @@ watch(publicKey, (key) => {
         </select>
       </div>
 
-      <p
+      <EmptyState
         v-if="entries && entries.length === 0"
-        class="tw:text-sm tw:text-muted-foreground"
-      >
-        No trusted apps in the catalogue yet.
-      </p>
-      <p
+        title="No trusted apps in the catalogue yet"
+      />
+      <EmptyState
         v-else-if="entries && visibleEntries.length === 0"
-        class="tw:text-sm tw:text-muted-foreground"
-      >
-        No trusted apps match this search or category.
-      </p>
+        title="No trusted apps match this search or category"
+      />
 
       <div
         v-if="visibleEntries.length"
@@ -591,25 +548,16 @@ watch(publicKey, (key) => {
 
     <!-- Attest -->
     <template v-if="publicKey && activeTab === 'attest'">
-      <Alert v-if="attestError" variant="danger" role="alert">{{
-        attestError
-      }}</Alert>
-      <Alert v-if="attestNotice" variant="success" role="status">{{
-        attestNotice
-      }}</Alert>
-
       <Card>
         <CardHeader>
           <CardTitle>Candidates</CardTitle>
         </CardHeader>
         <CardContent>
-          <p
+          <EmptyState
             v-if="candidates && candidates.length === 0"
-            class="tw:text-sm tw:text-muted-foreground"
-          >
-            No installed apps from other publishers are waiting for an
-            endorsement.
-          </p>
+            title="No apps waiting for an endorsement"
+            description="Installed apps from other publishers appear here once they need review."
+          />
           <ul v-else class="tw:grid tw:gap-2">
             <li
               v-for="candidate in candidates || []"
@@ -672,12 +620,10 @@ watch(publicKey, (key) => {
           <CardTitle>History</CardTitle>
         </CardHeader>
         <CardContent>
-          <p
+          <EmptyState
             v-if="history && history.length === 0"
-            class="tw:text-sm tw:text-muted-foreground"
-          >
-            This node has not published any endorsements yet.
-          </p>
+            title="No endorsements published yet"
+          />
           <div v-else class="tw:overflow-x-auto">
             <table class="tw:w-full tw:text-sm">
               <thead>
@@ -712,10 +658,6 @@ watch(publicKey, (key) => {
 
     <!-- Trust -->
     <template v-if="publicKey && activeTab === 'trust'">
-      <Alert v-if="trustError" variant="danger" role="alert">{{
-        trustError
-      }}</Alert>
-
       <Card>
         <CardHeader>
           <CardTitle>Attestation policy</CardTitle>
@@ -743,12 +685,10 @@ watch(publicKey, (key) => {
         </CardContent>
       </Card>
 
-      <div
+      <EmptyState
         v-if="trustEntries && trustEntries.length === 0"
-        class="tw:text-sm tw:text-muted-foreground"
-      >
-        No declarations in the catalogue yet.
-      </div>
+        title="No declarations in the catalogue yet"
+      />
       <div v-else class="tw:overflow-x-auto">
         <table class="tw:w-full tw:text-sm">
           <thead>
@@ -787,13 +727,6 @@ watch(publicKey, (key) => {
 
     <!-- Profile -->
     <template v-if="publicKey && activeTab === 'profile'">
-      <Alert v-if="profileError" variant="danger" role="alert">{{
-        profileError
-      }}</Alert>
-      <Alert v-if="profileNotice" variant="success" role="status">{{
-        profileNotice
-      }}</Alert>
-
       <Card>
         <CardHeader>
           <CardTitle>Catalogue publisher profile</CardTitle>
@@ -835,24 +768,16 @@ watch(publicKey, (key) => {
 
     <!-- Announcements -->
     <template v-if="publicKey && activeTab === 'announce'">
-      <Alert v-if="announceError" variant="danger" role="alert">{{
-        announceError
-      }}</Alert>
-      <Alert v-if="announceNotice" variant="success" role="status">{{
-        announceNotice
-      }}</Alert>
 
       <Card>
         <CardHeader>
           <CardTitle>My declarations</CardTitle>
         </CardHeader>
         <CardContent>
-          <p
+          <EmptyState
             v-if="ownEntries.length === 0"
-            class="tw:text-sm tw:text-muted-foreground"
-          >
-            This node has no published declarations of its own yet.
-          </p>
+            title="No declarations of your own yet"
+          />
           <ul v-else class="tw:grid tw:gap-2">
             <li
               v-for="entry in ownEntries"
@@ -897,12 +822,10 @@ watch(publicKey, (key) => {
           <CardTitle>History</CardTitle>
         </CardHeader>
         <CardContent>
-          <p
+          <EmptyState
             v-if="announcements && announcements.length === 0"
-            class="tw:text-sm tw:text-muted-foreground"
-          >
-            No announcements published yet.
-          </p>
+            title="No announcements published yet"
+          />
           <div v-else class="tw:overflow-x-auto">
             <table class="tw:w-full tw:text-sm">
               <thead>
@@ -935,10 +858,6 @@ watch(publicKey, (key) => {
 
     <!-- Verify -->
     <template v-if="publicKey && activeTab === 'verify'">
-      <Alert v-if="verifyError" variant="danger" role="alert">{{
-        verifyError
-      }}</Alert>
-
       <Card>
         <CardHeader>
           <CardTitle>Verify a declaration event</CardTitle>

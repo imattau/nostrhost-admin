@@ -28,9 +28,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 
 type Filter =
   | 'all'
@@ -41,6 +44,7 @@ type Filter =
 type Action = 'install' | 'upgrade' | 'remove' | 'settings' | 'change-url'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const apps = ref<AppManagementEntry[]>([])
 const catalogueError = ref('')
@@ -57,8 +61,6 @@ const editLabel = ref('')
 const editShowTile = ref(false)
 const grantPick = ref('')
 const confirmingRevoke = ref<string | null>(null)
-const error = ref('')
-const notice = ref('')
 const filter = ref<Filter>('all')
 const category = ref('all')
 const search = ref('')
@@ -95,7 +97,6 @@ const visibleApps = computed(() =>
 
 async function loadApps() {
   busy.value = 'load'
-  error.value = ''
   try {
     await sync()
     const inventory = await getAppManagement()
@@ -106,8 +107,7 @@ async function loadApps() {
         apps.value.find((item) => item.id === selected.value?.id) || null
     }
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not load applications.'
+    danger(toErrorMessage(cause, 'Could not load applications.'))
   } finally {
     busy.value = ''
   }
@@ -150,16 +150,13 @@ async function chooseApp(app: AppManagementEntry) {
   permission.value = null
   grantPick.value = ''
   confirmingRevoke.value = null
-  error.value = ''
-  notice.value = ''
   if (!app.installed || !app.installation?.native) return
   busy.value = 'settings'
   try {
     settings.value = await getNativeAppSettings(app.id)
     values.value = { ...settings.value.values }
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not load app settings.'
+    danger(toErrorMessage(cause, 'Could not load app settings.'))
   } finally {
     busy.value = ''
   }
@@ -170,19 +167,16 @@ async function saveGeneral() {
   if (!selected.value) return
   const appId = selected.value.id
   busy.value = 'general-save'
-  error.value = ''
-  notice.value = ''
   try {
     await updatePermission(`${appId}.main`, {
       label: editLabel.value.trim(),
       show_tile: editShowTile.value,
     })
-    notice.value = 'App details updated.'
+    success('App details updated.')
     await loadPermission(selected.value)
     await loadApps()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not update app details.'
+    danger(toErrorMessage(cause, 'Could not update app details.'))
   } finally {
     busy.value = ''
   }
@@ -193,24 +187,19 @@ async function grantGroup() {
   const appId = selected.value.id
   const name = grantPick.value
   busy.value = 'general-grant'
-  error.value = ''
-  notice.value = ''
   try {
     await addPermission(`${appId}.main`, [name])
-    notice.value = `Granted ${name} access.`
+    success(`Granted ${name} access.`)
     grantPick.value = ''
     await loadPermission(selected.value)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Could not grant ${name} access.`
+    danger(toErrorMessage(cause, `Could not grant ${name} access.`))
   } finally {
     busy.value = ''
   }
 }
 
 function requestRevokeGroup(name: string) {
-  notice.value = ''
-  error.value = ''
   confirmingRevoke.value = name
 }
 
@@ -223,15 +212,12 @@ async function confirmRevokeGroup(name: string) {
   confirmingRevoke.value = null
   const appId = selected.value.id
   busy.value = `general-revoke-${name}`
-  error.value = ''
-  notice.value = ''
   try {
     await removePermission(`${appId}.main`, [name])
-    notice.value = `Revoked ${name} access.`
+    success(`Revoked ${name} access.`)
     await loadPermission(selected.value)
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : `Could not revoke ${name} access.`
+    danger(toErrorMessage(cause, `Could not revoke ${name} access.`))
   } finally {
     busy.value = ''
   }
@@ -251,18 +237,13 @@ async function previewLifecycle(
 ) {
   if (!selected.value) return
   busy.value = `plan-${nextAction}`
-  error.value = ''
-  notice.value = ''
   plan.value = null
   action.value = null
   try {
     plan.value = await planCatalogueApp(selected.value.id, nextAction)
     action.value = nextAction
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Could not build ${nextAction} plan.`
+    danger(toErrorMessage(cause, `Could not build ${nextAction} plan.`))
   } finally {
     busy.value = ''
   }
@@ -271,16 +252,13 @@ async function previewLifecycle(
 async function previewSettings() {
   if (!selected.value) return
   busy.value = 'plan-settings'
-  error.value = ''
-  notice.value = ''
   plan.value = null
   action.value = null
   try {
     plan.value = await planNativeAppSettings(selected.value.id, values.value)
     action.value = 'settings'
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not build settings plan.'
+    danger(toErrorMessage(cause, 'Could not build settings plan.'))
   } finally {
     busy.value = ''
   }
@@ -289,8 +267,6 @@ async function previewSettings() {
 async function previewChangeUrl() {
   if (!selected.value) return
   busy.value = 'plan-change-url'
-  error.value = ''
-  notice.value = ''
   plan.value = null
   action.value = null
   try {
@@ -301,8 +277,7 @@ async function previewChangeUrl() {
     )
     action.value = 'change-url'
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Could not build change-url plan.'
+    danger(toErrorMessage(cause, 'Could not build change-url plan.'))
   } finally {
     busy.value = ''
   }
@@ -312,8 +287,6 @@ async function applyPlan() {
   if (!selected.value || !plan.value || !action.value) return
   const chosenAction = action.value
   busy.value = 'apply'
-  error.value = ''
-  notice.value = ''
   try {
     const result =
       chosenAction === 'settings'
@@ -341,17 +314,14 @@ async function applyPlan() {
         : chosenAction === 'change-url'
           ? 'App URL changed'
           : `App ${chosenAction} completed`
-    notice.value = `${actionLabel}.${requestId ? ` Operation ${requestId}` : ''}`
+    success(`${actionLabel}.${requestId ? ` Operation ${requestId}` : ''}`)
     plan.value = null
     action.value = null
     await loadApps()
     if (selected.value?.installed && selected.value.installation?.native)
       await chooseApp(selected.value)
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Could not apply ${chosenAction}.`
+    danger(toErrorMessage(cause, `Could not apply ${chosenAction}.`))
   } finally {
     busy.value = ''
   }
@@ -385,9 +355,6 @@ function cancelPlan() {
       The trusted catalogue is unavailable. Showing installed apps only.
       {{ catalogueError }}
     </Alert>
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
-
     <div
       v-if="publicKey"
       class="tw:grid tw:gap-5 tw:lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]"
@@ -587,7 +554,14 @@ function cancelPlan() {
             >
 
             <div class="tw:space-y-2 tw:border-t tw:border-border-subtle tw:pt-3">
-              <Label>Access groups</Label>
+              <div class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+                <Label>Access groups</Label>
+                <RouterLink
+                  :to="{ name: 'native-groups' }"
+                  class="tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
+                  >Manage in Groups &amp; permissions →</RouterLink
+                >
+              </div>
               <div class="tw:flex tw:flex-wrap tw:gap-2">
                 <Badge
                   v-for="name in permission.allowed"
@@ -596,25 +570,7 @@ function cancelPlan() {
                   class="tw:flex tw:items-center tw:gap-1"
                 >
                   {{ name }}
-                  <template v-if="confirmingRevoke === name">
-                    <button
-                      type="button"
-                      class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs tw:text-red-500"
-                      :disabled="busy !== ''"
-                      @click="confirmRevokeGroup(name)"
-                    >
-                      confirm
-                    </button>
-                    <button
-                      type="button"
-                      class="tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
-                      @click="cancelRevokeGroup"
-                    >
-                      ×
-                    </button>
-                  </template>
                   <button
-                    v-else
                     type="button"
                     class="tw:ml-1 tw:cursor-pointer tw:min-h-6 tw:min-w-6 tw:border-0 tw:bg-transparent tw:p-1 tw:font-mono tw:text-xs"
                     :disabled="busy !== ''"
@@ -866,5 +822,16 @@ function cancelPlan() {
         the signed operation and policy path.
       </p>
     </section>
+
+    <ConfirmDialog
+      :open="confirmingRevoke !== null"
+      tier="disruptive"
+      title="Revoke this group's access?"
+      :description="`${confirmingRevoke} loses access to this app.`"
+      confirm-label="Revoke"
+      :busy="busy === `general-revoke-${confirmingRevoke}`"
+      @confirm="confirmRevokeGroup(confirmingRevoke!)"
+      @cancel="cancelRevokeGroup"
+    />
   </PageLayout>
 </template>

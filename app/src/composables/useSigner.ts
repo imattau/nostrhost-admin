@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
 
+import { toErrorMessage } from '@/utils/errors'
+
 // Shared module-level state: every caller of `useSigner()` sees the same
 // session-derived identity, so the app shell header and individual views
 // agree on whether the user is signed in without prop-drilling.
@@ -79,10 +81,7 @@ async function _refreshSession(): Promise<SessionInfo> {
     admin.value = false
     sessionChecked.value = true
     lastCheckedAt = Date.now()
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : 'Could not reach the session endpoint.'
+    error.value = toErrorMessage(cause, 'Could not reach the session endpoint.')
     return { authenticated: false, username: null, pubkey: null, admin: false }
   }
 }

@@ -8,18 +8,20 @@ import {
   reloadFirewall,
   type FirewallProtocol,
 } from '@/api/nativeFirewall'
-import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const openPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
   tcp: [],
@@ -31,13 +33,10 @@ const forwardedPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
 })
 
 const loading = ref(false)
-const error = ref('')
-const notice = ref('')
 const busy = ref('')
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const [tcpOpen, udpOpen, tcpForwarded, udpForwarded] = await Promise.all([
@@ -52,8 +51,7 @@ async function load() {
       udp: udpForwarded.udp ?? [],
     }
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load firewall rules.'
+    danger(toErrorMessage(cause, 'Failed to load firewall rules.'))
   } finally {
     loading.value = false
   }
@@ -74,7 +72,6 @@ const openProtocol = ref<FirewallProtocol>('tcp')
 const openComment = ref('')
 const openUpnp = ref(false)
 const confirmingOpen = ref(false)
-const openError = ref('')
 
 function resetOpenForm() {
   openPort.value = ''
@@ -82,23 +79,19 @@ function resetOpenForm() {
   openComment.value = ''
   openUpnp.value = false
   confirmingOpen.value = false
-  openError.value = ''
 }
 
 function requestOpen() {
   if (!openPort.value.trim()) {
-    openError.value = 'Enter a port or port range.'
+    danger('Enter a port or port range.')
     return
   }
-  openError.value = ''
   confirmingOpen.value = true
 }
 
 async function confirmOpen() {
   confirmingOpen.value = false
   busy.value = 'open'
-  openError.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await openFirewallPort({
@@ -107,13 +100,12 @@ async function confirmOpen() {
       comment: openComment.value.trim() || undefined,
       upnp: openUpnp.value,
     })
-    notice.value = `Port open submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Port open submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     showOpenForm.value = false
     resetOpenForm()
     await load()
   } catch (cause) {
-    openError.value =
-      cause instanceof Error ? cause.message : 'Failed to open port.'
+    danger(toErrorMessage(cause, 'Failed to open port.'))
   } finally {
     busy.value = ''
   }
@@ -135,8 +127,6 @@ function closeKey(protocol: FirewallProtocol, port: number | string) {
 }
 
 function requestClose(protocol: FirewallProtocol, port: number | string) {
-  notice.value = ''
-  error.value = ''
   confirmingCloseTarget.value = { protocol, port }
 }
 
@@ -148,18 +138,13 @@ async function confirmClose(protocol: FirewallProtocol, port: number | string) {
   confirmingCloseTarget.value = null
   const key = closeKey(protocol, port)
   busy.value = `close-${key}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await closeFirewallPort({ port: String(port), protocol })
-    notice.value = `Port close submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Port close submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to close ${protocol}/${port}.`
+    danger(toErrorMessage(cause, `Failed to close ${protocol}/${port}.`))
   } finally {
     busy.value = ''
   }
@@ -170,8 +155,6 @@ async function confirmClose(protocol: FirewallProtocol, port: number | string) {
 const confirmingUnforward = ref<string | null>(null)
 
 function requestUnforward(protocol: FirewallProtocol, port: number | string) {
-  notice.value = ''
-  error.value = ''
   confirmingUnforward.value = closeKey(protocol, port)
 }
 
@@ -186,8 +169,6 @@ async function confirmUnforward(
   confirmingUnforward.value = null
   const key = closeKey(protocol, port)
   busy.value = `unforward-${key}`
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await closeFirewallPort({
@@ -195,13 +176,10 @@ async function confirmUnforward(
       protocol,
       upnp_only: true,
     })
-    notice.value = `UPnP forwarding removal submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`UPnP forwarding removal submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error
-        ? cause.message
-        : `Failed to remove forwarding for ${protocol}/${port}.`
+    danger(toErrorMessage(cause, `Failed to remove forwarding for ${protocol}/${port}.`))
   } finally {
     busy.value = ''
   }
@@ -213,24 +191,19 @@ const confirmingReload = ref(false)
 const reloadSkipUpnp = ref(false)
 
 function requestReload() {
-  notice.value = ''
-  error.value = ''
   confirmingReload.value = true
 }
 
 async function confirmReload() {
   confirmingReload.value = false
   busy.value = 'reload'
-  error.value = ''
-  notice.value = ''
   try {
     await sync()
     const result = await reloadFirewall(reloadSkipUpnp.value)
-    notice.value = `Firewall reload submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`
+    success(`Firewall reload submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
     await load()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to reload firewall.'
+    danger(toErrorMessage(cause, 'Failed to reload firewall.'))
   } finally {
     busy.value = ''
   }
@@ -244,9 +217,6 @@ async function confirmReload() {
       title="Firewall"
       description="Open and closed TCP/UDP ports and UPnP forwarding. Changes ask for confirmation first — a reload can transiently drop connections."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-    <Alert v-if="notice" variant="success" role="status">{{ notice }}</Alert>
 
     <template v-if="publicKey">
       <Card>
@@ -346,7 +316,6 @@ async function confirmReload() {
               />
               Also forward via UPnP
             </label>
-            <Alert v-if="openError" variant="danger">{{ openError }}</Alert>
             <div
               v-if="confirmingOpen"
               class="tw:flex tw:items-center tw:justify-end tw:gap-2"

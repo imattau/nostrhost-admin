@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 // Three tiers (plan §Phase 1.4):
 // - soft: benign/additive (create group, open a port) — one click, primary button.
 // - disruptive: reversible but interrupts something (restart, reload, force-close) — warning button.
-// - destructive: irreversible or high-blast-radius (shutdown, purge, reset-all, delete backup) —
-//   red button, disabled until the operator types the resource name.
+// - destructive: irreversible or high-blast-radius (shutdown, delete backup, reset-all,
+//   remove a domain) — red button, disabled until the operator types the resource name.
 export type ConfirmTier = 'soft' | 'disruptive' | 'destructive'
 
 const props = withDefaults(
@@ -94,10 +94,14 @@ function onKeydown(event: KeyboardEvent) {
       </div>
 
       <div v-if="tier === 'destructive'" class="tw:mt-4">
-        <label class="tw:mb-1 tw:block tw:text-xs tw:font-medium tw:text-muted-foreground">
+        <label
+          for="confirm-dialog-phrase"
+          class="tw:mb-1 tw:block tw:text-xs tw:font-medium tw:text-muted-foreground"
+        >
           Type <code class="tw:font-mono tw:text-foreground">{{ confirmPhrase }}</code> to confirm
         </label>
         <input
+          id="confirm-dialog-phrase"
           v-model="typed"
           type="text"
           autocomplete="off"

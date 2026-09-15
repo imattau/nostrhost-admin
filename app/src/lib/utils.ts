@@ -18,3 +18,20 @@ export function cn(...inputs: ClassValue[]) {
 export function shortenKey(key: string) {
   return `${key.slice(0, 12)}…${key.slice(-8)}`
 }
+
+// Shorter variant for compact inline display (e.g. next to a badge), e.g.
+// "abcdef12…9c8b".
+export function truncatePubkey(pubkey: string) {
+  return pubkey.length > 16 ? `${pubkey.slice(0, 8)}…${pubkey.slice(-4)}` : pubkey
+}
+
+// Formats a byte count for display, e.g. 1536 -> "1.5 KB".
+export function formatBytes(bytes: number): string {
+  if (!bytes) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const exponent = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1,
+  )
+  return `${(bytes / 1024 ** exponent).toFixed(1)} ${units[exponent]}`
+}

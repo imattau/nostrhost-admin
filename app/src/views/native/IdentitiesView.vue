@@ -7,22 +7,25 @@ import {
   type SignerType,
 } from '@/api/nativeIdentity'
 import { getIdentities, type Identity } from '@/api/nativeSystem'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { shortenKey } from '@/lib/utils'
+import { toErrorMessage } from '@/utils/errors'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { success, danger } = useNotifications()
 
 const identities = ref<Identity[] | null>(null)
-const error = ref('')
 const loading = ref(false)
 
 const username = ref('')
@@ -30,21 +33,17 @@ const pubkeyOrNpub = ref('')
 const signerType = ref<SignerType>('nip07')
 const label = ref('')
 const linking = ref(false)
-const linkError = ref('')
 
 const revokePending = ref<string | null>(null)
 const revoking = ref(false)
-const revokeError = ref('')
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     identities.value = await getIdentities()
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load identities.'
+    danger(toErrorMessage(cause, 'Failed to load identities.'))
   } finally {
     loading.value = false
   }
@@ -52,7 +51,6 @@ async function load() {
 
 async function submitLink() {
   linking.value = true
-  linkError.value = ''
   try {
     await sync()
     await linkIdentity({
@@ -61,21 +59,20 @@ async function submitLink() {
       signerType: signerType.value,
       label: label.value.trim(),
     })
+    success(`Linked an identity to ${username.value.trim()}.`)
     username.value = ''
     pubkeyOrNpub.value = ''
     label.value = ''
     signerType.value = 'nip07'
     await load()
   } catch (cause) {
-    linkError.value =
-      cause instanceof Error ? cause.message : 'Failed to link identity.'
+    danger(toErrorMessage(cause, 'Failed to link identity.'))
   } finally {
     linking.value = false
   }
 }
 
 function askRevoke(pubkey: string) {
-  revokeError.value = ''
   revokePending.value = pubkey
 }
 
@@ -85,15 +82,14 @@ function cancelRevoke() {
 
 async function confirmRevoke(pubkey: string) {
   revoking.value = true
-  revokeError.value = ''
   try {
     await sync()
     await revokeIdentity(pubkey)
     revokePending.value = null
+    success('Revoked the identity.')
     await load()
   } catch (cause) {
-    revokeError.value =
-      cause instanceof Error ? cause.message : 'Failed to revoke identity.'
+    danger(toErrorMessage(cause, 'Failed to revoke identity.'))
   } finally {
     revoking.value = false
   }
@@ -114,8 +110,6 @@ watch(publicKey, (key) => {
       title="Identities"
       description="Link a signer's public key to a YunoHost admin account, or revoke a linked identity. Linking and revoking publish signed events to the control relay; there is no password store."
     />
-
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -159,9 +153,6 @@ watch(publicKey, (key) => {
               <Input id="link-label" v-model="label" autocomplete="off" />
             </div>
           </div>
-          <Alert v-if="linkError" variant="danger" role="alert">{{
-            linkError
-          }}</Alert>
           <div>
             <Button type="submit" variant="primary" :disabled="linking">{{
               linking ? 'Linking…' : 'Link identity'
@@ -185,9 +176,6 @@ watch(publicKey, (key) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Alert v-if="revokeError" variant="danger" role="alert">{{
-          revokeError
-        }}</Alert>
         <ul v-if="identities && identities.length" class="tw:grid tw:gap-2">
           <li
             v-for="identity in identities"
@@ -212,23 +200,7 @@ watch(publicKey, (key) => {
               ></span
             >
             <div class="tw:flex tw:justify-end tw:gap-2">
-              <template v-if="revokePending === identity.pubkey">
-                <span class="tw:text-xs tw:text-muted-foreground tw:self-center"
-                  >Revoke this identity?</span
-                >
-                <Button variant="outline" size="sm" @click="cancelRevoke"
-                  >Cancel</Button
-                >
-                <Button
-                  variant="danger"
-                  size="sm"
-                  :disabled="revoking"
-                  @click="confirmRevoke(identity.pubkey)"
-                  >{{ revoking ? 'Revoking…' : 'Confirm revoke' }}</Button
-                >
-              </template>
               <Button
-                v-else
                 variant="outline"
                 size="sm"
                 :disabled="!identity.enabled"
@@ -238,10 +210,22 @@ watch(publicKey, (key) => {
             </div>
           </li>
         </ul>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No linked identities yet.' }}
+        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else title="No linked identities yet" />
       </CardContent>
     </Card>
+
+    <ConfirmDialog
+      :open="revokePending !== null"
+      tier="disruptive"
+      title="Revoke this identity?"
+      description="The linked pubkey loses access to this account. It can be re-linked later."
+      confirm-label="Revoke"
+      :busy="revoking"
+      @confirm="confirmRevoke(revokePending!)"
+      @cancel="cancelRevoke"
+    />
   </PageLayout>
 </template>

@@ -13,27 +13,28 @@ import {
   type SystemVersions,
 } from '@/api/nativeSystem'
 import { listOperations, type OperationEntry } from '@/api/nativeOperations'
-import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { toErrorMessage } from '@/utils/errors'
+import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
+const { danger } = useNotifications()
 
 const health = ref<Health | null>(null)
 const status = ref<SystemStatus | null>(null)
 const versions = ref<SystemVersions | null>(null)
 const identities = ref<Identity[] | null>(null)
 const recentOperations = ref<OperationEntry[] | null>(null)
-const error = ref('')
 const loading = ref(false)
 
 async function load() {
   loading.value = true
-  error.value = ''
   try {
     await sync()
     const [healthResult, statusResult, versionsResult, identitiesResult, operationsResult] =
@@ -50,8 +51,7 @@ async function load() {
     identities.value = identitiesResult
     recentOperations.value = operationsResult
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'Failed to load system status.'
+    danger(toErrorMessage(cause, 'Failed to load system status.'))
   } finally {
     loading.value = false
   }
@@ -123,8 +123,6 @@ watch(publicKey, (key) => {
       description="Read-only reachability, version, and identity reads from the native API. This screen cannot change host state."
     />
 
-    <Alert v-if="error" variant="danger" role="alert">{{ error }}</Alert>
-
     <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between">
       <p class="tw:text-sm tw:text-muted-foreground">
         Signed in as
@@ -186,9 +184,10 @@ watch(publicKey, (key) => {
             <Badge :variant="operationStateVariant(op.state)">{{ op.state }}</Badge>
           </li>
         </ul>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No operations recorded yet.' }}
+        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else title="No operations recorded yet" />
       </CardContent>
     </Card>
 
@@ -268,9 +267,10 @@ watch(publicKey, (key) => {
             </ul>
           </div>
         </template>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No version data yet.' }}
+        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else title="No version data yet" />
       </CardContent>
     </Card>
 
@@ -304,9 +304,10 @@ watch(publicKey, (key) => {
             >
           </li>
         </ul>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Loading…' : 'No linked identities yet.' }}
+        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+          Loading…
         </p>
+        <EmptyState v-else title="No linked identities yet" />
       </CardContent>
     </Card>
   </PageLayout>

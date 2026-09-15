@@ -97,9 +97,11 @@ export type ExportCandidate = {
 export type ContributionSettings = {
   enabled: boolean
   // When true, the resident agent daemon itself submits every completed
-  // cycle as a pull request with no human review in between -- a stronger,
-  // separate opt-in from `enabled` (which only gates the manual "Prepare
-  // then Submit" flow below).
+  // cycle as a pull request with no click needed -- a stronger, separate
+  // opt-in from `enabled` (which only gates the manual "Share" action
+  // below). Neither mode involves a human reading the candidate first;
+  // both rely on the same redaction plus the community repo's own CI
+  // validation before anything merges.
   auto_submit: boolean
   dataset_repo: string
   token_configured: boolean
@@ -207,5 +209,16 @@ export function submitContribution(candidateFileId: string) {
     '/package/agent/contribution/submit',
     'POST',
     JSON.stringify({ candidate_file_id: candidateFileId }),
+  )
+}
+
+// Redacts and submits one completed cycle in a single call — nothing else
+// on the node is ever read or transmitted, and nothing is automatic unless
+// automatic submission (above) is separately turned on.
+export function shareCycle(cycleId: string) {
+  return request<ContributionSubmitResult>(
+    '/package/agent/contribution/share',
+    'POST',
+    JSON.stringify({ cycle_id: cycleId }),
   )
 }

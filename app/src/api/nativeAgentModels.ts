@@ -82,18 +82,6 @@ export type ExportCycleSummary = {
   decision: string
 }
 
-export type ExportCandidate = {
-  schema_version: string
-  candidate_id: string
-  candidate_file_id: string
-  review_status: string
-  redactions_applied: number
-  planner_input: unknown
-  observed_decision: unknown
-  outcome: unknown
-  review_warning: string
-}
-
 export type ContributionSettings = {
   enabled: boolean
   // When true, the resident agent daemon itself submits every completed
@@ -164,21 +152,6 @@ export async function listExportableCycles() {
   return result.cycles
 }
 
-export function runExport(cycleId: string) {
-  return request<ExportCandidate>(
-    '/package/agent/export/run',
-    'POST',
-    JSON.stringify({ cycle_id: cycleId }),
-  )
-}
-
-export function getExportCandidate(candidateFileId: string) {
-  return request<ExportCandidate>(
-    `/package/agent/export/${encodeURIComponent(candidateFileId)}`,
-    'GET',
-  )
-}
-
 export function getContributionSettings() {
   return request<ContributionSettings>('/package/agent/contribution/settings', 'GET')
 }
@@ -199,16 +172,6 @@ export function setContributionSettings(
       auto_submit: autoSubmit,
       token: token || undefined,
     }),
-  )
-}
-
-// Uploads exactly the one locally-redacted candidate file chosen — nothing
-// else on the node is ever read or transmitted, and nothing is automatic.
-export function submitContribution(candidateFileId: string) {
-  return request<ContributionSubmitResult>(
-    '/package/agent/contribution/submit',
-    'POST',
-    JSON.stringify({ candidate_file_id: candidateFileId }),
   )
 }
 

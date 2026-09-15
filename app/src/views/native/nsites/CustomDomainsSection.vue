@@ -1,29 +1,35 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 
-import { attachNsiteDomain, detachNsiteDomain, type NsiteCustomDomain } from '@/api/nativeNsites'
+import {
+  attachNsiteDomain,
+  detachNsiteDomain,
+  type NsiteCustomDomain,
+} from '@/api/nativeNsites'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { truncatePubkey } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { Globe2 } from '@lucide/vue'
 import { siteLabel } from './helpers'
 import { NSITE_STATE_KEY } from './useNsiteState'
 
 const { sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 const nsite = inject(NSITE_STATE_KEY)!
 const { status, sites, customDomains, domainsLoading } = nsite
 
 const attachBusy = ref(false)
 const detaching = ref('')
+const { run: runAttach } = useActionRunner(attachBusy, false)
+const { run: runDetach } = useActionRunner(detaching, '')
 const cdFqdn = ref('')
 const cdSiteKey = ref('')
 const cdMethod = ref<'cname' | 'txt'>('cname')
@@ -47,39 +53,39 @@ function selectedSitePubkeyD() {
 }
 
 async function confirmAttachDomain() {
-  attachBusy.value = true
-  try {
-    await sync()
-    const { pubkey, d } = selectedSitePubkeyD()
-    await attachNsiteDomain({
-      fqdn: cdFqdn.value.trim(),
-      pubkey,
-      d: d || undefined,
-      method: cdMethod.value,
-    })
-    success('Domain attach submitted; the ownership proof is checked against DNS.')
-    cdFqdn.value = ''
-    cdSiteKey.value = ''
-    await nsite.loadDomains()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to attach the domain.'))
-  } finally {
-    attachBusy.value = false
-  }
+  await runAttach(
+    true,
+    async () => {
+      await sync()
+      const { pubkey, d } = selectedSitePubkeyD()
+      await attachNsiteDomain({
+        fqdn: cdFqdn.value.trim(),
+        pubkey,
+        d: d || undefined,
+        method: cdMethod.value,
+      })
+      success(
+        'Domain attach submitted; the ownership proof is checked against DNS.',
+      )
+      cdFqdn.value = ''
+      cdSiteKey.value = ''
+      await nsite.loadDomains()
+    },
+    'Failed to attach the domain.',
+  )
 }
 
 async function confirmDetachDomain(fqdn: string) {
-  detaching.value = fqdn
-  try {
-    await sync()
-    await detachNsiteDomain({ fqdn })
-    success(`Domain ${fqdn} detach submitted.`)
-    await nsite.loadDomains()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to detach the domain.'))
-  } finally {
-    detaching.value = ''
-  }
+  await runDetach(
+    fqdn,
+    async () => {
+      await sync()
+      await detachNsiteDomain({ fqdn })
+      success(`Domain ${fqdn} detach submitted.`)
+      await nsite.loadDomains()
+    },
+    'Failed to detach the domain.',
+  )
 }
 </script>
 
@@ -88,11 +94,11 @@ async function confirmDetachDomain(fqdn: string) {
     <CardHeader>
       <CardTitle>Custom domains</CardTitle>
       <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
-        Attach an FQDN to a registered site so it is served on its own
-        domain. Ownership is proven against DNS (a CNAME to the gateway
-        domain, or a <code>nostrhost-site:&lt;pubkey&gt;</code> TXT record
-        under <code>_nostrhost-site.&lt;fqdn&gt;</code>) before the Caddy
-        route and mapping are added.
+        Attach an FQDN to a registered site so it is served on its own domain.
+        Ownership is proven against DNS (a CNAME to the gateway domain, or a
+        <code>nostrhost-site:&lt;pubkey&gt;</code> TXT record under
+        <code>_nostrhost-site.&lt;fqdn&gt;</code>) before the Caddy route and
+        mapping are added.
       </p>
     </CardHeader>
     <CardContent class="tw:grid tw:gap-3">
@@ -122,9 +128,7 @@ async function confirmDetachDomain(fqdn: string) {
             class="tw:ml-auto"
             :disabled="detaching !== ''"
             @click="confirmDetachDomain(domain.fqdn)"
-            >{{
-              detaching === domain.fqdn ? 'Detaching…' : 'Detach'
-            }}</Button
+            >{{ detaching === domain.fqdn ? 'Detaching…' : 'Detach' }}</Button
           >
         </li>
       </ul>
@@ -147,11 +151,7 @@ async function confirmDetachDomain(fqdn: string) {
         </div>
         <div class="tw:grid tw:gap-1">
           <Label for="cd-site">Site</Label>
-          <Select
-            id="cd-site"
-            v-model="cdSiteKey"
-            :disabled="!status?.enabled"
-          >
+          <Select id="cd-site" v-model="cdSiteKey" :disabled="!status?.enabled">
             <option value="" disabled>Choose a registered site…</option>
             <option
               v-for="opt in siteOptions"
@@ -170,9 +170,7 @@ async function confirmDetachDomain(fqdn: string) {
             :disabled="!status?.enabled"
           >
             <option value="cname">CNAME to the gateway domain</option>
-            <option value="txt">
-              TXT under _nostrhost-site.&lt;fqdn&gt;
-            </option>
+            <option value="txt">TXT under _nostrhost-site.&lt;fqdn&gt;</option>
           </Select>
         </div>
         <div class="tw:flex tw:items-end">

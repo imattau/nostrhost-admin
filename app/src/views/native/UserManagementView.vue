@@ -17,7 +17,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { toErrorMessage } from '@/utils/errors'
 import IdentityFields from '@/components/native/IdentityFields.vue'
@@ -31,7 +33,7 @@ import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { success, warning, danger } = useNotifications()
+const { success, warning } = useNotifications()
 
 type UserRow = NativeUser & { username: string }
 
@@ -82,21 +84,30 @@ const createDomain = ref('')
 const createFullname = ref('')
 const createIdentity = ref<IdentitySelection>(defaultIdentitySelection())
 const creating = ref(false)
+const { run: runCreate } = useActionRunner(creating, false)
 
 const editPending = ref<string | null>(null)
 const editFullname = ref('')
 const editing = ref(false)
+const { run: runEdit } = useActionRunner(editing, false)
 
-const deletePending = ref<string | null>(null)
+const {
+  pending: deletePending,
+  request: askDeleteConfirm,
+  cancel: cancelDelete,
+} = useConfirm<string | null>(null)
 const deletePurge = ref(false)
 const deleting = ref(false)
+const { run: runDelete } = useActionRunner(deleting, false)
 
 const linkPending = ref<string | null>(null)
 const linkSelection = ref<IdentitySelection>(defaultIdentitySelection())
 const linking = ref(false)
+const { run: runLink } = useActionRunner(linking, false)
 
 const rotatePending = ref<string | null>(null)
 const rotating = ref(false)
+const { run: runRotate } = useActionRunner(rotating, false)
 const revealedPassword = ref<{ username: string; password: string } | null>(
   null,
 )
@@ -126,45 +137,44 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
 }, 'Failed to load users.')
 
 async function submitCreate() {
-  creating.value = true
-  try {
-    await sync()
-    const username = createUsername.value.trim()
-    await createUser({
-      username,
-      domain: createDomain.value.trim(),
-      password: generateSystemPassword(),
-      fullname: createFullname.value.trim(),
-    })
-    createUsername.value = ''
-    createDomain.value = domains.value[0] ?? ''
-    createFullname.value = ''
+  await runCreate(
+    true,
+    async () => {
+      await sync()
+      const username = createUsername.value.trim()
+      await createUser({
+        username,
+        domain: createDomain.value.trim(),
+        password: generateSystemPassword(),
+        fullname: createFullname.value.trim(),
+      })
+      createUsername.value = ''
+      createDomain.value = domains.value[0] ?? ''
+      createFullname.value = ''
 
-    const identity = createIdentity.value
-    createIdentity.value = defaultIdentitySelection()
-    if (identity.mode !== 'none') {
-      try {
-        await linkIdentity({
-          username,
-          pubkeyOrNpub: identity.pubkeyOrNpub.trim(),
-          signerType: identity.signerType,
-          label: identity.label.trim() || undefined,
-        })
-        success(`Created user "${username}" and linked its Nostr identity.`)
-      } catch (cause) {
-        warning(
-          `User "${username}" was created, but linking the Nostr identity failed: ${toErrorMessage(cause, 'unknown error')}. Use "Link identity" below to retry.`,
-        )
+      const identity = createIdentity.value
+      createIdentity.value = defaultIdentitySelection()
+      if (identity.mode !== 'none') {
+        try {
+          await linkIdentity({
+            username,
+            pubkeyOrNpub: identity.pubkeyOrNpub.trim(),
+            signerType: identity.signerType,
+            label: identity.label.trim() || undefined,
+          })
+          success(`Created user "${username}" and linked its Nostr identity.`)
+        } catch (cause) {
+          warning(
+            `User "${username}" was created, but linking the Nostr identity failed: ${toErrorMessage(cause, 'unknown error')}. Use "Link identity" below to retry.`,
+          )
+        }
+      } else {
+        success(`Created user "${username}".`)
       }
-    } else {
-      success(`Created user "${username}".`)
-    }
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to create user.'))
-  } finally {
-    creating.value = false
-  }
+      await load()
+    },
+    'Failed to create user.',
+  )
 }
 
 function askEdit(user: UserRow) {
@@ -177,45 +187,39 @@ function cancelEdit() {
 }
 
 async function confirmEdit(username: string) {
-  editing.value = true
-  try {
-    await sync()
-    await updateUser({
-      username,
-      fullname: editFullname.value.trim() || undefined,
-    })
-    editPending.value = null
-    success(`Updated ${username}.`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to update user.'))
-  } finally {
-    editing.value = false
-  }
+  await runEdit(
+    true,
+    async () => {
+      await sync()
+      await updateUser({
+        username,
+        fullname: editFullname.value.trim() || undefined,
+      })
+      editPending.value = null
+      success(`Updated ${username}.`)
+      await load()
+    },
+    'Failed to update user.',
+  )
 }
 
 function askDelete(username: string) {
   deletePurge.value = false
-  deletePending.value = username
-}
-
-function cancelDelete() {
-  deletePending.value = null
+  askDeleteConfirm(username)
 }
 
 async function confirmDelete(username: string) {
-  deleting.value = true
-  try {
-    await sync()
-    await deleteUser({ username, purge: deletePurge.value })
-    deletePending.value = null
-    success(`Deleted ${username}.`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to delete user.'))
-  } finally {
-    deleting.value = false
-  }
+  await runDelete(
+    true,
+    async () => {
+      await sync()
+      await deleteUser({ username, purge: deletePurge.value })
+      deletePending.value = null
+      success(`Deleted ${username}.`)
+      await load()
+    },
+    'Failed to delete user.',
+  )
 }
 
 function askLink(username: string) {
@@ -232,24 +236,23 @@ function cancelLink() {
 }
 
 async function confirmLink(username: string) {
-  linking.value = true
-  try {
-    await sync()
-    const selection = linkSelection.value
-    await linkIdentity({
-      username,
-      pubkeyOrNpub: selection.pubkeyOrNpub.trim(),
-      signerType: selection.signerType,
-      label: selection.label.trim() || undefined,
-    })
-    linkPending.value = null
-    success(`Linked a Nostr identity to ${username}.`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to link identity.'))
-  } finally {
-    linking.value = false
-  }
+  await runLink(
+    true,
+    async () => {
+      await sync()
+      const selection = linkSelection.value
+      await linkIdentity({
+        username,
+        pubkeyOrNpub: selection.pubkeyOrNpub.trim(),
+        signerType: selection.signerType,
+        label: selection.label.trim() || undefined,
+      })
+      linkPending.value = null
+      success(`Linked a Nostr identity to ${username}.`)
+      await load()
+    },
+    'Failed to link identity.',
+  )
 }
 
 function askRotate(username: string) {
@@ -262,18 +265,17 @@ function cancelRotate() {
 }
 
 async function confirmRotate(username: string) {
-  rotating.value = true
-  try {
-    await sync()
-    const password = generateSystemPassword()
-    await updateUser({ username, changePassword: password })
-    revealedPassword.value = { username, password }
-    rotatePending.value = null
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to rotate password.'))
-  } finally {
-    rotating.value = false
-  }
+  await runRotate(
+    true,
+    async () => {
+      await sync()
+      const password = generateSystemPassword()
+      await updateUser({ username, changePassword: password })
+      revealedPassword.value = { username, password }
+      rotatePending.value = null
+    },
+    'Failed to rotate password.',
+  )
 }
 
 async function copyRevealedPassword() {

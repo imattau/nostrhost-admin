@@ -12,57 +12,54 @@ import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useNotifications } from '@/composables/useNotifications'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useSigner } from '@/composables/useSigner'
-import { toErrorMessage } from '@/utils/errors'
 
 const { publicKey, sync } = useSigner()
-const { danger } = useNotifications()
 
 const agentStatus = ref<AgentStatus | null>(null)
 const agentLoading = ref(false)
 const agentActing = ref(false)
+const { run: runLoading } = useActionRunner(agentLoading, false)
+const { run: runActing } = useActionRunner(agentActing, false)
 
 async function loadAgentStatus() {
-  agentLoading.value = true
-  try {
-    await sync()
-    agentStatus.value = await getAgentStatus()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load agent status.'))
-  } finally {
-    agentLoading.value = false
-  }
+  await runLoading(
+    true,
+    async () => {
+      await sync()
+      agentStatus.value = await getAgentStatus()
+    },
+    'Failed to load agent status.',
+  )
 }
 
 async function runInit() {
-  agentActing.value = true
-  try {
-    await sync()
-    await initAgent()
-    await loadAgentStatus()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to initialise the agent.'))
-  } finally {
-    agentActing.value = false
-  }
+  await runActing(
+    true,
+    async () => {
+      await sync()
+      await initAgent()
+      await loadAgentStatus()
+    },
+    'Failed to initialise the agent.',
+  )
 }
 
 async function toggleAgent() {
-  agentActing.value = true
-  try {
-    await sync()
-    if (agentStatus.value?.service_enabled) {
-      await disableAgent()
-    } else {
-      await enableAgent()
-    }
-    await loadAgentStatus()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to update the agent.'))
-  } finally {
-    agentActing.value = false
-  }
+  await runActing(
+    true,
+    async () => {
+      await sync()
+      if (agentStatus.value?.service_enabled) {
+        await disableAgent()
+      } else {
+        await enableAgent()
+      }
+      await loadAgentStatus()
+    },
+    'Failed to update the agent.',
+  )
 }
 
 onMounted(() => {
@@ -92,8 +89,8 @@ watch(publicKey, (key) => {
         The optional <code class="tw:font-mono">nostrhost-agent</code> runs
         scheduled, read-only observation queries (e.g.
         <code class="tw:font-mono">service.status</code>) against this node's
-        control plane and reports back over the relay. It ships in an
-        "observe" policy — it cannot take write actions.
+        control plane and reports back over the relay. It ships in an "observe"
+        policy — it cannot take write actions.
       </p>
 
       <template v-if="agentStatus">
@@ -107,17 +104,14 @@ watch(publicKey, (key) => {
           <Badge :variant="agentStatus.service_enabled ? 'brand' : 'neutral'">
             {{ agentStatus.service_enabled ? 'Enabled' : 'Disabled' }}
           </Badge>
-          <Badge
-            :variant="agentStatus.service_active ? 'success' : 'neutral'"
-          >
+          <Badge :variant="agentStatus.service_active ? 'success' : 'neutral'">
             {{ agentStatus.service_active ? 'Running' : 'Not running' }}
           </Badge>
         </div>
 
         <Alert v-if="!agentStatus.installed" variant="info">
-          <code class="tw:font-mono">nostrhost-agent</code> is not installed
-          on this node. Install the optional package first, then reload this
-          page.
+          <code class="tw:font-mono">nostrhost-agent</code> is not installed on
+          this node. Install the optional package first, then reload this page.
         </Alert>
         <div v-else class="tw:flex tw:justify-end tw:gap-2">
           <Button

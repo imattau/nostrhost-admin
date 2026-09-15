@@ -14,8 +14,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
@@ -32,6 +33,7 @@ const forwardedPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
 })
 
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   const [tcpOpen, udpOpen, tcpForwarded, udpForwarded] = await Promise.all([
@@ -54,14 +56,18 @@ const openPort = ref('')
 const openProtocol = ref<FirewallProtocol>('tcp')
 const openComment = ref('')
 const openUpnp = ref(false)
-const confirmingOpen = ref(false)
+const {
+  pending: confirmingOpen,
+  request: requestOpenConfirm,
+  cancel: cancelOpen,
+} = useConfirm(false)
 
 function resetOpenForm() {
   openPort.value = ''
   openProtocol.value = 'tcp'
   openComment.value = ''
   openUpnp.value = false
-  confirmingOpen.value = false
+  cancelOpen()
 }
 
 function requestOpen() {
@@ -69,34 +75,39 @@ function requestOpen() {
     danger('Enter a port or port range.')
     return
   }
-  confirmingOpen.value = true
+  requestOpenConfirm(true)
 }
 
 async function confirmOpen() {
-  confirmingOpen.value = false
-  busy.value = 'open'
-  try {
-    await sync()
-    const result = await openFirewallPort({
-      port: openPort.value.trim(),
-      protocol: openProtocol.value,
-      comment: openComment.value.trim() || undefined,
-      upnp: openUpnp.value,
-    })
-    success(`Port open submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    showOpenForm.value = false
-    resetOpenForm()
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to open port.'))
-  } finally {
-    busy.value = ''
-  }
+  cancelOpen()
+  await run(
+    'open',
+    async () => {
+      await sync()
+      const result = await openFirewallPort({
+        port: openPort.value.trim(),
+        protocol: openProtocol.value,
+        comment: openComment.value.trim() || undefined,
+        upnp: openUpnp.value,
+      })
+      success(
+        `Port open submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      showOpenForm.value = false
+      resetOpenForm()
+      await load()
+    },
+    'Failed to open port.',
+  )
 }
 
 // -- close a port -------------------------------------------------------------
 
-const confirmingCloseTarget = ref<{ protocol: FirewallProtocol; port: number | string } | null>(
+const {
+  pending: confirmingCloseTarget,
+  request: requestCloseConfirm,
+  cancel: cancelClose,
+} = useConfirm<{ protocol: FirewallProtocol; port: number | string } | null>(
   null,
 )
 
@@ -110,86 +121,89 @@ function closeKey(protocol: FirewallProtocol, port: number | string) {
 }
 
 function requestClose(protocol: FirewallProtocol, port: number | string) {
-  confirmingCloseTarget.value = { protocol, port }
-}
-
-function cancelClose() {
-  confirmingCloseTarget.value = null
+  requestCloseConfirm({ protocol, port })
 }
 
 async function confirmClose(protocol: FirewallProtocol, port: number | string) {
-  confirmingCloseTarget.value = null
+  cancelClose()
   const key = closeKey(protocol, port)
-  busy.value = `close-${key}`
-  try {
-    await sync()
-    const result = await closeFirewallPort({ port: String(port), protocol })
-    success(`Port close submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to close ${protocol}/${port}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `close-${key}`,
+    async () => {
+      await sync()
+      const result = await closeFirewallPort({ port: String(port), protocol })
+      success(
+        `Port close submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to close ${protocol}/${port}.`,
+  )
 }
 
 // -- remove UPnP forwarding ---------------------------------------------------
 
-const confirmingUnforward = ref<string | null>(null)
+const {
+  pending: confirmingUnforward,
+  request: requestUnforwardConfirm,
+  cancel: cancelUnforward,
+} = useConfirm<string | null>(null)
 
 function requestUnforward(protocol: FirewallProtocol, port: number | string) {
-  confirmingUnforward.value = closeKey(protocol, port)
-}
-
-function cancelUnforward() {
-  confirmingUnforward.value = null
+  requestUnforwardConfirm(closeKey(protocol, port))
 }
 
 async function confirmUnforward(
   protocol: FirewallProtocol,
   port: number | string,
 ) {
-  confirmingUnforward.value = null
+  cancelUnforward()
   const key = closeKey(protocol, port)
-  busy.value = `unforward-${key}`
-  try {
-    await sync()
-    const result = await closeFirewallPort({
-      port: String(port),
-      protocol,
-      upnp_only: true,
-    })
-    success(`UPnP forwarding removal submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to remove forwarding for ${protocol}/${port}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `unforward-${key}`,
+    async () => {
+      await sync()
+      const result = await closeFirewallPort({
+        port: String(port),
+        protocol,
+        upnp_only: true,
+      })
+      success(
+        `UPnP forwarding removal submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to remove forwarding for ${protocol}/${port}.`,
+  )
 }
 
 // -- reload -------------------------------------------------------------------
 
-const confirmingReload = ref(false)
+const {
+  pending: confirmingReload,
+  request: requestReloadConfirm,
+  cancel: cancelReload,
+} = useConfirm(false)
 const reloadSkipUpnp = ref(false)
 
 function requestReload() {
-  confirmingReload.value = true
+  requestReloadConfirm(true)
 }
 
 async function confirmReload() {
-  confirmingReload.value = false
-  busy.value = 'reload'
-  try {
-    await sync()
-    const result = await reloadFirewall(reloadSkipUpnp.value)
-    success(`Firewall reload submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to reload firewall.'))
-  } finally {
-    busy.value = ''
-  }
+  cancelReload()
+  await run(
+    'reload',
+    async () => {
+      await sync()
+      const result = await reloadFirewall(reloadSkipUpnp.value)
+      success(
+        `Firewall reload submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    'Failed to reload firewall.',
+  )
 }
 </script>
 
@@ -221,10 +235,7 @@ async function confirmReload() {
                   <span class="tw:text-xs tw:text-muted-foreground"
                     >Reload?</span
                   >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    @click="confirmingReload = false"
+                  <Button variant="outline" size="sm" @click="cancelReload()"
                     >Cancel</Button
                   >
                   <Button
@@ -306,10 +317,7 @@ async function confirmReload() {
               <span class="tw:text-xs tw:text-muted-foreground"
                 >Open {{ openProtocol }}/{{ openPort.trim() }}?</span
               >
-              <Button
-                variant="outline"
-                size="sm"
-                @click="confirmingOpen = false"
+              <Button variant="outline" size="sm" @click="cancelOpen()"
                 >Cancel</Button
               >
               <Button
@@ -437,21 +445,37 @@ async function confirmReload() {
 
     <ConfirmDialog
       :open="confirmingCloseTarget !== null"
-      :tier="confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port)) ? 'destructive' : 'disruptive'"
+      :tier="
+        confirmingCloseTarget &&
+        CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+          ? 'destructive'
+          : 'disruptive'
+      "
       title="Close this port?"
       :description="
-        confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+        confirmingCloseTarget &&
+        CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
           ? `Port ${confirmingCloseTarget.port} is commonly used for SSH/HTTP(S) — closing it can lock you out of the server or take every app offline.`
           : 'A reload can transiently drop connections.'
       "
       confirm-label="Close"
       :confirm-phrase="
-        confirmingCloseTarget && CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
+        confirmingCloseTarget &&
+        CRITICAL_PORTS.has(Number(confirmingCloseTarget.port))
           ? String(confirmingCloseTarget.port)
           : undefined
       "
-      :busy="confirmingCloseTarget !== null && busy === `close-${closeKey(confirmingCloseTarget.protocol, confirmingCloseTarget.port)}`"
-      @confirm="confirmClose(confirmingCloseTarget!.protocol, confirmingCloseTarget!.port)"
+      :busy="
+        confirmingCloseTarget !== null &&
+        busy ===
+          `close-${closeKey(confirmingCloseTarget.protocol, confirmingCloseTarget.port)}`
+      "
+      @confirm="
+        confirmClose(
+          confirmingCloseTarget!.protocol,
+          confirmingCloseTarget!.port,
+        )
+      "
       @cancel="cancelClose"
     />
   </PageLayout>

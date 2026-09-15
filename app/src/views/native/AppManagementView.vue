@@ -31,9 +31,10 @@ import { Select } from '@/components/ui/select'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
-import { toErrorMessage } from '@/utils/errors'
 
 type Filter =
   | 'all'
@@ -44,7 +45,7 @@ type Filter =
 type Action = 'install' | 'upgrade' | 'remove' | 'settings' | 'change-url'
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const apps = ref<AppManagementEntry[]>([])
 const catalogueError = ref('')
@@ -60,11 +61,16 @@ const groupNames = ref<string[]>([])
 const editLabel = ref('')
 const editShowTile = ref(false)
 const grantPick = ref('')
-const confirmingRevoke = ref<string | null>(null)
+const {
+  pending: confirmingRevoke,
+  request: requestRevokeGroupConfirm,
+  cancel: cancelRevokeGroup,
+} = useConfirm<string | null>(null)
 const filter = ref<Filter>('all')
 const category = ref('all')
 const search = ref('')
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 const categories = computed(() => {
   const found = new Set<string>()
   for (const app of apps.value) {
@@ -96,21 +102,20 @@ const visibleApps = computed(() =>
 )
 
 async function loadApps() {
-  busy.value = 'load'
-  try {
-    await sync()
-    const inventory = await getAppManagement()
-    apps.value = inventory.apps
-    catalogueError.value = inventory.catalogue_error || ''
-    if (selected.value) {
-      selected.value =
-        apps.value.find((item) => item.id === selected.value?.id) || null
-    }
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Could not load applications.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'load',
+    async () => {
+      await sync()
+      const inventory = await getAppManagement()
+      apps.value = inventory.apps
+      catalogueError.value = inventory.catalogue_error || ''
+      if (selected.value) {
+        selected.value =
+          apps.value.find((item) => item.id === selected.value?.id) || null
+      }
+    },
+    'Could not load applications.',
+  )
 }
 
 onMounted(() => {
@@ -151,76 +156,68 @@ async function chooseApp(app: AppManagementEntry) {
   grantPick.value = ''
   confirmingRevoke.value = null
   if (!app.installed || !app.installation?.native) return
-  busy.value = 'settings'
-  try {
-    settings.value = await getNativeAppSettings(app.id)
-    values.value = { ...settings.value.values }
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Could not load app settings.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'settings',
+    async () => {
+      settings.value = await getNativeAppSettings(app.id)
+      values.value = { ...settings.value.values }
+    },
+    'Could not load app settings.',
+  )
   await loadPermission(app)
 }
 
 async function saveGeneral() {
   if (!selected.value) return
   const appId = selected.value.id
-  busy.value = 'general-save'
-  try {
-    await updatePermission(`${appId}.main`, {
-      label: editLabel.value.trim(),
-      show_tile: editShowTile.value,
-    })
-    success('App details updated.')
-    await loadPermission(selected.value)
-    await loadApps()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Could not update app details.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'general-save',
+    async () => {
+      await updatePermission(`${appId}.main`, {
+        label: editLabel.value.trim(),
+        show_tile: editShowTile.value,
+      })
+      success('App details updated.')
+      await loadPermission(selected.value!)
+      await loadApps()
+    },
+    'Could not update app details.',
+  )
 }
 
 async function grantGroup() {
   if (!selected.value || !grantPick.value) return
   const appId = selected.value.id
   const name = grantPick.value
-  busy.value = 'general-grant'
-  try {
-    await addPermission(`${appId}.main`, [name])
-    success(`Granted ${name} access.`)
-    grantPick.value = ''
-    await loadPermission(selected.value)
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Could not grant ${name} access.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'general-grant',
+    async () => {
+      await addPermission(`${appId}.main`, [name])
+      success(`Granted ${name} access.`)
+      grantPick.value = ''
+      await loadPermission(selected.value!)
+    },
+    `Could not grant ${name} access.`,
+  )
 }
 
 function requestRevokeGroup(name: string) {
-  confirmingRevoke.value = name
-}
-
-function cancelRevokeGroup() {
-  confirmingRevoke.value = null
+  requestRevokeGroupConfirm(name)
 }
 
 async function confirmRevokeGroup(name: string) {
   if (!selected.value) return
   confirmingRevoke.value = null
   const appId = selected.value.id
-  busy.value = `general-revoke-${name}`
-  try {
-    await removePermission(`${appId}.main`, [name])
-    success(`Revoked ${name} access.`)
-    await loadPermission(selected.value)
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Could not revoke ${name} access.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `general-revoke-${name}`,
+    async () => {
+      await removePermission(`${appId}.main`, [name])
+      success(`Revoked ${name} access.`)
+      await loadPermission(selected.value!)
+    },
+    `Could not revoke ${name} access.`,
+  )
 }
 
 function updateValue(key: string, event: Event, type: string) {
@@ -236,95 +233,92 @@ async function previewLifecycle(
   nextAction: Exclude<Action, 'settings' | 'change-url'>,
 ) {
   if (!selected.value) return
-  busy.value = `plan-${nextAction}`
-  plan.value = null
-  action.value = null
-  try {
-    plan.value = await planCatalogueApp(selected.value.id, nextAction)
-    action.value = nextAction
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Could not build ${nextAction} plan.`))
-  } finally {
-    busy.value = ''
-  }
+  const app = selected.value
+  await run(
+    `plan-${nextAction}`,
+    async () => {
+      plan.value = null
+      action.value = null
+      plan.value = await planCatalogueApp(app.id, nextAction)
+      action.value = nextAction
+    },
+    `Could not build ${nextAction} plan.`,
+  )
 }
 
 async function previewSettings() {
   if (!selected.value) return
-  busy.value = 'plan-settings'
-  plan.value = null
-  action.value = null
-  try {
-    plan.value = await planNativeAppSettings(selected.value.id, values.value)
-    action.value = 'settings'
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Could not build settings plan.'))
-  } finally {
-    busy.value = ''
-  }
+  const app = selected.value
+  await run(
+    'plan-settings',
+    async () => {
+      plan.value = null
+      action.value = null
+      plan.value = await planNativeAppSettings(app.id, values.value)
+      action.value = 'settings'
+    },
+    'Could not build settings plan.',
+  )
 }
 
 async function previewChangeUrl() {
   if (!selected.value) return
-  busy.value = 'plan-change-url'
-  plan.value = null
-  action.value = null
-  try {
-    plan.value = await planChangeUrl(
-      selected.value.id,
-      newDomain.value,
-      newPath.value,
-    )
-    action.value = 'change-url'
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Could not build change-url plan.'))
-  } finally {
-    busy.value = ''
-  }
+  const app = selected.value
+  await run(
+    'plan-change-url',
+    async () => {
+      plan.value = null
+      action.value = null
+      plan.value = await planChangeUrl(app.id, newDomain.value, newPath.value)
+      action.value = 'change-url'
+    },
+    'Could not build change-url plan.',
+  )
 }
 
 async function applyPlan() {
   if (!selected.value || !plan.value || !action.value) return
+  const app = selected.value
+  const chosenPlan = plan.value
   const chosenAction = action.value
-  busy.value = 'apply'
-  try {
-    const result =
-      chosenAction === 'settings'
-        ? await applyNativeAppSettings(
-            selected.value.id,
-            plan.value as PackagePlan,
-            values.value,
-          )
-        : chosenAction === 'change-url'
-          ? await applyChangeUrl(
-              selected.value.id,
-              newDomain.value,
-              newPath.value,
-              plan.value as ChangeUrlPlan,
+  await run(
+    'apply',
+    async () => {
+      const result =
+        chosenAction === 'settings'
+          ? await applyNativeAppSettings(
+              app.id,
+              chosenPlan as PackagePlan,
+              values.value,
             )
-          : await applyCatalogueApp(
-              selected.value.id,
-              chosenAction,
-              plan.value as PackagePlan,
-            )
-    const requestId = result.operation.request_id
-    const actionLabel =
-      chosenAction === 'settings'
-        ? 'Settings saved'
-        : chosenAction === 'change-url'
-          ? 'App URL changed'
-          : `App ${chosenAction} completed`
-    success(`${actionLabel}.${requestId ? ` Operation ${requestId}` : ''}`)
-    plan.value = null
-    action.value = null
-    await loadApps()
-    if (selected.value?.installed && selected.value.installation?.native)
-      await chooseApp(selected.value)
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Could not apply ${chosenAction}.`))
-  } finally {
-    busy.value = ''
-  }
+          : chosenAction === 'change-url'
+            ? await applyChangeUrl(
+                app.id,
+                newDomain.value,
+                newPath.value,
+                chosenPlan as ChangeUrlPlan,
+              )
+            : await applyCatalogueApp(
+                app.id,
+                chosenAction,
+                chosenPlan as PackagePlan,
+              )
+      const requestId = result.operation.request_id
+      const actionLabel =
+        chosenAction === 'settings'
+          ? 'Settings saved'
+          : chosenAction === 'change-url'
+            ? 'App URL changed'
+            : `App ${chosenAction} completed`
+      success(`${actionLabel}.${requestId ? ` Operation ${requestId}` : ''}`)
+      plan.value = null
+      action.value = null
+      await loadApps()
+      if (selected.value?.installed && selected.value.installation?.native)
+        await chooseApp(selected.value)
+    },
+    `Could not apply ${chosenAction}.`,
+  )
 }
 
 function label(app: AppManagementEntry) {
@@ -527,7 +521,10 @@ function cancelPlan() {
             aria-labelledby="general-title"
           >
             <div>
-              <h3 id="general-title" class="tw:m-0 tw:text-base tw:font-semibold">
+              <h3
+                id="general-title"
+                class="tw:m-0 tw:text-base tw:font-semibold"
+              >
                 General
               </h3>
               <p class="tw:mb-0 tw:mt-1 tw:text-xs tw:text-muted-foreground">
@@ -553,7 +550,9 @@ function cancelPlan() {
               >{{ busy === 'general-save' ? 'Saving…' : 'Save' }}</Button
             >
 
-            <div class="tw:space-y-2 tw:border-t tw:border-border-subtle tw:pt-3">
+            <div
+              class="tw:space-y-2 tw:border-t tw:border-border-subtle tw:pt-3"
+            >
               <div class="tw:flex tw:items-center tw:justify-between tw:gap-2">
                 <Label>Access groups</Label>
                 <RouterLink

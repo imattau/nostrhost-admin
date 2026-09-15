@@ -10,41 +10,41 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
-import { toErrorMessage } from '@/utils/errors'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const manifest = ref(
   JSON.stringify({ app: { id: 'example-app', version: '0.1.0' } }, null, 2),
 )
 const plan = ref<PackagePlan | null>(null)
 const planning = ref(false)
+const { run: runPlan } = useActionRunner(planning, false)
 
 async function reviewPlan() {
-  planning.value = true
-  plan.value = null
-  try {
-    await sync()
-    const packageData: unknown = JSON.parse(manifest.value)
-    if (
-      !packageData ||
-      typeof packageData !== 'object' ||
-      Array.isArray(packageData)
-    )
-      throw new Error('The package manifest must be a JSON object.')
-    plan.value = await planPackageManifest(
-      packageData as Record<string, unknown>,
-    )
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Plan request failed.'))
-  } finally {
-    planning.value = false
-  }
+  await runPlan(
+    true,
+    async () => {
+      plan.value = null
+      await sync()
+      const packageData: unknown = JSON.parse(manifest.value)
+      if (
+        !packageData ||
+        typeof packageData !== 'object' ||
+        Array.isArray(packageData)
+      )
+        throw new Error('The package manifest must be a JSON object.')
+      plan.value = await planPackageManifest(
+        packageData as Record<string, unknown>,
+      )
+    },
+    'Plan request failed.',
+  )
 }
 
 // -- publish to catalogue ---------------------------------------------------
@@ -56,21 +56,23 @@ async function reviewPlan() {
 
 const declareRepository = ref('')
 const declaring = ref(false)
+const { run: runDeclare } = useActionRunner(declaring, false)
 
 async function declareInCatalogue() {
-  declaring.value = true
-  try {
-    const packageData = JSON.parse(manifest.value) as Record<string, unknown>
-    const result = await declareCatalogueEntry(
-      packageData,
-      declareRepository.value.trim(),
-    )
-    success(`Declared ${result.app_id} in the catalogue (event ${result.event_id.slice(0, 12)}…).`)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Publishing to the catalogue failed.'))
-  } finally {
-    declaring.value = false
-  }
+  await runDeclare(
+    true,
+    async () => {
+      const packageData = JSON.parse(manifest.value) as Record<string, unknown>
+      const result = await declareCatalogueEntry(
+        packageData,
+        declareRepository.value.trim(),
+      )
+      success(
+        `Declared ${result.app_id} in the catalogue (event ${result.event_id.slice(0, 12)}…).`,
+      )
+    },
+    'Publishing to the catalogue failed.',
+  )
 }
 
 function riskLabel(operation: NonNullable<PackagePlan['operations']>[number]) {

@@ -16,21 +16,31 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const updates = ref<AvailableUpdates | null>(null)
 const migrations = ref<Migration[]>([])
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
-const confirmingApply = ref<'apps' | 'system' | null>(null)
-const confirmingMigration = ref<string | null>(null)
+const {
+  pending: confirmingApply,
+  request: requestApplyConfirm,
+  cancel: cancelApply,
+} = useConfirm<'apps' | 'system' | null>(null)
+const {
+  pending: confirmingMigration,
+  request: requestMigrationConfirm,
+  cancel: cancelMigration,
+} = useConfirm<string | null>(null)
 const disclaimerAccepted = ref<Record<string, boolean>>({})
 
 const systemPackageGroups = computed(() =>
@@ -51,67 +61,64 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
 }, 'Failed to load updates.')
 
 async function refresh(target: UpdateTarget) {
-  busy.value = `refresh-${target}`
-  try {
-    await sync()
-    updates.value = await refreshUpdates(target)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to refresh updates.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `refresh-${target}`,
+    async () => {
+      await sync()
+      updates.value = await refreshUpdates(target)
+    },
+    'Failed to refresh updates.',
+  )
 }
 
 function requestApply(target: 'apps' | 'system') {
-  confirmingApply.value = target
-}
-
-function cancelApply() {
-  confirmingApply.value = null
+  requestApplyConfirm(target)
 }
 
 async function confirmApply() {
   const target = confirmingApply.value
   if (!target) return
-  busy.value = `apply-${target}`
-  confirmingApply.value = null
-  try {
-    await sync()
-    const result = await applyUpdates(target)
-    success(`${target === 'system' ? 'System' : 'App'} upgrade submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to apply ${target} upgrade.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `apply-${target}`,
+    async () => {
+      confirmingApply.value = null
+      await sync()
+      const result = await applyUpdates(target)
+      success(
+        `${target === 'system' ? 'System' : 'App'} upgrade submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to apply ${target} upgrade.`,
+  )
 }
 
 function requestMigration(id: string) {
-  confirmingMigration.value = id
+  requestMigrationConfirm(id)
 }
 
-function cancelMigration() {
-  confirmingMigration.value = null
-}
-
-const confirmingMigrationRecord = computed(() =>
-  migrations.value.find((m) => m.id === confirmingMigration.value) ?? null,
+const confirmingMigrationRecord = computed(
+  () =>
+    migrations.value.find((m) => m.id === confirmingMigration.value) ?? null,
 )
 
 async function confirmMigration(id: string) {
   confirmingMigration.value = null
-  busy.value = `migrate-${id}`
-  try {
-    await sync()
-    const result = await runMigration(id, Boolean(disclaimerAccepted.value[id]))
-    success(`Migration ${id} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to run migration ${id}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `migrate-${id}`,
+    async () => {
+      await sync()
+      const result = await runMigration(
+        id,
+        Boolean(disclaimerAccepted.value[id]),
+      )
+      success(
+        `Migration ${id} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to run migration ${id}.`,
+  )
 }
 
 function canRun(migration: Migration) {
@@ -163,7 +170,10 @@ function formatAge(seconds: number) {
         </CardTitle>
       </CardHeader>
       <CardContent class="tw:grid tw:gap-4">
-        <p v-if="!updates && loading" class="tw:text-sm tw:text-muted-foreground">
+        <p
+          v-if="!updates && loading"
+          class="tw:text-sm tw:text-muted-foreground"
+        >
           Loading…
         </p>
         <EmptyState v-else-if="!updates" title="No update data yet" />

@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
@@ -52,6 +54,7 @@ async function toggleDetail(name: string) {
   }
 }
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const archiveRows = computed(() =>
   Object.entries(archives.value)
@@ -79,7 +82,8 @@ const createName = ref('')
 const createDescription = ref('')
 const createApps = ref('')
 const createSystem = ref('')
-const confirmingCreate = ref(false)
+const { pending: confirmingCreate, request: requestCreateConfirm } =
+  useConfirm(false)
 
 function resetCreateForm() {
   createName.value = ''
@@ -90,82 +94,85 @@ function resetCreateForm() {
 }
 
 function requestCreate() {
-  confirmingCreate.value = true
+  requestCreateConfirm(true)
 }
 
 async function confirmCreate() {
   confirmingCreate.value = false
-  busy.value = 'create'
-  try {
-    await sync()
-    const result = await createBackup({
-      name: createName.value.trim() || undefined,
-      description: createDescription.value.trim() || undefined,
-      apps: parseList(createApps.value),
-      system: parseList(createSystem.value),
-    })
-    success(`Backup creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    showCreateForm.value = false
-    resetCreateForm()
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to create backup.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'create',
+    async () => {
+      await sync()
+      const result = await createBackup({
+        name: createName.value.trim() || undefined,
+        description: createDescription.value.trim() || undefined,
+        apps: parseList(createApps.value),
+        system: parseList(createSystem.value),
+      })
+      success(
+        `Backup creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      showCreateForm.value = false
+      resetCreateForm()
+      await load()
+    },
+    'Failed to create backup.',
+  )
 }
 
 // -- restore --------------------------------------------------------------
 
-const confirmingRestore = ref<string | null>(null)
+const {
+  pending: confirmingRestore,
+  request: requestRestoreConfirm,
+  cancel: cancelRestore,
+} = useConfirm<string | null>(null)
 
 function requestRestore(name: string) {
-  confirmingRestore.value = name
-}
-
-function cancelRestore() {
-  confirmingRestore.value = null
+  requestRestoreConfirm(name)
 }
 
 async function confirmRestore(name: string) {
   confirmingRestore.value = null
-  busy.value = `restore-${name}`
-  try {
-    await sync()
-    const result = await restoreBackup({ name })
-    success(`Restore of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to restore ${name}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `restore-${name}`,
+    async () => {
+      await sync()
+      const result = await restoreBackup({ name })
+      success(
+        `Restore of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+    },
+    `Failed to restore ${name}.`,
+  )
 }
 
 // -- delete -----------------------------------------------------------------
 
-const confirmingDelete = ref<string | null>(null)
+const {
+  pending: confirmingDelete,
+  request: requestDeleteConfirm,
+  cancel: cancelDelete,
+} = useConfirm<string | null>(null)
 
 function requestDelete(name: string) {
-  confirmingDelete.value = name
-}
-
-function cancelDelete() {
-  confirmingDelete.value = null
+  requestDeleteConfirm(name)
 }
 
 async function confirmDelete(name: string) {
   confirmingDelete.value = null
-  busy.value = `delete-${name}`
-  try {
-    await sync()
-    const result = await deleteBackup(name)
-    success(`Deletion of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to delete ${name}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `delete-${name}`,
+    async () => {
+      await sync()
+      const result = await deleteBackup(name)
+      success(
+        `Deletion of ${name} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to delete ${name}.`,
+  )
 }
 </script>
 
@@ -308,16 +315,32 @@ async function confirmDelete(name: string) {
                 Loading contents…
               </p>
               <template v-else>
-                <p class="tw:m-0 tw:font-semibold tw:text-muted-foreground">Apps</p>
-                <p v-if="!Object.keys(archiveDetail.apps ?? {}).length" class="tw:m-0 tw:text-muted-foreground">
+                <p class="tw:m-0 tw:font-semibold tw:text-muted-foreground">
+                  Apps
+                </p>
+                <p
+                  v-if="!Object.keys(archiveDetail.apps ?? {}).length"
+                  class="tw:m-0 tw:text-muted-foreground"
+                >
                   none
                 </p>
-                <code v-else class="tw:font-mono">{{ Object.keys(archiveDetail.apps ?? {}).join(', ') }}</code>
-                <p class="tw:m-0 tw:mt-2 tw:font-semibold tw:text-muted-foreground">System</p>
-                <p v-if="!Object.keys(archiveDetail.system ?? {}).length" class="tw:m-0 tw:text-muted-foreground">
+                <code v-else class="tw:font-mono">{{
+                  Object.keys(archiveDetail.apps ?? {}).join(', ')
+                }}</code>
+                <p
+                  class="tw:m-0 tw:mt-2 tw:font-semibold tw:text-muted-foreground"
+                >
+                  System
+                </p>
+                <p
+                  v-if="!Object.keys(archiveDetail.system ?? {}).length"
+                  class="tw:m-0 tw:text-muted-foreground"
+                >
                   none
                 </p>
-                <code v-else class="tw:font-mono">{{ Object.keys(archiveDetail.system ?? {}).join(', ') }}</code>
+                <code v-else class="tw:font-mono">{{
+                  Object.keys(archiveDetail.system ?? {}).join(', ')
+                }}</code>
               </template>
             </div>
 
@@ -328,7 +351,11 @@ async function confirmDelete(name: string) {
                 variant="outline"
                 size="sm"
                 @click="toggleDetail(archive.name)"
-                >{{ expandedArchive === archive.name ? 'Hide contents' : 'Contents' }}</Button
+                >{{
+                  expandedArchive === archive.name
+                    ? 'Hide contents'
+                    : 'Contents'
+                }}</Button
               >
               <Button
                 variant="warning"

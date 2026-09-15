@@ -1,26 +1,31 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 
-import { getNsitePublishPlan, publishNsite, type NsitePublishPlan } from '@/api/nativeNsites'
+import {
+  getNsitePublishPlan,
+  publishNsite,
+  type NsitePublishPlan,
+} from '@/api/nativeNsites'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { parseList } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 import { KIND_ROOT, KIND_NAMED } from '@/lib/nsite/manifest'
 import { siteLabel } from './helpers'
 import { NSITE_STATE_KEY } from './useNsiteState'
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 const nsite = inject(NSITE_STATE_KEY)!
 const { sites } = nsite
 
 const copyBusy = ref('')
+const { run } = useActionRunner(copyBusy, '')
 const copySourceKey = ref('')
 const copyD = ref('')
 const copyServers = ref('')
@@ -40,54 +45,54 @@ function copyTargetKind() {
 }
 
 async function buildCopyPlan() {
-  copyBusy.value = 'plan'
-  copyPlan.value = null
-  try {
-    await sync()
-    const result = await getNsitePublishPlan({
-      pubkey: publicKey.value ?? '',
-      kind: copyTargetKind(),
-      d: copyD.value.trim(),
-      servers: copyServers.value ? parseList(copyServers.value) : undefined,
-      copy_of: copySourceKey.value,
-    })
-    copyPlan.value = result.plan
-    success(`Copy plan ready: ${result.plan.items.length} file(s), a/A tags set. Review and sign to publish.`)
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to build the copy plan.'))
-  } finally {
-    copyBusy.value = ''
-  }
+  await run(
+    'plan',
+    async () => {
+      copyPlan.value = null
+      await sync()
+      const result = await getNsitePublishPlan({
+        pubkey: publicKey.value ?? '',
+        kind: copyTargetKind(),
+        d: copyD.value.trim(),
+        servers: copyServers.value ? parseList(copyServers.value) : undefined,
+        copy_of: copySourceKey.value,
+      })
+      copyPlan.value = result.plan
+      success(
+        `Copy plan ready: ${result.plan.items.length} file(s), a/A tags set. Review and sign to publish.`,
+      )
+    },
+    'Failed to build the copy plan.',
+  )
 }
 
 async function submitCopy() {
   if (!copyPlan.value) return
-  copyBusy.value = 'publish'
-  try {
-    const plan = copyPlan.value
-    const signed = await window.nostr!.signEvent({
-      kind: plan.unsigned_event.kind,
-      pubkey: plan.unsigned_event.pubkey,
-      created_at: Math.floor(Date.now() / 1000),
-      tags: plan.unsigned_event.tags,
-      content: plan.unsigned_event.content,
-    })
-    await publishNsite({
-      event: signed,
-      plan_sha256: plan.plan_sha256,
-      relays: plan.relays,
-    })
-    success('Copy published.')
-    copyPlan.value = null
-    copySourceKey.value = ''
-    copyD.value = ''
-    copyServers.value = ''
-    await Promise.all([nsite.load(), nsite.loadSites()])
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to publish the copy.'))
-  } finally {
-    copyBusy.value = ''
-  }
+  const plan = copyPlan.value
+  await run(
+    'publish',
+    async () => {
+      const signed = await window.nostr!.signEvent({
+        kind: plan.unsigned_event.kind,
+        pubkey: plan.unsigned_event.pubkey,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: plan.unsigned_event.tags,
+        content: plan.unsigned_event.content,
+      })
+      await publishNsite({
+        event: signed,
+        plan_sha256: plan.plan_sha256,
+        relays: plan.relays,
+      })
+      success('Copy published.')
+      copyPlan.value = null
+      copySourceKey.value = ''
+      copyD.value = ''
+      copyServers.value = ''
+      await Promise.all([nsite.load(), nsite.loadSites()])
+    },
+    'Failed to publish the copy.',
+  )
 }
 </script>
 
@@ -97,10 +102,10 @@ async function submitCopy() {
       <CardTitle>Create my copy</CardTitle>
       <p class="tw:m-0 tw:text-sm tw:text-muted-foreground">
         Copy a registered site into your own namespace. The copied manifest
-        keeps the same blobs (content-addressed, so nothing is re-uploaded)
-        and carries <code>a</code> (parent) and{' '} <code>A</code> (origin)
-        tags pointing at the source, per NIP-5A. You sign it with your own
-        key, so the copy is published under your pubkey.
+        keeps the same blobs (content-addressed, so nothing is re-uploaded) and
+        carries <code>a</code> (parent) and{' '} <code>A</code> (origin) tags
+        pointing at the source, per NIP-5A. You sign it with your own key, so
+        the copy is published under your pubkey.
       </p>
     </CardHeader>
     <CardContent class="tw:grid tw:gap-3">

@@ -19,10 +19,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { truncatePubkey } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 
 // Curated subset of the scopes defined in nostrhost-yunohost's
@@ -81,11 +82,12 @@ const SCOPE_PRESETS = [
 ] as const
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const mcpPubkey = ref('')
 const mcpScopes = ref<string[]>([])
 const mcpGranting = ref(false)
+const { run: runGrant } = useActionRunner(mcpGranting, false)
 
 const wizardOpen = ref(false)
 const wizardStep = ref<1 | 2 | 3 | 4>(1)
@@ -148,58 +150,57 @@ function choosePreset(id: (typeof SCOPE_PRESETS)[number]['id']) {
 
 const grants = ref<CapabilityGrant[]>([])
 const grantsLoading = ref(false)
-const confirmingRevoke = ref<string | null>(null)
+const {
+  pending: confirmingRevoke,
+  request: requestRevokeGrantConfirm,
+  cancel: cancelRevokeGrant,
+} = useConfirm<string | null>(null)
 const revokingPubkey = ref('')
+const { run: runLoadGrants } = useActionRunner(grantsLoading, false)
+const { run: runRevoke } = useActionRunner(revokingPubkey, '')
 
 async function loadGrants() {
-  grantsLoading.value = true
-  try {
-    await sync()
-    const result = await listCapabilities()
-    grants.value = result.grants
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load current access.'))
-  } finally {
-    grantsLoading.value = false
-  }
+  await runLoadGrants(
+    true,
+    async () => {
+      await sync()
+      const result = await listCapabilities()
+      grants.value = result.grants
+    },
+    'Failed to load current access.',
+  )
 }
 
 function requestRevokeGrant(pubkey: string) {
-  confirmingRevoke.value = pubkey
-}
-
-function cancelRevokeGrant() {
-  confirmingRevoke.value = null
+  requestRevokeGrantConfirm(pubkey)
 }
 
 async function confirmRevokeGrant(pubkey: string) {
   confirmingRevoke.value = null
-  revokingPubkey.value = pubkey
-  try {
-    await sync()
-    await revokeCapability(pubkey)
-    success('Revoked access.')
-    await loadGrants()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to revoke access.'))
-  } finally {
-    revokingPubkey.value = ''
-  }
+  await runRevoke(
+    pubkey,
+    async () => {
+      await sync()
+      await revokeCapability(pubkey)
+      success('Revoked access.')
+      await loadGrants()
+    },
+    'Failed to revoke access.',
+  )
 }
 
 async function submitGrant() {
-  mcpGranting.value = true
-  try {
-    await sync()
-    await grantCapability(mcpPubkey.value.trim(), mcpScopes.value)
-    grantedPubkey.value = mcpPubkey.value.trim()
-    wizardStep.value = 4
-    await Promise.all([loadGrants(), loadRemoteTransportInfo()])
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to publish the grant.'))
-  } finally {
-    mcpGranting.value = false
-  }
+  await runGrant(
+    true,
+    async () => {
+      await sync()
+      await grantCapability(mcpPubkey.value.trim(), mcpScopes.value)
+      grantedPubkey.value = mcpPubkey.value.trim()
+      wizardStep.value = 4
+      await Promise.all([loadGrants(), loadRemoteTransportInfo()])
+    },
+    'Failed to publish the grant.',
+  )
 }
 
 onMounted(() => {
@@ -302,9 +303,7 @@ watch(publicKey, (key) => {
             v-for="n in 3"
             :key="n"
             class="tw:h-1 tw:flex-1 tw:rounded-full"
-            :class="
-              wizardStep >= n ? 'tw:bg-brand-500' : 'tw:bg-surface-muted'
-            "
+            :class="wizardStep >= n ? 'tw:bg-brand-500' : 'tw:bg-surface-muted'"
           />
         </div>
 
@@ -350,15 +349,11 @@ watch(publicKey, (key) => {
               <Button
                 v-for="preset in SCOPE_PRESETS"
                 :key="preset.id"
-                :variant="
-                  selectedPreset === preset.id ? 'primary' : 'outline'
-                "
+                :variant="selectedPreset === preset.id ? 'primary' : 'outline'"
                 size="sm"
                 @click="choosePreset(preset.id)"
                 >{{ preset.label
-                }}<span v-if="preset.recommended">
-                  (recommended)</span
-                ></Button
+                }}<span v-if="preset.recommended"> (recommended)</span></Button
               >
             </div>
           </div>
@@ -511,10 +506,7 @@ watch(publicKey, (key) => {
                   connecting.
                 </Alert>
                 <div class="tw:flex tw:justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    @click="downloadCaBundle"
+                  <Button variant="outline" size="sm" @click="downloadCaBundle"
                     >Download CA bundle</Button
                   >
                 </div>

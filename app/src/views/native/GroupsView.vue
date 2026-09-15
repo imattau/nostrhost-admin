@@ -21,8 +21,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
-import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
@@ -36,6 +37,7 @@ const permissions = ref<Record<string, PermissionInfo>>({})
 const usernames = ref<string[]>([])
 
 const busy = ref('')
+const { run } = useActionRunner(busy, '')
 
 const groupNames = computed(() => Object.keys(groups.value).sort())
 const permissionNames = computed(() => Object.keys(permissions.value).sort())
@@ -55,31 +57,33 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
 
 const showCreateGroup = ref(false)
 const createGroupname = ref('')
-const confirmingCreateGroup = ref(false)
+const { pending: confirmingCreateGroup, request: requestCreateGroupConfirm } =
+  useConfirm(false)
 
 function requestCreateGroup() {
   if (!createGroupname.value.trim()) {
     danger('Enter a group name.')
     return
   }
-  confirmingCreateGroup.value = true
+  requestCreateGroupConfirm(true)
 }
 
 async function confirmCreateGroup() {
   confirmingCreateGroup.value = false
-  busy.value = 'create-group'
-  try {
-    await sync()
-    const result = await createGroup(createGroupname.value.trim())
-    success(`Group creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    createGroupname.value = ''
-    showCreateGroup.value = false
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to create group.'))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    'create-group',
+    async () => {
+      await sync()
+      const result = await createGroup(createGroupname.value.trim())
+      success(
+        `Group creation submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      createGroupname.value = ''
+      showCreateGroup.value = false
+      await load()
+    },
+    'Failed to create group.',
+  )
 }
 
 // -- add/remove members ---------------------------------------------------
@@ -94,82 +98,88 @@ function availableUsers(groupname: string) {
 async function addMember(groupname: string) {
   const username = memberPicks.value[groupname]
   if (!username) return
-  busy.value = `member-add-${groupname}`
-  try {
-    await sync()
-    const result = await updateGroup(groupname, { add: [username] })
-    success(`Added ${username} to ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    memberPicks.value[groupname] = ''
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to add ${username} to ${groupname}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `member-add-${groupname}`,
+    async () => {
+      await sync()
+      const result = await updateGroup(groupname, { add: [username] })
+      success(
+        `Added ${username} to ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      memberPicks.value[groupname] = ''
+      await load()
+    },
+    `Failed to add ${username} to ${groupname}.`,
+  )
 }
 
-const confirmingRemoveMember = ref<string | null>(null)
+const {
+  pending: confirmingRemoveMember,
+  request: requestRemoveMemberConfirm,
+  cancel: cancelRemoveMember,
+} = useConfirm<string | null>(null)
 
 function memberKey(groupname: string, username: string) {
   return `${groupname}:${username}`
 }
 
 function requestRemoveMember(groupname: string, username: string) {
-  confirmingRemoveMember.value = memberKey(groupname, username)
-}
-
-function cancelRemoveMember() {
-  confirmingRemoveMember.value = null
+  requestRemoveMemberConfirm(memberKey(groupname, username))
 }
 
 const pendingRemoveMember = computed(() => {
   const key = confirmingRemoveMember.value
   if (!key) return null
   const separator = key.indexOf(':')
-  return { groupname: key.slice(0, separator), username: key.slice(separator + 1) }
+  return {
+    groupname: key.slice(0, separator),
+    username: key.slice(separator + 1),
+  }
 })
 
 async function confirmRemoveMember(groupname: string, username: string) {
   confirmingRemoveMember.value = null
   const key = memberKey(groupname, username)
-  busy.value = `member-remove-${key}`
-  try {
-    await sync()
-    const result = await updateGroup(groupname, { remove: [username] })
-    success(`Revoked ${username}'s access via ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to revoke ${username}'s access via ${groupname}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `member-remove-${key}`,
+    async () => {
+      await sync()
+      const result = await updateGroup(groupname, { remove: [username] })
+      success(
+        `Revoked ${username}'s access via ${groupname}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to revoke ${username}'s access via ${groupname}.`,
+  )
 }
 
 // -- delete group ---------------------------------------------------------
 
-const confirmingDeleteGroup = ref<string | null>(null)
+const {
+  pending: confirmingDeleteGroup,
+  request: requestDeleteGroupConfirm,
+  cancel: cancelDeleteGroup,
+} = useConfirm<string | null>(null)
 
 function requestDeleteGroup(groupname: string) {
-  confirmingDeleteGroup.value = groupname
-}
-
-function cancelDeleteGroup() {
-  confirmingDeleteGroup.value = null
+  requestDeleteGroupConfirm(groupname)
 }
 
 async function confirmDeleteGroup(groupname: string) {
   confirmingDeleteGroup.value = null
-  busy.value = `delete-group-${groupname}`
-  try {
-    await sync()
-    const result = await deleteGroup(groupname)
-    success(`Deletion of ${groupname} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to delete ${groupname}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `delete-group-${groupname}`,
+    async () => {
+      await sync()
+      const result = await deleteGroup(groupname)
+      success(
+        `Deletion of ${groupname} submitted.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to delete ${groupname}.`,
+  )
 }
 
 // -- grant/revoke permission ------------------------------------------------
@@ -179,32 +189,33 @@ const grantPicks = ref<Record<string, string>>({})
 async function grantPermission(permission: string) {
   const name = grantPicks.value[permission]
   if (!name) return
-  busy.value = `permission-add-${permission}`
-  try {
-    await sync()
-    const result = await addPermission(permission, [name])
-    success(`Granted ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    grantPicks.value[permission] = ''
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to grant access to ${permission}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `permission-add-${permission}`,
+    async () => {
+      await sync()
+      const result = await addPermission(permission, [name])
+      success(
+        `Granted ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      grantPicks.value[permission] = ''
+      await load()
+    },
+    `Failed to grant access to ${permission}.`,
+  )
 }
 
-const confirmingRevoke = ref<string | null>(null)
+const {
+  pending: confirmingRevoke,
+  request: requestRevokeConfirm,
+  cancel: cancelRevoke,
+} = useConfirm<string | null>(null)
 
 function revokeKey(permission: string, name: string) {
   return `${permission}:${name}`
 }
 
 function requestRevoke(permission: string, name: string) {
-  confirmingRevoke.value = revokeKey(permission, name)
-}
-
-function cancelRevoke() {
-  confirmingRevoke.value = null
+  requestRevokeConfirm(revokeKey(permission, name))
 }
 
 const pendingRevoke = computed(() => {
@@ -217,17 +228,18 @@ const pendingRevoke = computed(() => {
 async function confirmRevoke(permission: string, name: string) {
   confirmingRevoke.value = null
   const key = revokeKey(permission, name)
-  busy.value = `permission-remove-${key}`
-  try {
-    await sync()
-    const result = await removePermission(permission, [name])
-    success(`Revoked ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to revoke access to ${permission}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `permission-remove-${key}`,
+    async () => {
+      await sync()
+      const result = await removePermission(permission, [name])
+      success(
+        `Revoked ${name} access to ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      await load()
+    },
+    `Failed to revoke access to ${permission}.`,
+  )
 }
 
 // -- update permission label/tile --------------------------------------------
@@ -247,21 +259,22 @@ function cancelEditPermission() {
 }
 
 async function saveEditPermission(permission: string) {
-  busy.value = `permission-update-${permission}`
-  try {
-    await sync()
-    const result = await updatePermission(permission, {
-      label: editLabel.value.trim(),
-      show_tile: editShowTile.value,
-    })
-    success(`Updated ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`)
-    editingPermission.value = null
-    await load()
-  } catch (cause) {
-    danger(toErrorMessage(cause, `Failed to update ${permission}.`))
-  } finally {
-    busy.value = ''
-  }
+  await run(
+    `permission-update-${permission}`,
+    async () => {
+      await sync()
+      const result = await updatePermission(permission, {
+        label: editLabel.value.trim(),
+        show_tile: editShowTile.value,
+      })
+      success(
+        `Updated ${permission}.${result.request_id ? ` Operation ${result.request_id}` : ''}`,
+      )
+      editingPermission.value = null
+      await load()
+    },
+    `Failed to update ${permission}.`,
+  )
 }
 </script>
 
@@ -561,7 +574,12 @@ async function saveEditPermission(permission: string) {
       :description="`${pendingRemoveMember?.username} loses whatever access ${pendingRemoveMember?.groupname} grants.`"
       confirm-label="Revoke"
       :busy="busy === `member-remove-${confirmingRemoveMember}`"
-      @confirm="confirmRemoveMember(pendingRemoveMember!.groupname, pendingRemoveMember!.username)"
+      @confirm="
+        confirmRemoveMember(
+          pendingRemoveMember!.groupname,
+          pendingRemoveMember!.username,
+        )
+      "
       @cancel="cancelRemoveMember"
     />
     <ConfirmDialog

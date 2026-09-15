@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useActionRunner } from '@/composables/useActionRunner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { parseList } from '@/lib/utils'
@@ -35,6 +36,7 @@ const { status } = nsite
 const wizardStep = ref(0) // 0 identity · 1 directory · 2 targets · 3 upload · 4 review · 5 sign/submit · 6 done
 const signerAvailable = ref(Boolean(window.nostr))
 const publishBusy = ref('')
+const { run } = useActionRunner(publishBusy, '')
 
 const wKind = ref(String(KIND_ROOT))
 const wD = ref('')
@@ -146,110 +148,109 @@ function stepTargets() {
 }
 
 async function doUpload() {
-  publishBusy.value = 'upload'
-  wBlossomResults.value = []
-  const servers = parseList(wServers.value)
-  const items = inventory.value.map((item) => ({
-    path: item.path,
-    sha256: item.sha256,
-  }))
-  try {
-    for (const server of servers) {
-      const result = await uploadToBlossom(
-        server,
-        items,
-        async (path) => {
-          const file = filesByPath.get(path)
-          return file ? new Uint8Array(await file.arrayBuffer()) : null
-        },
-        {
-          pubkey: publicKey.value ?? '',
-          signEvent: (event) => window.nostr!.signEvent(event),
-          onProgress: (done, total, path) => {
-            uploadProgress.value = { done, total, path }
+  await run(
+    'upload',
+    async () => {
+      wBlossomResults.value = []
+      const servers = parseList(wServers.value)
+      const items = inventory.value.map((item) => ({
+        path: item.path,
+        sha256: item.sha256,
+      }))
+      for (const server of servers) {
+        const result = await uploadToBlossom(
+          server,
+          items,
+          async (path) => {
+            const file = filesByPath.get(path)
+            return file ? new Uint8Array(await file.arrayBuffer()) : null
           },
-        },
-      )
-      wBlossomResults.value.push(result)
-    }
-    const allOk = wBlossomResults.value.every((result) => result.ok)
-    if (!allOk) {
-      danger('Some blobs failed to upload. Review the per-server results below.')
-      return
-    }
-    wizardStep.value = 3
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Upload failed.'))
-  } finally {
-    publishBusy.value = ''
-  }
+          {
+            pubkey: publicKey.value ?? '',
+            signEvent: (event) => window.nostr!.signEvent(event),
+            onProgress: (done, total, path) => {
+              uploadProgress.value = { done, total, path }
+            },
+          },
+        )
+        wBlossomResults.value.push(result)
+      }
+      const allOk = wBlossomResults.value.every((result) => result.ok)
+      if (!allOk) {
+        danger(
+          'Some blobs failed to upload. Review the per-server results below.',
+        )
+        return
+      }
+      wizardStep.value = 3
+    },
+    'Upload failed.',
+  )
 }
 
 async function doReview() {
-  publishBusy.value = 'review'
-  try {
-    const items = inventory.value.map((item) => ({
-      path: item.path,
-      sha256: item.sha256,
-    }))
-    const servers = parseList(wServers.value)
-    const relays = parseList(wRelays.value)
-    const digest = await planDigest({
-      kind: Number(wKind.value),
-      d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
-      paths: items,
-      servers,
-    })
-    const { event } = await buildUnsignedManifest({
-      pubkey: publicKey.value ?? '',
-      kind: Number(wKind.value),
-      d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
-      items,
-      servers,
-    })
-    reviewDigest.value = digest
-    reviewEvent.value = event
-    wRelays.value = relays.join(', ')
-    wizardStep.value = 4
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Review failed.'))
-  } finally {
-    publishBusy.value = ''
-  }
+  await run(
+    'review',
+    async () => {
+      const items = inventory.value.map((item) => ({
+        path: item.path,
+        sha256: item.sha256,
+      }))
+      const servers = parseList(wServers.value)
+      const relays = parseList(wRelays.value)
+      const digest = await planDigest({
+        kind: Number(wKind.value),
+        d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
+        paths: items,
+        servers,
+      })
+      const { event } = await buildUnsignedManifest({
+        pubkey: publicKey.value ?? '',
+        kind: Number(wKind.value),
+        d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
+        items,
+        servers,
+      })
+      reviewDigest.value = digest
+      reviewEvent.value = event
+      wRelays.value = relays.join(', ')
+      wizardStep.value = 4
+    },
+    'Review failed.',
+  )
 }
 
 async function doPublish() {
-  publishBusy.value = 'publish'
-  try {
-    const items = inventory.value.map((item) => ({
-      path: item.path,
-      sha256: item.sha256,
-    }))
-    const servers = parseList(wServers.value)
-    const relays = parseList(wRelays.value)
-    const outcome = await signAndSubmit({
-      pubkey: publicKey.value ?? '',
-      kind: Number(wKind.value),
-      d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
-      items,
-      servers,
-      relays,
-      signEvent: (event) => window.nostr!.signEvent(event),
-      submit: (args) =>
-        publishNsite({
-          event: args.event,
-          plan_sha256: args.plan_sha256,
-          relays: args.relays,
-        }),
-    })
-    publishResult.value = outcome
-    wizardStep.value = 5
-    await Promise.all([nsite.load(), nsite.loadSites()])
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Publish failed.'))
-  } finally {
-    publishBusy.value = ''
-  }
+  await run(
+    'publish',
+    async () => {
+      const items = inventory.value.map((item) => ({
+        path: item.path,
+        sha256: item.sha256,
+      }))
+      const servers = parseList(wServers.value)
+      const relays = parseList(wRelays.value)
+      const outcome = await signAndSubmit({
+        pubkey: publicKey.value ?? '',
+        kind: Number(wKind.value),
+        d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
+        items,
+        servers,
+        relays,
+        signEvent: (event) => window.nostr!.signEvent(event),
+        submit: (args) =>
+          publishNsite({
+            event: args.event,
+            plan_sha256: args.plan_sha256,
+            relays: args.relays,
+          }),
+      })
+      publishResult.value = outcome
+      wizardStep.value = 5
+      await Promise.all([nsite.load(), nsite.loadSites()])
+    },
+    'Publish failed.',
+  )
 }
 
 function formatBytes(bytes: number): string {
@@ -283,9 +284,7 @@ function openSite(url: string | undefined) {
         <div class="tw:grid tw:gap-1.5">
           <Label for="w-kind">Site type</Label>
           <Select id="w-kind" v-model="wKind">
-            <option :value="String(KIND_ROOT)">
-              Root site (npub address)
-            </option>
+            <option :value="String(KIND_ROOT)">Root site (npub address)</option>
             <option :value="String(KIND_NAMED)">
               Named site (custom d label)
             </option>
@@ -323,18 +322,16 @@ function openSite(url: string | undefined) {
             @change="onFilesSelected"
           />
           <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-            Select the folder that becomes the site root. Files are hashed
-            in your browser (Web Crypto); paths with &quot;..&quot; and
-            files over 32 MiB are rejected.
+            Select the folder that becomes the site root. Files are hashed in
+            your browser (Web Crypto); paths with &quot;..&quot; and files over
+            32 MiB are rejected.
           </p>
         </div>
         <div v-if="inventory.length" class="tw:grid tw:gap-1">
           <p class="tw:m-0 tw:text-sm">
             {{ inventory.length }} file(s) · total
             {{
-              formatBytes(
-                inventory.reduce((sum, item) => sum + item.size, 0),
-              )
+              formatBytes(inventory.reduce((sum, item) => sum + item.size, 0))
             }}
           </p>
           <ul
@@ -347,10 +344,7 @@ function openSite(url: string | undefined) {
             >
               {{ item.path }} · {{ formatBytes(item.size) }}
             </li>
-            <li
-              v-if="inventory.length > 50"
-              class="tw:text-muted-foreground"
-            >
+            <li v-if="inventory.length > 50" class="tw:text-muted-foreground">
               …and {{ inventory.length - 50 }} more
             </li>
           </ul>
@@ -359,10 +353,7 @@ function openSite(url: string | undefined) {
           <Button variant="outline" size="sm" @click="wizardStep = 0"
             >Back</Button
           >
-          <Button
-            size="sm"
-            :disabled="!inventory.length"
-            @click="stepTargets"
+          <Button size="sm" :disabled="!inventory.length" @click="stepTargets"
             >Next</Button
           >
         </div>
@@ -468,8 +459,8 @@ function openSite(url: string | undefined) {
           <code class="tw:font-mono">{{ reviewDigest }}</code>
         </p>
         <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-          Editing anything above (kind, d, files, servers) discards this
-          digest — go back and re-review.
+          Editing anything above (kind, d, files, servers) discards this digest
+          — go back and re-review.
         </p>
         <div class="tw:flex tw:justify-end tw:gap-2">
           <Button
@@ -479,16 +470,9 @@ function openSite(url: string | undefined) {
             @click="wizardStep = 2"
             >Back</Button
           >
-          <Button
-            size="sm"
-            :disabled="publishBusy !== ''"
-            @click="doPublish"
-            >{{
-              publishBusy === 'publish'
-                ? 'Publishing…'
-                : 'Sign &amp; publish'
-            }}</Button
-          >
+          <Button size="sm" :disabled="publishBusy !== ''" @click="doPublish">{{
+            publishBusy === 'publish' ? 'Publishing…' : 'Sign &amp; publish'
+          }}</Button>
         </div>
       </template>
 

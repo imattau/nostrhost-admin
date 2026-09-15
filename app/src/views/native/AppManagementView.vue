@@ -32,6 +32,7 @@ import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 
@@ -60,7 +61,11 @@ const groupNames = ref<string[]>([])
 const editLabel = ref('')
 const editShowTile = ref(false)
 const grantPick = ref('')
-const confirmingRevoke = ref<string | null>(null)
+const {
+  pending: confirmingRevoke,
+  request: requestRevokeGroupConfirm,
+  cancel: cancelRevokeGroup,
+} = useConfirm<string | null>(null)
 const filter = ref<Filter>('all')
 const category = ref('all')
 const search = ref('')
@@ -197,11 +202,7 @@ async function grantGroup() {
 }
 
 function requestRevokeGroup(name: string) {
-  confirmingRevoke.value = name
-}
-
-function cancelRevokeGroup() {
-  confirmingRevoke.value = null
+  requestRevokeGroupConfirm(name)
 }
 
 async function confirmRevokeGroup(name: string) {

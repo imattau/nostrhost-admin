@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useActionRunner } from '@/composables/useActionRunner'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { toErrorMessage } from '@/utils/errors'
 import IdentityFields from '@/components/native/IdentityFields.vue'
@@ -90,7 +91,11 @@ const editFullname = ref('')
 const editing = ref(false)
 const { run: runEdit } = useActionRunner(editing, false)
 
-const deletePending = ref<string | null>(null)
+const {
+  pending: deletePending,
+  request: askDeleteConfirm,
+  cancel: cancelDelete,
+} = useConfirm<string | null>(null)
 const deletePurge = ref(false)
 const deleting = ref(false)
 const { run: runDelete } = useActionRunner(deleting, false)
@@ -200,11 +205,7 @@ async function confirmEdit(username: string) {
 
 function askDelete(username: string) {
   deletePurge.value = false
-  deletePending.value = username
-}
-
-function cancelDelete() {
-  deletePending.value = null
+  askDeleteConfirm(username)
 }
 
 async function confirmDelete(username: string) {

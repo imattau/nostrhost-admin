@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
@@ -83,14 +84,14 @@ async function saveEdit(key: string) {
 
 // -- reset a setting --------------------------------------------------------
 
-const confirmingReset = ref<string | null>(null)
+const {
+  pending: confirmingReset,
+  request: requestResetConfirm,
+  cancel: cancelReset,
+} = useConfirm<string | null>(null)
 
 function requestReset(key: string) {
-  confirmingReset.value = key
-}
-
-function cancelReset() {
-  confirmingReset.value = null
+  requestResetConfirm(key)
 }
 
 async function confirmReset(key: string) {
@@ -111,10 +112,11 @@ async function confirmReset(key: string) {
 
 // -- reset all ----------------------------------------------------------------
 
-const confirmingResetAll = ref(false)
+const { pending: confirmingResetAll, request: requestResetAllConfirm } =
+  useConfirm(false)
 
 function requestResetAll() {
-  confirmingResetAll.value = true
+  requestResetAllConfirm(true)
 }
 
 async function confirmResetAll() {

@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { parseList } from '@/lib/utils'
@@ -98,7 +99,8 @@ function resetForm() {
 // -- enable ----------------------------------------------------------------
 
 const showEnableForm = ref(false)
-const confirmingEnable = ref(false)
+const { pending: confirmingEnable, request: requestEnableConfirm } =
+  useConfirm(false)
 
 function openEnableForm() {
   confirmingEnable.value = false
@@ -112,7 +114,7 @@ function requestEnable() {
     danger('Choose the dedicated gateway domain.')
     return
   }
-  confirmingEnable.value = true
+  requestEnableConfirm(true)
 }
 
 async function confirmEnable() {
@@ -132,7 +134,7 @@ async function confirmEnable() {
 
 // -- disable ---------------------------------------------------------------
 
-const confirmingDisable = ref(false)
+const { pending: confirmingDisable } = useConfirm(false)
 
 async function confirmDisable() {
   confirmingDisable.value = false
@@ -151,7 +153,8 @@ async function confirmDisable() {
 // -- configure -------------------------------------------------------------
 
 const showConfigureForm = ref(false)
-const confirmingConfigure = ref(false)
+const { pending: confirmingConfigure, request: requestConfigureConfirm } =
+  useConfirm(false)
 
 function openConfigureForm() {
   confirmingConfigure.value = false
@@ -173,7 +176,7 @@ function requestConfigure() {
     danger('Choose the gateway domain.')
     return
   }
-  confirmingConfigure.value = true
+  requestConfigureConfirm(true)
 }
 
 async function confirmConfigure() {

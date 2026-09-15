@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
@@ -81,7 +82,8 @@ const createName = ref('')
 const createDescription = ref('')
 const createApps = ref('')
 const createSystem = ref('')
-const confirmingCreate = ref(false)
+const { pending: confirmingCreate, request: requestCreateConfirm } =
+  useConfirm(false)
 
 function resetCreateForm() {
   createName.value = ''
@@ -92,7 +94,7 @@ function resetCreateForm() {
 }
 
 function requestCreate() {
-  confirmingCreate.value = true
+  requestCreateConfirm(true)
 }
 
 async function confirmCreate() {
@@ -120,14 +122,14 @@ async function confirmCreate() {
 
 // -- restore --------------------------------------------------------------
 
-const confirmingRestore = ref<string | null>(null)
+const {
+  pending: confirmingRestore,
+  request: requestRestoreConfirm,
+  cancel: cancelRestore,
+} = useConfirm<string | null>(null)
 
 function requestRestore(name: string) {
-  confirmingRestore.value = name
-}
-
-function cancelRestore() {
-  confirmingRestore.value = null
+  requestRestoreConfirm(name)
 }
 
 async function confirmRestore(name: string) {
@@ -147,14 +149,14 @@ async function confirmRestore(name: string) {
 
 // -- delete -----------------------------------------------------------------
 
-const confirmingDelete = ref<string | null>(null)
+const {
+  pending: confirmingDelete,
+  request: requestDeleteConfirm,
+  cancel: cancelDelete,
+} = useConfirm<string | null>(null)
 
 function requestDelete(name: string) {
-  confirmingDelete.value = name
-}
-
-function cancelDelete() {
-  confirmingDelete.value = null
+  requestDeleteConfirm(name)
 }
 
 async function confirmDelete(name: string) {

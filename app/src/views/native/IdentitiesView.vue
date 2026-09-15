@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useActionRunner } from '@/composables/useActionRunner'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { shortenKey } from '@/lib/utils'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
@@ -33,7 +34,11 @@ const label = ref('')
 const linking = ref(false)
 const { run: runLink } = useActionRunner(linking, false)
 
-const revokePending = ref<string | null>(null)
+const {
+  pending: revokePending,
+  request: askRevokeConfirm,
+  cancel: cancelRevoke,
+} = useConfirm<string | null>(null)
 const revoking = ref(false)
 const { run: runRevoke } = useActionRunner(revoking, false)
 
@@ -64,11 +69,7 @@ async function submitLink() {
 }
 
 function askRevoke(pubkey: string) {
-  revokePending.value = pubkey
-}
-
-function cancelRevoke() {
-  revokePending.value = null
+  askRevokeConfirm(pubkey)
 }
 
 async function confirmRevoke(pubkey: string) {

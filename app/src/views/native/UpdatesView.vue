@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
@@ -30,8 +31,16 @@ const migrations = ref<Migration[]>([])
 const busy = ref('')
 const { run } = useActionRunner(busy, '')
 
-const confirmingApply = ref<'apps' | 'system' | null>(null)
-const confirmingMigration = ref<string | null>(null)
+const {
+  pending: confirmingApply,
+  request: requestApplyConfirm,
+  cancel: cancelApply,
+} = useConfirm<'apps' | 'system' | null>(null)
+const {
+  pending: confirmingMigration,
+  request: requestMigrationConfirm,
+  cancel: cancelMigration,
+} = useConfirm<string | null>(null)
 const disclaimerAccepted = ref<Record<string, boolean>>({})
 
 const systemPackageGroups = computed(() =>
@@ -63,11 +72,7 @@ async function refresh(target: UpdateTarget) {
 }
 
 function requestApply(target: 'apps' | 'system') {
-  confirmingApply.value = target
-}
-
-function cancelApply() {
-  confirmingApply.value = null
+  requestApplyConfirm(target)
 }
 
 async function confirmApply() {
@@ -89,11 +94,7 @@ async function confirmApply() {
 }
 
 function requestMigration(id: string) {
-  confirmingMigration.value = id
-}
-
-function cancelMigration() {
-  confirmingMigration.value = null
+  requestMigrationConfirm(id)
 }
 
 const confirmingMigrationRecord = computed(

@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { truncatePubkey } from '@/lib/utils'
@@ -149,7 +150,11 @@ function choosePreset(id: (typeof SCOPE_PRESETS)[number]['id']) {
 
 const grants = ref<CapabilityGrant[]>([])
 const grantsLoading = ref(false)
-const confirmingRevoke = ref<string | null>(null)
+const {
+  pending: confirmingRevoke,
+  request: requestRevokeGrantConfirm,
+  cancel: cancelRevokeGrant,
+} = useConfirm<string | null>(null)
 const revokingPubkey = ref('')
 const { run: runLoadGrants } = useActionRunner(grantsLoading, false)
 const { run: runRevoke } = useActionRunner(revokingPubkey, '')
@@ -167,11 +172,7 @@ async function loadGrants() {
 }
 
 function requestRevokeGrant(pubkey: string) {
-  confirmingRevoke.value = pubkey
-}
-
-function cancelRevokeGrant() {
-  confirmingRevoke.value = null
+  requestRevokeGrantConfirm(pubkey)
 }
 
 async function confirmRevokeGrant(pubkey: string) {

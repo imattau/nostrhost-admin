@@ -24,6 +24,7 @@ import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useBunkerSigner } from '@/composables/useBunkerSigner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { shortenKey } from '@/lib/utils'
 
 const notifications = useNotifications()
@@ -84,7 +85,7 @@ const filter = ref<'all' | 'pending' | OperationState>('all')
 const busy = ref('')
 const { run } = useActionRunner(busy, '')
 
-const confirmingReject = ref<string | null>(null)
+const { pending: confirmingReject } = useConfirm<string | null>(null)
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   operations.value = await listOperations(200)

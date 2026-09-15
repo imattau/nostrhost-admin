@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import { inventoryFromFiles, type InventoryItem } from '@/lib/nsite/inventory'
 import {
@@ -147,10 +148,7 @@ function stepTargets() {
 async function doUpload() {
   publishBusy.value = 'upload'
   wBlossomResults.value = []
-  const servers = wServers.value
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
+  const servers = parseList(wServers.value)
   const items = inventory.value.map((item) => ({
     path: item.path,
     sha256: item.sha256,
@@ -194,14 +192,8 @@ async function doReview() {
       path: item.path,
       sha256: item.sha256,
     }))
-    const servers = wServers.value
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
-    const relays = wRelays.value
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
+    const servers = parseList(wServers.value)
+    const relays = parseList(wRelays.value)
     const digest = await planDigest({
       kind: Number(wKind.value),
       d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
@@ -233,14 +225,8 @@ async function doPublish() {
       path: item.path,
       sha256: item.sha256,
     }))
-    const servers = wServers.value
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
-    const relays = wRelays.value
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
+    const servers = parseList(wServers.value)
+    const relays = parseList(wRelays.value)
     const outcome = await signAndSubmit({
       pubkey: publicKey.value ?? '',
       kind: Number(wKind.value),

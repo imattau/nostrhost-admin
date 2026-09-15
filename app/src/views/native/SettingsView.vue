@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import {
   getSettings,
@@ -13,42 +13,25 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { success, danger } = useNotifications()
 
 const settings = ref<Record<string, SettingValue>>({})
 
-const loading = ref(false)
 const busy = ref('')
 
 const settingKeys = computed(() => Object.keys(settings.value).sort())
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    const result = await getSettings()
-    settings.value = result.settings
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load settings.'))
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  const result = await getSettings()
+  settings.value = result.settings
+}, 'Failed to load settings.')
 
 // -- edit a setting -------------------------------------------------------------
 

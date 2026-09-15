@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 import {
   approveOperation,
@@ -20,13 +20,11 @@ import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useBunkerSigner } from '@/composables/useBunkerSigner'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { shortenKey } from '@/lib/utils'
-import { toErrorMessage } from '@/utils/errors'
 
-const { publicKey, sync } = useSigner()
 const notifications = useNotifications()
 const {
   connected: bunkerConnected,
@@ -81,30 +79,14 @@ async function signDecision(
 }
 
 const operations = ref<OperationEntry[] | null>(null)
-const loading = ref(false)
 const filter = ref<'all' | 'pending' | OperationState>('all')
 const busy = ref('')
 
 const confirmingReject = ref<string | null>(null)
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    operations.value = await listOperations(200)
-  } catch (cause) {
-    notifications.danger(toErrorMessage(cause, 'Failed to load operations.'))
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  operations.value = await listOperations(200)
+}, 'Failed to load operations.')
 
 const filteredOperations = computed(() => {
   const all = operations.value ?? []

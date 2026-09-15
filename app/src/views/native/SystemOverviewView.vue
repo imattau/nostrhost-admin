@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import {
   getHealth,
@@ -16,46 +16,32 @@ import { listOperations, type OperationEntry } from '@/api/nativeOperations'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
-import { toErrorMessage } from '@/utils/errors'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
-
-const { publicKey, sync } = useSigner()
-const { danger } = useNotifications()
 
 const health = ref<Health | null>(null)
 const status = ref<SystemStatus | null>(null)
 const versions = ref<SystemVersions | null>(null)
 const identities = ref<Identity[] | null>(null)
 const recentOperations = ref<OperationEntry[] | null>(null)
-const loading = ref(false)
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    const [healthResult, statusResult, versionsResult, identitiesResult, operationsResult] =
-      await Promise.all([
-        getHealth(),
-        getSystemStatus(),
-        getSystemVersions(),
-        getIdentities(),
-        listOperations(5),
-      ])
-    health.value = healthResult
-    status.value = statusResult
-    versions.value = versionsResult
-    identities.value = identitiesResult
-    recentOperations.value = operationsResult
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load system status.'))
-  } finally {
-    loading.value = false
-  }
-}
+const { publicKey, loading, load } = useAsyncResource(async () => {
+  const [healthResult, statusResult, versionsResult, identitiesResult, operationsResult] =
+    await Promise.all([
+      getHealth(),
+      getSystemStatus(),
+      getSystemVersions(),
+      getIdentities(),
+      listOperations(5),
+    ])
+  health.value = healthResult
+  status.value = statusResult
+  versions.value = versionsResult
+  identities.value = identitiesResult
+  recentOperations.value = operationsResult
+}, 'Failed to load system status.')
 
 function operationStateVariant(state: OperationEntry['state']) {
   if (state === 'SUCCEEDED') return 'success'
@@ -106,13 +92,6 @@ const platformVersions = computed(() =>
     ? toEntries(versions.value, (name) => !name.startsWith('nostrhost'))
     : [],
 )
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
 </script>
 
 <template>

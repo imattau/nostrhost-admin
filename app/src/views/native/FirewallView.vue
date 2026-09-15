@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { ref } from 'vue'
 
 import {
   closeFirewallPort,
@@ -13,14 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useNotifications } from '@/composables/useNotifications'
-import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
-const { publicKey, sync } = useSigner()
 const { success, danger } = useNotifications()
 
 const openPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
@@ -32,37 +31,21 @@ const forwardedPorts = ref<Record<FirewallProtocol, (number | string)[]>>({
   udp: [],
 })
 
-const loading = ref(false)
 const busy = ref('')
 
-async function load() {
-  loading.value = true
-  try {
-    await sync()
-    const [tcpOpen, udpOpen, tcpForwarded, udpForwarded] = await Promise.all([
-      getFirewallList('tcp'),
-      getFirewallList('udp'),
-      getFirewallList('tcp', true),
-      getFirewallList('udp', true),
-    ])
-    openPorts.value = { tcp: tcpOpen.tcp ?? [], udp: udpOpen.udp ?? [] }
-    forwardedPorts.value = {
-      tcp: tcpForwarded.tcp ?? [],
-      udp: udpForwarded.udp ?? [],
-    }
-  } catch (cause) {
-    danger(toErrorMessage(cause, 'Failed to load firewall rules.'))
-  } finally {
-    loading.value = false
+const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  const [tcpOpen, udpOpen, tcpForwarded, udpForwarded] = await Promise.all([
+    getFirewallList('tcp'),
+    getFirewallList('udp'),
+    getFirewallList('tcp', true),
+    getFirewallList('udp', true),
+  ])
+  openPorts.value = { tcp: tcpOpen.tcp ?? [], udp: udpOpen.udp ?? [] }
+  forwardedPorts.value = {
+    tcp: tcpForwarded.tcp ?? [],
+    udp: udpForwarded.udp ?? [],
   }
-}
-
-onMounted(() => {
-  if (publicKey.value) load()
-})
-watch(publicKey, (key) => {
-  if (key) load()
-})
+}, 'Failed to load firewall rules.')
 
 // -- open a port ------------------------------------------------------------
 

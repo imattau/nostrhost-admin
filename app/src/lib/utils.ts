@@ -20,9 +20,22 @@ export function shortenKey(key: string) {
 }
 
 // Shorter variant for compact inline display (e.g. next to a badge), e.g.
-// "abcdef12…9c8b".
-export function truncatePubkey(pubkey: string) {
-  return pubkey.length > 16 ? `${pubkey.slice(0, 8)}…${pubkey.slice(-4)}` : pubkey
+// "abcdef12…9c8b". `headLen`/`tailLen` let a caller pick a different split
+// (e.g. a longer head with no tail) while sharing this one implementation.
+export function truncatePubkey(pubkey: string, headLen = 8, tailLen = 4) {
+  if (pubkey.length <= headLen + tailLen) return pubkey
+  const head = pubkey.slice(0, headLen)
+  return tailLen > 0 ? `${head}…${pubkey.slice(-tailLen)}` : `${head}…`
+}
+
+// Splits a comma-separated field (e.g. an "apps" or "system parts" input)
+// into its trimmed, non-empty items, e.g. "nextcloud, , wordpress" ->
+// ["nextcloud", "wordpress"].
+export function parseList(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 // Formats a byte count for display, e.g. 1536 -> "1.5 KB".

@@ -70,6 +70,29 @@ export function publishCatalogueEntry(appId: string, relays?: string) {
   )
 }
 
+export type CatalogueDeclareResult = {
+  app_id: string
+  publisher_pubkey: string
+  event_id: string
+  published: PublishOutcome
+  ingested: unknown
+}
+
+// Declares a brand-new app in the catalogue from an authored native package
+// manifest (the package-authoring screen's "publish" step) — distinct from
+// publishCatalogueEntry, which only re-declares an *existing* trusted entry.
+export function declareCatalogueEntry(
+  packageData: Record<string, unknown>,
+  repository: string,
+  relays?: string,
+) {
+  return request<CatalogueDeclareResult>(
+    '/package/catalog/declare',
+    'POST',
+    JSON.stringify({ package: packageData, repository, relays }),
+  )
+}
+
 export type CatalogueVerifyResult = {
   app_id: string
   kind: number

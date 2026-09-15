@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import { declareCatalogueEntry } from '@/api/nativeCatalog'
 import { planPackageManifest, type PackagePlan } from '@/api/nativePackages'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useSigner } from '@/composables/useSigner'
@@ -25,6 +27,8 @@ async function reviewPlan() {
   planning.value = true
   error.value = ''
   plan.value = null
+  declareNotice.value = ''
+  declareError.value = ''
   try {
     await sync()
     const packageData: unknown = JSON.parse(manifest.value)
@@ -42,6 +46,39 @@ async function reviewPlan() {
       cause instanceof Error ? cause.message : 'Plan request failed.'
   } finally {
     planning.value = false
+  }
+}
+
+// -- publish to catalogue ---------------------------------------------------
+// Reviewing a plan is read-only; declaring the reviewed manifest in the
+// catalogue is the separate, signed step that actually makes it installable
+// elsewhere. catalog.declare re-validates the manifest server-side and
+// derives its own provenance hash, so this repository field is only where
+// the exact manifest content can be found — not itself trusted as a hash.
+
+const declareRepository = ref('')
+const declaring = ref(false)
+const declareNotice = ref('')
+const declareError = ref('')
+
+async function declareInCatalogue() {
+  declaring.value = true
+  declareError.value = ''
+  declareNotice.value = ''
+  try {
+    const packageData = JSON.parse(manifest.value) as Record<string, unknown>
+    const result = await declareCatalogueEntry(
+      packageData,
+      declareRepository.value.trim(),
+    )
+    declareNotice.value = `Declared ${result.app_id} in the catalogue (event ${result.event_id.slice(0, 12)}…).`
+  } catch (cause) {
+    declareError.value =
+      cause instanceof Error
+        ? cause.message
+        : 'Publishing to the catalogue failed.'
+  } finally {
+    declaring.value = false
   }
 }
 
@@ -64,7 +101,7 @@ function riskVariant(risk: string | undefined) {
     <PageHeader
       eyebrow="NostrHost native package planner"
       title="Package authoring"
-      description="Draft a declarative package and inspect its resource plan. Planning is read-only; this screen cannot install packages."
+      description="Draft a declarative package, inspect its resource plan, and declare it in the trusted catalogue. Planning is read-only and this screen cannot install packages; declaring publishes a signed catalogue entry."
     />
 
     <Alert variant="success">
@@ -134,6 +171,45 @@ function riskVariant(risk: string | undefined) {
             </Badge>
           </li>
         </ol>
+      </CardContent>
+    </Card>
+
+    <Card v-if="plan?.operations">
+      <CardHeader>
+        <CardTitle>Publish to the catalogue</CardTitle>
+      </CardHeader>
+      <CardContent class="tw:grid tw:gap-3">
+        <p class="tw:text-sm tw:text-muted-foreground">
+          Sign and publish a kind-32267 declaration for
+          {{ plan.package.id }} v{{ plan.package.version }} under this node's
+          catalogue publisher key, so it can be trusted and installed elsewhere.
+        </p>
+        <Alert v-if="declareError" variant="danger" role="alert">{{
+          declareError
+        }}</Alert>
+        <Alert v-if="declareNotice" variant="success" role="status">{{
+          declareNotice
+        }}</Alert>
+        <div class="tw:grid tw:gap-1.5">
+          <Label for="declare-repository">Repository URL</Label>
+          <Input
+            id="declare-repository"
+            v-model="declareRepository"
+            placeholder="https://git.example.com/my-app.git"
+          />
+          <p class="tw:text-sm tw:text-muted-foreground">
+            Where this exact manifest content is published — required so others
+            can locate and audit it.
+          </p>
+        </div>
+        <div>
+          <Button
+            :disabled="!publicKey || declaring || !declareRepository.trim()"
+            variant="primary"
+            @click="declareInCatalogue"
+            >{{ declaring ? 'Publishing…' : 'Declare in catalogue' }}</Button
+          >
+        </div>
       </CardContent>
     </Card>
   </PageLayout>

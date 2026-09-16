@@ -5,6 +5,10 @@ import '@fontsource/geist-mono/latin-400.css'
 
 import App from './App.vue'
 import router from './router'
+import {
+  installErrorReporting,
+  installVueErrorHandler,
+} from '@/lib/errorReport'
 import { useTheme } from '@/composables/useTheme'
 
 import '@/assets/tailwind.css'
@@ -13,4 +17,10 @@ import '@/assets/tailwind.css'
 // flash of the wrong palette.
 useTheme()
 
-createApp(App).use(router).mount('#app')
+// Capture window/unhandled-rejection/Vue errors into the structured problem
+// log (kind=client) via the portal-api report endpoint.
+installErrorReporting(router)
+
+const app = createApp(App)
+installVueErrorHandler(app)
+app.use(router).mount('#app')

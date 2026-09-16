@@ -6,8 +6,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { PackageOpen } from '@lucide/vue'
 import { siteLabel } from './helpers'
@@ -23,6 +25,11 @@ const { status, sites, sitesLoading } = nsite
 
 const unregistering = ref('')
 const { run } = useActionRunner(unregistering, '')
+const {
+  pending: confirmingUnregister,
+  request: requestUnregister,
+  cancel: cancelUnregister,
+} = useConfirm<NsiteSite | null>(null)
 
 function siteKindName(site: NsiteSite): string {
   return site.kind === 35128
@@ -32,7 +39,10 @@ function siteKindName(site: NsiteSite): string {
       : String(site.kind)
 }
 
-async function confirmUnregister(site: NsiteSite) {
+async function confirmUnregister() {
+  const site = confirmingUnregister.value
+  if (!site) return
+  cancelUnregister()
   await run(
     `${site.pubkey}:${site.d}`,
     async () => {
@@ -109,7 +119,7 @@ async function confirmUnregister(site: NsiteSite) {
             size="sm"
             class="tw:ml-auto"
             :disabled="unregistering !== ''"
-            @click="confirmUnregister(site)"
+            @click="requestUnregister(site)"
             >{{
               unregistering === site.pubkey + ':' + site.d
                 ? 'Removing…'
@@ -120,4 +130,19 @@ async function confirmUnregister(site: NsiteSite) {
       </ul>
     </CardContent>
   </Card>
+
+  <ConfirmDialog
+    :open="confirmingUnregister !== null"
+    tier="disruptive"
+    title="Unregister this site?"
+    description="The site's manifest stops being served over HTTPS. You'll need to publish it again to bring it back."
+    confirm-label="Unregister"
+    :busy="
+      confirmingUnregister !== null &&
+      unregistering ===
+        confirmingUnregister.pubkey + ':' + confirmingUnregister.d
+    "
+    @confirm="confirmUnregister"
+    @cancel="cancelUnregister"
+  />
 </template>

@@ -13,9 +13,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { truncatePubkey } from '@/lib/utils'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { Globe2 } from '@lucide/vue'
 import { siteLabel } from './helpers'
@@ -30,6 +32,11 @@ const attachBusy = ref(false)
 const detaching = ref('')
 const { run: runAttach } = useActionRunner(attachBusy, false)
 const { run: runDetach } = useActionRunner(detaching, '')
+const {
+  pending: confirmingDetach,
+  request: requestDetach,
+  cancel: cancelDetach,
+} = useConfirm<string | null>(null)
 const cdFqdn = ref('')
 const cdSiteKey = ref('')
 const cdMethod = ref<'cname' | 'txt'>('cname')
@@ -75,7 +82,10 @@ async function confirmAttachDomain() {
   )
 }
 
-async function confirmDetachDomain(fqdn: string) {
+async function confirmDetachDomain() {
+  const fqdn = confirmingDetach.value
+  if (!fqdn) return
+  cancelDetach()
   await runDetach(
     fqdn,
     async () => {
@@ -127,7 +137,7 @@ async function confirmDetachDomain(fqdn: string) {
             size="sm"
             class="tw:ml-auto"
             :disabled="detaching !== ''"
-            @click="confirmDetachDomain(domain.fqdn)"
+            @click="requestDetach(domain.fqdn)"
             >{{ detaching === domain.fqdn ? 'Detaching…' : 'Detach' }}</Button
           >
         </li>
@@ -186,4 +196,15 @@ async function confirmDetachDomain(fqdn: string) {
       </div>
     </CardContent>
   </Card>
+
+  <ConfirmDialog
+    :open="confirmingDetach !== null"
+    tier="disruptive"
+    title="Detach this domain?"
+    description="The site stops being served on this domain and its Caddy route is removed. You'll need to re-attach and re-verify ownership to bring it back."
+    confirm-label="Detach"
+    :busy="confirmingDetach !== null && detaching === confirmingDetach"
+    @confirm="confirmDetachDomain"
+    @cancel="cancelDetach"
+  />
 </template>

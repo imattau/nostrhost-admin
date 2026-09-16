@@ -19,6 +19,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { parseList } from '@/lib/utils'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import { Globe2 } from '@lucide/vue'
 import { NSITE_STATE_KEY } from './useNsiteState'
@@ -284,26 +285,7 @@ async function confirmConfigure() {
             "
             >{{ showConfigureForm ? 'Cancel' : 'Configure' }}</Button
           >
-          <template v-if="confirmingDisable">
-            <span class="tw:text-xs tw:text-muted-foreground"
-              >Disable the gateway and remove its route?</span
-            >
-            <Button
-              variant="outline"
-              size="sm"
-              @click="confirmingDisable = false"
-              >Cancel</Button
-            >
-            <Button
-              variant="danger"
-              size="sm"
-              :disabled="busy !== ''"
-              @click="confirmDisable"
-              >Confirm</Button
-            >
-          </template>
           <Button
-            v-else
             variant="outline"
             size="sm"
             :disabled="busy !== ''"
@@ -314,6 +296,17 @@ async function confirmConfigure() {
       </template>
     </CardContent>
   </Card>
+
+  <ConfirmDialog
+    :open="confirmingDisable"
+    tier="disruptive"
+    title="Disable the gateway?"
+    description="Every site and custom domain served through it stops resolving until it's re-enabled."
+    confirm-label="Disable"
+    :busy="busy === 'disable'"
+    @confirm="confirmDisable"
+    @cancel="confirmingDisable = false"
+  />
 
   <Card v-if="showEnableForm && status && !status.enabled">
     <CardHeader>
@@ -383,31 +376,24 @@ async function confirmConfigure() {
         <Switch v-model="formAllowHttp" aria-label="Allow HTTP blob fetch" />
         Allow fetching blobs over plain HTTP
       </label>
-      <div
-        v-if="confirmingEnable"
-        class="tw:flex tw:items-center tw:justify-end tw:gap-2"
-      >
-        <span class="tw:text-xs tw:text-muted-foreground"
-          >Enable the gateway on {{ formDomain }}?</span
-        >
-        <Button variant="outline" size="sm" @click="confirmingEnable = false"
-          >Cancel</Button
-        >
-        <Button
-          variant="danger"
-          size="sm"
-          :disabled="busy !== ''"
-          @click="confirmEnable"
-          >Confirm</Button
-        >
-      </div>
-      <div v-else class="tw:flex tw:justify-end">
+      <div class="tw:flex tw:justify-end">
         <Button size="sm" :disabled="busy !== ''" @click="requestEnable">{{
           busy === 'enable' ? 'Enabling…' : 'Enable gateway'
         }}</Button>
       </div>
     </CardContent>
   </Card>
+
+  <ConfirmDialog
+    :open="confirmingEnable"
+    tier="soft"
+    title="Enable the gateway?"
+    :description="`This registers ${formDomain} as the dedicated nsite gateway domain.`"
+    confirm-label="Enable"
+    :busy="busy === 'enable'"
+    @confirm="confirmEnable"
+    @cancel="confirmingEnable = false"
+  />
 
   <Card v-if="showConfigureForm && status && status.enabled">
     <CardHeader>
@@ -478,29 +464,22 @@ async function confirmConfigure() {
         <Switch v-model="formAllowHttp" aria-label="Allow HTTP blob fetch" />
         Allow fetching blobs over plain HTTP
       </label>
-      <div
-        v-if="confirmingConfigure"
-        class="tw:flex tw:items-center tw:justify-end tw:gap-2"
-      >
-        <span class="tw:text-xs tw:text-muted-foreground"
-          >Apply these settings and reload the gateway?</span
-        >
-        <Button variant="outline" size="sm" @click="confirmingConfigure = false"
-          >Cancel</Button
-        >
-        <Button
-          variant="danger"
-          size="sm"
-          :disabled="busy !== ''"
-          @click="confirmConfigure"
-          >Confirm</Button
-        >
-      </div>
-      <div v-else class="tw:flex tw:justify-end">
+      <div class="tw:flex tw:justify-end">
         <Button size="sm" :disabled="busy !== ''" @click="requestConfigure">{{
           busy === 'configure' ? 'Applying…' : 'Apply configuration'
         }}</Button>
       </div>
     </CardContent>
   </Card>
+
+  <ConfirmDialog
+    :open="confirmingConfigure"
+    tier="disruptive"
+    title="Apply this configuration?"
+    description="The gateway reloads with these settings; in-flight requests may be interrupted briefly."
+    confirm-label="Apply"
+    :busy="busy === 'configure'"
+    @confirm="confirmConfigure"
+    @cancel="confirmingConfigure = false"
+  />
 </template>

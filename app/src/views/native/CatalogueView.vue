@@ -24,6 +24,7 @@ import {
   type CatalogueReverifyResult,
   type CatalogueTrustEntry,
 } from '@/api/nativeCatalog'
+import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -507,6 +508,14 @@ watch(publicKey, (key) => {
               </div>
             </dl>
             <div class="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">
+              <RouterLink
+                :to="{
+                  name: 'app-management',
+                  query: { id: entry.declaration.AppID },
+                }"
+                class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:bg-brand-500 tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:text-white tw:no-underline hover:tw:bg-brand-600"
+                >Install</RouterLink
+              >
               <a
                 v-if="entry.nsite"
                 :href="entry.nsite.url"

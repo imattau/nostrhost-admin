@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   applyCatalogueApp,
   applyChangeUrl,
@@ -46,6 +47,7 @@ type Action = 'install' | 'upgrade' | 'remove' | 'settings' | 'change-url'
 
 const { publicKey, sync } = useSigner()
 const { success } = useNotifications()
+const route = useRoute()
 
 const apps = ref<AppManagementEntry[]>([])
 const catalogueError = ref('')
@@ -112,6 +114,13 @@ async function loadApps() {
       if (selected.value) {
         selected.value =
           apps.value.find((item) => item.id === selected.value?.id) || null
+      } else {
+        const deepLinkId = route.query.id
+        const match =
+          typeof deepLinkId === 'string'
+            ? apps.value.find((item) => item.id === deepLinkId)
+            : undefined
+        if (match) await chooseApp(match)
       }
     },
     'Could not load applications.',

@@ -37,6 +37,7 @@ import { useSigner } from '@/composables/useSigner'
 import { useActionRunner } from '@/composables/useActionRunner'
 import { truncatePubkey } from '@/lib/utils'
 import EmptyState from '@/components/native/EmptyState.vue'
+import AppLogo from '@/components/native/AppLogo.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
@@ -444,9 +445,16 @@ watch(publicKey, (key) => {
             <CardTitle
               class="tw:flex tw:items-center tw:justify-between tw:gap-2"
             >
-              <span class="tw:truncate">{{
-                entry.declaration.Name || entry.declaration.AppID
-              }}</span>
+              <span class="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                <AppLogo
+                  :name="entry.declaration.Name || entry.declaration.AppID"
+                  :logo="entry.logo"
+                  size="sm"
+                />
+                <span class="tw:truncate">{{
+                  entry.declaration.Name || entry.declaration.AppID
+                }}</span>
+              </span>
               <Badge variant="brand">v{{ entry.declaration.Version }}</Badge>
             </CardTitle>
             <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">

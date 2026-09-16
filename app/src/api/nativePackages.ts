@@ -29,6 +29,9 @@ export type AppManagementEntry = {
   installed_version?: string | null
   installed: boolean
   status: 'available' | 'installed' | 'version-differs' | 'installed-unlisted'
+  // Served portal logo URL (from the YunoHost catalogue); absent when the app
+  // has no catalogue logo.
+  logo?: string | null
   installation?: { native: boolean; source?: string; legacy: boolean }
   movable?: boolean
   catalogue?: {

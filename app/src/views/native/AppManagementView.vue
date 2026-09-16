@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import AppLogo from '@/components/native/AppLogo.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 import { useActionRunner } from '@/composables/useActionRunner'
@@ -415,6 +416,7 @@ function cancelPlan() {
               :aria-pressed="selected?.id === app.id"
               @click="chooseApp(app)"
             >
+              <AppLogo :name="app.name" :logo="app.logo" size="sm" />
               <span class="tw:min-w-0 tw:flex-1">
                 <strong class="tw:block tw:text-sm">{{ app.name }}</strong>
                 <code class="tw:text-xs tw:text-muted-foreground">{{
@@ -451,20 +453,23 @@ function cancelPlan() {
         aria-label="Selected application details"
       >
         <template v-if="selected">
-          <div>
-            <p
-              class="tw:mb-1 tw:font-mono tw:text-xs tw:uppercase tw:tracking-wider tw:text-muted-foreground"
-            >
-              {{ label(selected) }}
-            </p>
-            <h2 class="tw:m-0 tw:text-lg tw:font-semibold">
-              {{ selected.name }}
-            </h2>
-            <p
-              class="tw:mb-0 tw:mt-1 tw:font-mono tw:text-xs tw:text-muted-foreground"
-            >
-              {{ selected.id }}
-            </p>
+          <div class="tw:flex tw:items-start tw:gap-3">
+            <AppLogo :name="selected.name" :logo="selected.logo" size="lg" />
+            <div>
+              <p
+                class="tw:mb-1 tw:font-mono tw:text-xs tw:uppercase tw:tracking-wider tw:text-muted-foreground"
+              >
+                {{ label(selected) }}
+              </p>
+              <h2 class="tw:m-0 tw:text-lg tw:font-semibold">
+                {{ selected.name }}
+              </h2>
+              <p
+                class="tw:mb-0 tw:mt-1 tw:font-mono tw:text-xs tw:text-muted-foreground"
+              >
+                {{ selected.id }}
+              </p>
+            </div>
           </div>
           <dl
             class="tw:grid tw:grid-cols-[auto_1fr] tw:gap-x-3 tw:gap-y-1 tw:text-sm"

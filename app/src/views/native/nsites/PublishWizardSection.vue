@@ -62,6 +62,10 @@ const publishSiteUrl = computed(() => {
   return value?.site_url
 })
 
+function checkSigner() {
+  signerAvailable.value = Boolean(window.nostr)
+}
+
 function openPublish() {
   publishResult.value = null
   wizardStep.value = 0
@@ -300,10 +304,18 @@ function openSite(url: string | undefined) {
             autocomplete="off"
           />
         </div>
-        <Alert v-if="!signerAvailable" variant="warning">
-          No NIP-07 signer detected. Publishing needs a browser signer
-          (window.nostr) until NIP-46 support lands.
-        </Alert>
+        <template v-if="!signerAvailable">
+          <Alert variant="warning">
+            No NIP-07 signer detected. Publishing needs a browser signer
+            (window.nostr) until NIP-46 support lands. If you just installed or
+            unlocked one, check again below.
+          </Alert>
+          <div class="tw:flex tw:justify-end">
+            <Button variant="outline" size="sm" @click="checkSigner"
+              >Check again</Button
+            >
+          </div>
+        </template>
         <div v-else class="tw:flex tw:justify-end">
           <Button size="sm" @click="stepIdentity">Next</Button>
         </div>

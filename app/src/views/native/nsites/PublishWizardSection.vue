@@ -22,6 +22,7 @@ import {
   KIND_NAMED,
 } from '@/lib/nsite/manifest'
 import { uploadToBlossom, type BlossomResult } from '@/lib/nsite/blossom'
+import { getConnectivity } from '@/api/nativeConnectivity'
 import { signAndSubmit } from '@/lib/nsite/publish'
 import { NSITE_STATE_KEY } from './useNsiteState'
 
@@ -66,7 +67,7 @@ function checkSigner() {
   signerAvailable.value = Boolean(window.nostr)
 }
 
-function openPublish() {
+async function openPublish() {
   publishResult.value = null
   wizardStep.value = 0
   selectedFiles.value = []
@@ -77,10 +78,16 @@ function openPublish() {
   reviewDigest.value = ''
   reviewEvent.value = null
   signerAvailable.value = Boolean(window.nostr)
-  wServers.value = (status.value?.config?.blossom?.fallback_servers ?? []).join(
-    ', ',
-  )
-  wRelays.value = 'wss://purplepag.es, wss://nos.lol, wss://relay.damus.io'
+  try {
+    const network = await getConnectivity()
+    wServers.value = network.effective.blossom_servers.join(', ')
+    wRelays.value = network.effective.relays.nsite.join(', ')
+  } catch {
+    wServers.value = (
+      status.value?.config?.blossom?.fallback_servers ?? []
+    ).join(', ')
+    wRelays.value = ''
+  }
 }
 
 // SitesSection toggles visibility via v-model; reset the wizard each time it
@@ -207,6 +214,7 @@ async function doReview() {
         d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
         paths: items,
         servers,
+        relays,
       })
       const { event } = await buildUnsignedManifest({
         pubkey: publicKey.value ?? '',
@@ -383,8 +391,8 @@ function openSite(url: string | undefined) {
             autocomplete="off"
           />
           <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-            Blobs are uploaded from your browser straight to these servers
-            (BUD-01). The manifest will list them as server hints.
+            Using the server-managed defaults. Change this list only for this
+            publication.
           </p>
         </div>
         <div class="tw:grid tw:gap-1.5">

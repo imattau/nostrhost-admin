@@ -27,6 +27,7 @@ import { useNotifications } from '@/composables/useNotifications'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import PeopleSectionNav from '@/components/native/PeopleSectionNav.vue'
 
 const { success, danger } = useNotifications()
 
@@ -281,10 +282,11 @@ async function saveEditPermission(permission: string) {
 <template>
   <PageLayout>
     <PageHeader
-      eyebrow="Access control"
-      title="Groups &amp; permissions"
-      description="User groups and which groups can access each app's permissions. Changes ask for confirmation first."
+      eyebrow="People"
+      title="Access groups"
+      description="Choose which groups can use each application. Changes ask for confirmation first."
     />
+    <PeopleSectionNav />
 
     <template v-if="publicKey">
       <Card>

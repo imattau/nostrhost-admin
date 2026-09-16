@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   DNS_PROVIDER_TYPES,
   addDomain,
+  applyPrimaryDomain,
   applyDns,
   getCredentials,
   getDnsWatch,
@@ -12,6 +13,8 @@ import {
   getDomains,
   getFreeHostnameSubscriptions,
   getPublicIp,
+  getPrimaryDomain,
+  planPrimaryDomain,
   removeCredential,
   removeDomain,
   setCredential,
@@ -24,10 +27,11 @@ import {
   type DomainInspect,
   type FreeHostnameSubscription,
   type PublicIp,
+  type PrimaryDomainPlan,
+  type PrimaryDomainStatus,
 } from '@/api/nativeDomains'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -39,6 +43,7 @@ import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import ChangeLedger from '@/components/native/ChangeLedger.vue'
 
 const { success, danger } = useNotifications()
 const route = useRoute()
@@ -51,6 +56,9 @@ const credentials = ref<CredentialRef[]>([])
 const subscriptions = ref<FreeHostnameSubscription[]>([])
 const publicIp = ref<PublicIp | null>(null)
 const dnsWatch = ref<DnsWatchStatus | null>(null)
+const primaryDomain = ref('')
+const primaryCandidates = ref<PrimaryDomainStatus['candidates']>([])
+const primaryPlan = ref<PrimaryDomainPlan | null>(null)
 
 const inspectLoading = ref(false)
 const busy = ref('')
@@ -64,18 +72,22 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
     subscriptionResult,
     ipResult,
     watchResult,
+    primaryResult,
   ] = await Promise.all([
     getDomains(),
     getCredentials(),
     getFreeHostnameSubscriptions(),
     getPublicIp(),
     getDnsWatch(),
+    getPrimaryDomain(),
   ])
   domains.value = domainResult.domains
   credentials.value = credentialResult.credentials
   subscriptions.value = subscriptionResult.subscriptions
   publicIp.value = ipResult
   dnsWatch.value = watchResult
+  primaryDomain.value = primaryResult.current
+  primaryCandidates.value = primaryResult.candidates
   if (selectedDomain.value && !domains.value.includes(selectedDomain.value)) {
     selectedDomain.value = null
     inspect.value = null
@@ -103,6 +115,37 @@ async function selectDomain(domain: string) {
       inspect.value = await getDomainInspect(domain)
     },
     `Failed to inspect ${domain}.`,
+  )
+}
+
+async function reviewServerAddress(domain: string) {
+  await run(
+    `primary-plan-${domain}`,
+    async () => {
+      await sync()
+      primaryPlan.value = await planPrimaryDomain(domain)
+    },
+    `Could not prepare the server address change.`,
+  )
+}
+
+async function applyServerAddress() {
+  if (!primaryPlan.value) return
+  const reviewed = primaryPlan.value
+  await run(
+    `primary-apply-${reviewed.target_domain}`,
+    async () => {
+      await sync()
+      const result = await applyPrimaryDomain(
+        reviewed.target_domain,
+        reviewed.plan_sha256,
+      )
+      success(
+        `Server address changed to ${reviewed.target_domain}. Redirecting…`,
+      )
+      window.setTimeout(() => window.location.assign(result.admin_url), 1500)
+    },
+    `Could not change the server address.`,
   )
 }
 
@@ -374,9 +417,16 @@ async function confirmRemoveCredential(ref: string) {
 const driftBadge = computed(() => {
   const inSync = inspect.value?.drift.in_sync
   if (inSync === true) return { variant: 'success' as const, label: 'In sync' }
-  if (inSync === false) return { variant: 'warning' as const, label: 'Drifted' }
+  if (inSync === false)
+    return { variant: 'warning' as const, label: 'DNS differences' }
   return { variant: 'neutral' as const, label: 'Unknown' }
 })
+
+const selectedPrimaryCandidate = computed(() =>
+  primaryCandidates.value.find(
+    (candidate) => candidate.domain === selectedDomain.value,
+  ),
+)
 </script>
 
 <template>
@@ -391,11 +441,9 @@ const driftBadge = computed(() => {
       <div
         class="tw:grid tw:items-start tw:gap-8 tw:lg:grid-cols-[minmax(17rem,0.75fr)_minmax(24rem,1.25fr)]"
       >
-        <Card>
-          <CardHeader>
-            <CardTitle
-              class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-            >
+        <section class="tw:border-t tw:border-border-subtle tw:py-5">
+          <header class="tw:mb-4">
+            <h2 class="tw:flex tw:items-center tw:justify-between tw:gap-2">
               <span>Registered domains</span>
               <Button
                 variant="outline"
@@ -404,9 +452,9 @@ const driftBadge = computed(() => {
                 @click="showAddForm = !showAddForm"
                 >{{ showAddForm ? 'Cancel' : 'Add domain' }}</Button
               >
-            </CardTitle>
-          </CardHeader>
-          <CardContent class="tw:grid tw:gap-4">
+            </h2>
+          </header>
+          <div class="tw:grid tw:gap-4">
             <div
               v-if="showAddForm"
               class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
@@ -479,7 +527,7 @@ const driftBadge = computed(() => {
                     type="checkbox"
                     class="tw:size-4 tw:accent-brand-500"
                   />
-                  Primary domain
+                  Server address
                 </label>
                 <label class="tw:flex tw:items-center tw:gap-2">
                   <input
@@ -529,15 +577,18 @@ const driftBadge = computed(() => {
             <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
               Loading…
             </p>
-            <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
+            <ul
+              v-else
+              class="tw:m-0 tw:divide-y tw:divide-border-subtle tw:border-y tw:border-border-subtle tw:pl-0"
+            >
               <li
                 v-for="domain in domains"
                 :key="domain"
-                class="tw:rounded-lg tw:border tw:p-3"
+                class="tw:border-l-2 tw:px-3 tw:py-3"
                 :class="
                   selectedDomain === domain
-                    ? 'tw:border-brand-500 tw:bg-brand-500/5'
-                    : 'tw:border-border-subtle'
+                    ? 'tw:border-signature tw:bg-selection'
+                    : 'tw:border-transparent'
                 "
               >
                 <div
@@ -562,14 +613,15 @@ const driftBadge = computed(() => {
                 </div>
               </li>
             </ul>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card v-if="selectedDomain">
-          <CardHeader>
-            <CardTitle
-              class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-            >
+        <section
+          v-if="selectedDomain"
+          class="tw:border-t tw:border-border-subtle tw:bg-workbench tw:px-5 tw:py-5 tw:lg:border-l tw:lg:border-t-0"
+        >
+          <header class="tw:mb-4">
+            <h2 class="tw:flex tw:items-center tw:justify-between tw:gap-2">
               <span class="tw:font-mono">{{ selectedDomain }}</span>
               <span class="tw:flex tw:items-center tw:gap-2">
                 <RouterLink
@@ -581,9 +633,9 @@ const driftBadge = computed(() => {
                   driftBadge.label
                 }}</Badge>
               </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent class="tw:grid tw:gap-4">
+            </h2>
+          </header>
+          <div class="tw:grid tw:gap-4">
             <p
               v-if="inspectLoading"
               class="tw:text-sm tw:text-muted-foreground"
@@ -598,7 +650,7 @@ const driftBadge = computed(() => {
                   · mode
                   <code class="tw:font-mono">{{ inspect.mode }}</code>
                   <template v-if="inspect.domain.primary">
-                    · <Badge variant="neutral">primary</Badge>
+                    · <Badge variant="neutral">server address</Badge>
                   </template>
                 </p>
                 <p
@@ -634,8 +686,42 @@ const driftBadge = computed(() => {
               </p>
 
               <div
+                v-if="
+                  selectedDomain !== primaryDomain &&
+                  selectedPrimaryCandidate &&
+                  !selectedPrimaryCandidate.ready
+                "
+                class="tw:border-l-2 tw:border-warning tw:pl-3 tw:text-sm"
+                role="status"
+              >
+                <p class="tw:m-0 tw:font-medium">
+                  This domain is not ready to become the server address.
+                </p>
+                <ul class="tw:mb-0 tw:mt-1 tw:pl-5 tw:text-muted-foreground">
+                  <li
+                    v-for="reason in selectedPrimaryCandidate.reasons"
+                    :key="reason"
+                  >
+                    {{ reason }}
+                  </li>
+                </ul>
+              </div>
+
+              <div
                 class="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2"
               >
+                <Button
+                  v-if="selectedDomain !== primaryDomain"
+                  variant="ghost"
+                  size="sm"
+                  :disabled="
+                    busy !== '' ||
+                    inspect.drift.in_sync === false ||
+                    selectedPrimaryCandidate?.ready === false
+                  "
+                  @click="reviewServerAddress(selectedDomain)"
+                  >Use as server address</Button
+                >
                 <Button
                   variant="outline"
                   size="sm"
@@ -655,13 +741,43 @@ const driftBadge = computed(() => {
                   >{{
                     busy === `apply-${selectedDomain}`
                       ? 'Applying…'
-                      : 'Apply DNS'
+                      : 'Apply changes'
                   }}</Button
                 >
               </div>
+              <ChangeLedger
+                v-if="primaryPlan?.target_domain === selectedDomain"
+                title="Review server address change"
+                :digest="primaryPlan.plan_sha256"
+                :operations="
+                  primaryPlan.changes.map((summary) => ({
+                    resource: primaryPlan!.target_domain,
+                    summary,
+                    risk: 'high',
+                    reversible: true,
+                  }))
+                "
+              >
+                <p class="tw:text-sm tw:text-muted-foreground">
+                  Applications keep their current addresses. You may need to
+                  sign in and reconnect your signer at
+                  <code class="tw:font-mono tw:text-xs">{{
+                    primaryPlan.new_admin_url
+                  }}</code
+                  >.
+                </p>
+                <div class="tw:flex tw:justify-end tw:gap-2">
+                  <Button variant="ghost" @click="primaryPlan = null"
+                    >Cancel</Button
+                  >
+                  <Button :disabled="busy !== ''" @click="applyServerAddress"
+                    >Change server address</Button
+                  >
+                </div>
+              </ChangeLedger>
             </template>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
       <details class="tw:border-t tw:border-border-subtle tw:py-5">
         <summary
@@ -673,11 +789,9 @@ const driftBadge = computed(() => {
           >
         </summary>
         <div class="tw:mt-3">
-          <Card>
-            <CardHeader>
-              <CardTitle
-                class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-              >
+          <section class="tw:border-t tw:border-border-subtle tw:py-5">
+            <header class="tw:mb-4">
+              <h2 class="tw:flex tw:items-center tw:justify-between tw:gap-2">
                 <span>Free hostname claims</span>
                 <Button
                   variant="outline"
@@ -686,9 +800,9 @@ const driftBadge = computed(() => {
                   @click="showClaimForm = !showClaimForm"
                   >{{ showClaimForm ? 'Cancel' : 'Claim hostname' }}</Button
                 >
-              </CardTitle>
-            </CardHeader>
-            <CardContent class="tw:grid tw:gap-3">
+              </h2>
+            </header>
+            <div class="tw:grid tw:gap-3">
               <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
                 Free hostnames under nohost.me, noho.st and ynh.fr, claimed and
                 signed with this server's Nostr identity.
@@ -742,14 +856,12 @@ const driftBadge = computed(() => {
                   >
                 </li>
               </ul>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle
-                class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-              >
+          <section class="tw:border-t tw:border-border-subtle tw:py-5">
+            <header class="tw:mb-4">
+              <h2 class="tw:flex tw:items-center tw:justify-between tw:gap-2">
                 <span>DNS provider credentials</span>
                 <Button
                   variant="outline"
@@ -760,9 +872,9 @@ const driftBadge = computed(() => {
                     showCredentialForm ? 'Cancel' : 'Add credential'
                   }}</Button
                 >
-              </CardTitle>
-            </CardHeader>
-            <CardContent class="tw:grid tw:gap-3">
+              </h2>
+            </header>
+            <div class="tw:grid tw:gap-3">
               <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
                 Provider API tokens for automated DNS providers. Values are
                 write-only — they are never shown again after saving.
@@ -844,14 +956,14 @@ const driftBadge = computed(() => {
                   >
                 </li>
               </ul>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Network</CardTitle>
-            </CardHeader>
-            <CardContent class="tw:grid tw:gap-1 tw:text-sm">
+          <section class="tw:border-t tw:border-border-subtle tw:py-5">
+            <header class="tw:mb-4">
+              <h2 class="tw:text-base tw:font-semibold">Network</h2>
+            </header>
+            <div class="tw:grid tw:gap-1 tw:text-sm">
               <p class="tw:m-0">
                 Public IPv4:
                 <code class="tw:font-mono">{{
@@ -872,8 +984,8 @@ const driftBadge = computed(() => {
                 {{ dnsWatch.dynamic_domains.length }} dynamic-IP domain(s):
                 {{ dnsWatch.dynamic_domains.join(', ') }}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         </div>
       </details>
     </template>

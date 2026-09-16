@@ -13,6 +13,9 @@ import {
   type SystemVersions,
 } from '@/api/nativeSystem'
 import { listOperations, type OperationEntry } from '@/api/nativeOperations'
+import { getPrimaryDomain } from '@/api/nativeDomains'
+import { getBackups } from '@/api/nativeBackups'
+import { getAppManagement } from '@/api/nativePackages'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAsyncResource } from '@/composables/useAsyncResource'
@@ -27,6 +30,9 @@ const status = ref<SystemStatus | null>(null)
 const versions = ref<SystemVersions | null>(null)
 const identities = ref<Identity[] | null>(null)
 const recentOperations = ref<OperationEntry[] | null>(null)
+const primaryDomain = ref('')
+const hasBackup = ref(false)
+const hasWorkload = ref(false)
 
 const { publicKey, loading, load } = useAsyncResource(async () => {
   const [
@@ -35,18 +41,27 @@ const { publicKey, loading, load } = useAsyncResource(async () => {
     versionsResult,
     identitiesResult,
     operationsResult,
+    primaryResult,
+    backupResult,
+    appResult,
   ] = await Promise.all([
     getHealth(),
     getSystemStatus(),
     getSystemVersions(),
     getIdentities(),
     listOperations(5),
+    getPrimaryDomain(),
+    getBackups(),
+    getAppManagement(),
   ])
   health.value = healthResult
   status.value = statusResult
   versions.value = versionsResult
   identities.value = identitiesResult
   recentOperations.value = operationsResult
+  primaryDomain.value = primaryResult.current
+  hasBackup.value = Object.keys(backupResult.archives).length > 0
+  hasWorkload.value = appResult.apps.some((app) => app.installed)
 }, 'Failed to load system status.')
 
 function operationStateVariant(state: OperationEntry['state']) {
@@ -104,6 +119,22 @@ const attentionOperations = computed(() =>
     ['REQUESTED', 'FAILED', 'REJECTED'].includes(operation.state),
   ),
 )
+
+const nextSteps = computed(() => {
+  const steps: { label: string; route: string }[] = []
+  if (!primaryDomain.value)
+    steps.push({ label: 'Choose the server address', route: 'native-domains' })
+  if (!(identities.value ?? []).some((identity) => identity.enabled))
+    steps.push({ label: 'Link a Nostr identity', route: 'native-identities' })
+  if (!hasWorkload.value)
+    steps.push({
+      label: 'Install an application or publish a site',
+      route: 'app-management',
+    })
+  if (!hasBackup.value)
+    steps.push({ label: 'Create the first backup', route: 'native-backups' })
+  return steps
+})
 </script>
 
 <template>
@@ -115,6 +146,19 @@ const attentionOperations = computed(() =>
     />
 
     <template v-if="publicKey">
+      <div
+        class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-t tw:border-border-subtle tw:py-3 tw:text-sm"
+      >
+        <span>
+          <span class="tw:text-muted-foreground">Server address</span>
+          <code class="tw:ml-2 tw:font-mono">{{
+            primaryDomain || 'Not chosen'
+          }}</code>
+        </span>
+        <RouterLink :to="{ name: 'native-domains' }" class="workbench-link">
+          {{ primaryDomain ? 'Change →' : 'Choose address →' }}
+        </RouterLink>
+      </div>
       <div
         class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-y tw:border-border-subtle tw:py-4"
       >
@@ -143,6 +187,28 @@ const attentionOperations = computed(() =>
           {{ loading ? 'Refreshing…' : 'Refresh state' }}
         </Button>
       </div>
+
+      <RuledSection
+        v-if="nextSteps.length"
+        title="Next steps"
+        description="Finish the essentials first; specialist controls can wait until you need them."
+        labelledby="next-steps-title"
+      >
+        <ol
+          class="tw:m-0 tw:divide-y tw:divide-border-subtle tw:border-y tw:border-border-subtle tw:p-0"
+        >
+          <li
+            v-for="step in nextSteps"
+            :key="step.label"
+            class="tw:flex tw:items-center tw:justify-between tw:gap-4 tw:py-3 tw:text-sm"
+          >
+            <span>{{ step.label }}</span>
+            <RouterLink :to="{ name: step.route }" class="workbench-link"
+              >Open →</RouterLink
+            >
+          </li>
+        </ol>
+      </RuledSection>
 
       <RuledSection title="Needs attention" labelledby="attention-title">
         <ul

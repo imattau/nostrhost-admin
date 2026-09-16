@@ -1,14 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-export const NAV_GROUP_ORDER = [
-  'Home',
-  'Apps & sites',
-  'People & access',
-  'Network',
-  'Maintenance',
-  'Activity',
-  'Workbench',
-] as const
+export const NAV_GROUP_ORDER = ['Main', 'Advanced'] as const
 
 export type NavGroup = (typeof NAV_GROUP_ORDER)[number]
 export type NavMeta = {
@@ -40,99 +32,103 @@ const routes: RouteRecordRaw[] = [
     name: 'native-overview',
     path: '/',
     component: () => import('@/views/native/SystemOverviewView.vue'),
-    meta: { nav: { label: 'Overview', group: 'Home' } },
+    meta: { nav: { label: 'Home', group: 'Main' } },
   },
   {
     name: 'app-management',
     path: '/apps',
     component: () => import('@/views/native/AppManagementView.vue'),
-    meta: { nav: { label: 'Applications', group: 'Apps & sites' } },
+    meta: { nav: { label: 'Applications', group: 'Main' } },
   },
   {
     name: 'native-catalogue',
     path: '/catalogue',
     component: () => import('@/views/native/CatalogueView.vue'),
-    meta: { nav: { label: 'Catalogue trust', group: 'Workbench' } },
+    meta: { nav: { label: 'Catalogue trust', group: 'Advanced' } },
   },
   {
     name: 'native-packages',
     path: '/packages',
     component: () => import('@/views/native/PackageAuthoringView.vue'),
-    meta: { nav: { label: 'Package authoring', group: 'Workbench' } },
+    meta: { nav: { label: 'Package authoring', group: 'Advanced' } },
   },
   {
     name: 'native-users',
     path: '/users',
     component: () => import('@/views/native/UserManagementView.vue'),
-    meta: { nav: { label: 'Users', group: 'People & access' } },
+    meta: { nav: { label: 'People', group: 'Main' } },
   },
   {
     name: 'native-identities',
     path: '/identities',
     component: () => import('@/views/native/IdentitiesView.vue'),
-    meta: { nav: { label: 'Identities', group: 'People & access' } },
+    meta: {},
   },
   {
     name: 'native-groups',
     path: '/groups',
     component: () => import('@/views/native/GroupsView.vue'),
-    meta: {
-      nav: { label: 'Groups & permissions', group: 'People & access' },
-    },
+    meta: {},
   },
   {
     name: 'native-domains',
     path: '/domains',
     component: () => import('@/views/native/DomainsView.vue'),
-    meta: { nav: { label: 'Domains & DNS', group: 'Network' } },
+    meta: { nav: { label: 'Domains', group: 'Main' } },
   },
   {
     name: 'native-nsites',
     path: '/sites',
     component: () => import('@/views/native/NsitesView.vue'),
-    meta: { nav: { label: 'Sites', group: 'Apps & sites' } },
+    meta: { nav: { label: 'Sites', group: 'Main' } },
+  },
+  {
+    name: 'native-nostr-network',
+    path: '/nostr-network',
+    component: () => import('@/views/native/NostrNetworkView.vue'),
+    meta: { nav: { label: 'Nostr network', group: 'Main' } },
   },
   {
     name: 'native-firewall',
     path: '/firewall',
     component: () => import('@/views/native/FirewallView.vue'),
-    meta: { nav: { label: 'Firewall', group: 'Network' } },
+    meta: { nav: { label: 'Firewall', group: 'Advanced' } },
   },
   {
     name: 'native-services',
     path: '/services',
     component: () => import('@/views/native/ServiceControlView.vue'),
-    meta: { nav: { label: 'Services', group: 'Maintenance' } },
+    meta: { nav: { label: 'Services', group: 'Advanced' } },
   },
   {
     name: 'native-updates',
     path: '/updates',
     component: () => import('@/views/native/UpdatesView.vue'),
-    meta: { nav: { label: 'Updates', group: 'Maintenance' } },
+    meta: { nav: { label: 'Updates', group: 'Main' } },
   },
   {
     name: 'native-backups',
     path: '/backups',
     component: () => import('@/views/native/BackupsView.vue'),
-    meta: { nav: { label: 'Backups', group: 'Maintenance' } },
+    meta: { nav: { label: 'Backups', group: 'Main' } },
   },
   {
     name: 'native-diagnosis',
     path: '/diagnosis',
     component: () => import('@/views/native/DiagnosisView.vue'),
-    meta: { nav: { label: 'Diagnosis', group: 'Maintenance' } },
+    meta: { nav: { label: 'System checks', group: 'Advanced' } },
   },
   {
     name: 'native-settings',
     path: '/settings',
     component: () => import('@/views/native/SettingsView.vue'),
-    meta: { nav: { label: 'Settings', group: 'Maintenance' } },
+    meta: { nav: { label: 'System settings', group: 'Advanced' } },
   },
   {
     name: 'native-power',
     path: '/power',
     component: () => import('@/views/native/PowerView.vue'),
-    meta: { nav: { label: 'Power', group: 'Maintenance' } },
+    meta: { nav: { label: 'Power', group: 'Advanced' } },
   },
   {
     name: 'native-operations',
@@ -140,8 +136,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/native/OperationsView.vue'),
     meta: {
       nav: {
-        label: 'History & approvals',
-        group: 'Activity',
+        label: 'Changes & approvals',
+        group: 'Main',
         attentionKey: 'pending-operations',
       },
     },
@@ -150,7 +146,7 @@ const routes: RouteRecordRaw[] = [
     name: 'native-ai',
     path: '/ai/:section?',
     component: () => import('@/views/native/AiManagementView.vue'),
-    meta: { nav: { label: 'AI management', group: 'Workbench' } },
+    meta: { nav: { label: 'AI management', group: 'Advanced' } },
   },
 ]
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { getDomains } from '@/api/nativeDomains'
 import { linkIdentity } from '@/api/nativeIdentity'
@@ -32,8 +33,13 @@ import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import PeopleSectionNav from '@/components/native/PeopleSectionNav.vue'
+import InspectorPane from '@/components/native/InspectorPane.vue'
+import ResourceList from '@/components/native/ResourceList.vue'
 
 const { success, warning } = useNotifications()
+const route = useRoute()
+const router = useRouter()
 
 type UserRow = NativeUser & { username: string }
 
@@ -118,6 +124,22 @@ const sortedUsers = computed(() =>
     .slice()
     .sort((a, b) => a.username.localeCompare(b.username)),
 )
+const selectedUsername = ref(
+  typeof route.query.person === 'string' ? route.query.person : '',
+)
+const selectedUser = computed(
+  () =>
+    sortedUsers.value.find(
+      (user) => user.username === selectedUsername.value,
+    ) ??
+    sortedUsers.value[0] ??
+    null,
+)
+
+async function selectPerson(username: string) {
+  selectedUsername.value = username
+  await router.replace({ query: { ...route.query, person: username } })
+}
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   const [userResult, identityResult, domainResult] = await Promise.all([
@@ -133,6 +155,9 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   domains.value = domainResult.domains
   if (!createDomain.value && domains.value.length) {
     createDomain.value = domains.value[0]
+  }
+  if (!selectedUsername.value && sortedUsers.value.length) {
+    await selectPerson(sortedUsers.value[0].username)
   }
 }, 'Failed to load users.')
 
@@ -300,10 +325,11 @@ function dismissRevealedPassword() {
 <template>
   <PageLayout>
     <PageHeader
-      eyebrow="Account administration"
-      title="Users"
-      description="Create, edit and delete server accounts, and optionally link or generate a Nostr identity for each one. A pubkey can also be linked or revoked later from the Identities screen."
+      eyebrow="People"
+      title="People"
+      description="Manage each person's server account, Nostr identity and access from one area."
     />
+    <PeopleSectionNav />
 
     <Card v-if="publicKey">
       <CardHeader>
@@ -400,53 +426,80 @@ function dismissRevealedPassword() {
       </CardContent>
     </Card>
 
-    <Card v-if="publicKey">
-      <CardHeader>
-        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
-          <span>Accounts</span>
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="loading"
-            @click="load"
-            >{{ loading ? 'Refreshing…' : 'Refresh' }}</Button
-          >
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul v-if="sortedUsers.length" class="tw:grid tw:gap-2">
-          <li
-            v-for="user in sortedUsers"
-            :key="user.username"
-            class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
-          >
+    <div
+      v-if="publicKey && sortedUsers.length"
+      class="tw:grid tw:gap-0 tw:border-y tw:border-border-subtle tw:lg:grid-cols-[260px_minmax(0,1fr)]"
+    >
+      <ResourceList
+        label="People"
+        class="tw:border-b tw:border-border-subtle tw:lg:border-b-0 tw:lg:border-r"
+      >
+        <button
+          v-for="user in sortedUsers"
+          :key="user.username"
+          type="button"
+          class="tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:border-b tw:border-border-subtle tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:text-sm"
+          :class="
+            selectedUser?.username === user.username
+              ? 'tw:bg-selection tw:font-semibold'
+              : 'tw:hover:bg-surface-muted'
+          "
+          @click="selectPerson(user.username)"
+        >
+          <span>
+            <span class="tw:block">{{ user.fullname || user.username }}</span>
+            <span
+              class="tw:block tw:font-mono tw:text-xs tw:font-normal tw:text-muted-foreground"
+              >{{ user.username }}</span
+            >
+          </span>
+          <span class="tw:text-xs tw:text-muted-foreground">{{
+            identityByUsername.get(user.username)
+              ? 'Nostr linked'
+              : 'No identity'
+          }}</span>
+        </button>
+      </ResourceList>
+
+      <InspectorPane
+        v-if="selectedUser"
+        :label="`Details for ${selectedUser.username}`"
+        class="tw:p-5"
+      >
+        <div class="tw:grid tw:gap-4">
+          <div>
             <div
               class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3"
             >
               <strong class="tw:text-sm tw:text-foreground">{{
-                user.username
+                selectedUser.username
               }}</strong>
               <Badge
-                v-if="(user.groups ?? []).includes('admins')"
+                v-if="(selectedUser.groups ?? []).includes('admins')"
                 variant="success"
                 >Admin</Badge
               >
             </div>
             <span class="tw:text-xs tw:text-muted-foreground"
-              >{{ user.fullname
-              }}<template v-if="user.mail"> · {{ user.mail }}</template></span
+              >{{ selectedUser.fullname
+              }}<template v-if="selectedUser.mail">
+                · {{ selectedUser.mail }}</template
+              ></span
             >
+          </div>
 
-            <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-              <template v-if="identityByUsername.get(user.username)">
+          <section class="tw:border-t tw:border-border-subtle tw:pt-4">
+            <h3 class="tw:m-0 tw:text-sm tw:font-semibold">Nostr identity</h3>
+            <div class="tw:mt-2 tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+              <template v-if="identityByUsername.get(selectedUser.username)">
                 <Badge
                   :variant="
-                    identityByUsername.get(user.username)!.enabled
+                    identityByUsername.get(selectedUser.username)!.enabled
                       ? 'success'
                       : 'neutral'
                   "
                   >{{
-                    identityByUsername.get(user.username)!.enabled
+                    identityByUsername.get(selectedUser.username)!.enabled
                       ? 'Nostr linked'
                       : 'Nostr disabled'
                   }}</Badge
@@ -454,25 +507,36 @@ function dismissRevealedPassword() {
                 <code
                   class="tw:font-mono tw:text-xs tw:text-muted-foreground"
                   >{{
-                    shortenKey(identityByUsername.get(user.username)!.pubkey)
+                    shortenKey(
+                      identityByUsername.get(selectedUser.username)!.pubkey,
+                    )
                   }}</code
                 >
                 <RouterLink
                   :to="{ name: 'native-identities' }"
-                  class="tw:text-xs tw:text-brand-500 tw:no-underline tw:hover:underline"
-                  >Manage in Identities</RouterLink
+                  class="workbench-link tw:text-xs"
+                  >Manage identities →</RouterLink
                 >
               </template>
-              <template v-else>
-                <Badge variant="neutral">No Nostr identity</Badge>
-              </template>
+              <Button
+                v-else
+                variant="outline"
+                size="sm"
+                @click="askLink(selectedUser.username)"
+                >Link identity</Button
+              >
             </div>
+          </section>
 
-            <template v-if="editPending === user.username">
+          <section class="tw:border-t tw:border-border-subtle tw:pt-4">
+            <h3 class="tw:m-0 tw:text-sm tw:font-semibold">Account</h3>
+            <template v-if="editPending === selectedUser.username">
               <div class="tw:grid tw:gap-1.5 tw:sm:max-w-xs">
-                <Label :for="`edit-fullname-${user.username}`">Full name</Label>
+                <Label :for="`edit-fullname-${selectedUser.username}`"
+                  >Full name</Label
+                >
                 <Input
-                  :id="`edit-fullname-${user.username}`"
+                  :id="`edit-fullname-${selectedUser.username}`"
                   v-model="editFullname"
                   autocomplete="off"
                 />
@@ -485,17 +549,17 @@ function dismissRevealedPassword() {
                   variant="primary"
                   size="sm"
                   :disabled="editing"
-                  @click="confirmEdit(user.username)"
+                  @click="confirmEdit(selectedUser.username)"
                   >{{ editing ? 'Saving…' : 'Save' }}</Button
                 >
               </div>
             </template>
 
-            <template v-else-if="linkPending === user.username">
+            <template v-else-if="linkPending === selectedUser.username">
               <div class="tw:rounded-lg tw:bg-surface-muted tw:p-3">
                 <IdentityFields
                   v-model="linkSelection"
-                  :id-prefix="`link-${user.username}`"
+                  :id-prefix="`link-${selectedUser.username}`"
                   :allow-none="false"
                 />
               </div>
@@ -507,16 +571,16 @@ function dismissRevealedPassword() {
                   variant="primary"
                   size="sm"
                   :disabled="linking || !linkSelection.ready"
-                  @click="confirmLink(user.username)"
+                  @click="confirmLink(selectedUser.username)"
                   >{{ linking ? 'Linking…' : 'Link identity' }}</Button
                 >
               </div>
             </template>
 
-            <template v-else-if="rotatePending === user.username">
+            <template v-else-if="rotatePending === selectedUser.username">
               <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-                Generate a new system password for {{ user.username }}? It's
-                never needed to sign in to this console — only for direct
+                Generate a new system password for {{ selectedUser.username }}?
+                It's never needed to sign in to this console — only for direct
                 system-level access (e.g. SSH).
               </p>
               <div class="tw:flex tw:justify-end tw:gap-2">
@@ -527,19 +591,21 @@ function dismissRevealedPassword() {
                   variant="primary"
                   size="sm"
                   :disabled="rotating"
-                  @click="confirmRotate(user.username)"
+                  @click="confirmRotate(selectedUser.username)"
                   >{{ rotating ? 'Rotating…' : 'Confirm rotate' }}</Button
                 >
               </div>
             </template>
 
-            <template v-else-if="revealedPassword?.username === user.username">
+            <template
+              v-else-if="revealedPassword?.username === selectedUser.username"
+            >
               <div
                 class="tw:grid tw:gap-2 tw:rounded-lg tw:bg-surface-muted tw:p-3"
               >
                 <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-                  New system password for {{ user.username }} — shown once, copy
-                  it now.
+                  New system password for {{ selectedUser.username }} — shown
+                  once, copy it now.
                 </p>
                 <div class="tw:flex tw:items-center tw:gap-2">
                   <code
@@ -565,37 +631,41 @@ function dismissRevealedPassword() {
             </template>
 
             <div v-else class="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
-              <Button
-                v-if="!identityByUsername.get(user.username)"
-                variant="outline"
-                size="sm"
-                @click="askLink(user.username)"
-                >Link identity</Button
-              >
-              <Button variant="outline" size="sm" @click="askEdit(user)"
+              <Button variant="outline" size="sm" @click="askEdit(selectedUser)"
                 >Edit</Button
               >
               <Button
                 variant="outline"
                 size="sm"
-                @click="askRotate(user.username)"
+                @click="askRotate(selectedUser.username)"
                 >Rotate system password</Button
               >
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                @click="askDelete(user.username)"
+                @click="askDelete(selectedUser.username)"
                 >Delete</Button
               >
             </div>
-          </li>
-        </ul>
-        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
-          Loading…
-        </p>
-        <EmptyState v-else title="No users yet" />
-      </CardContent>
-    </Card>
+          </section>
+
+          <section class="tw:border-t tw:border-border-subtle tw:pt-4">
+            <h3 class="tw:m-0 tw:text-sm tw:font-semibold">Access</h3>
+            <p class="tw:mb-0 tw:mt-2 tw:text-sm tw:text-muted-foreground">
+              Groups:
+              {{ (selectedUser.groups ?? []).join(', ') || 'No groups' }}.
+              <RouterLink :to="{ name: 'native-groups' }" class="workbench-link"
+                >Manage access →</RouterLink
+              >
+            </p>
+          </section>
+        </div>
+      </InspectorPane>
+    </div>
+    <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+      Loading…
+    </p>
+    <EmptyState v-else-if="publicKey" title="No people yet" />
 
     <ConfirmDialog
       :open="deletePending !== null"

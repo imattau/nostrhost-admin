@@ -1,13 +1,5 @@
 <script setup lang="ts">
-import {
-  Activity,
-  Blocks,
-  ChevronDown,
-  Hammer,
-  Network,
-  Users,
-  Wrench,
-} from '@lucide/vue'
+import { ChevronDown, List, Wrench } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -40,13 +32,8 @@ onMounted(() => {
 onUnmounted(() => desktopQuery?.removeEventListener('change', syncDesktop))
 
 const groupIcons: Record<NavGroup, unknown> = {
-  Home: Activity,
-  'Apps & sites': Blocks,
-  'People & access': Users,
-  Network,
-  Maintenance: Wrench,
-  Activity,
-  Workbench: Hammer,
+  Main: List,
+  Advanced: Wrench,
 }
 
 const navGroups = computed(() => {
@@ -65,7 +52,9 @@ const navGroups = computed(() => {
 })
 
 const collapsed = reactive<Record<string, boolean>>(
-  Object.fromEntries(NAV_GROUP_ORDER.map((group) => [group, group !== 'Home'])),
+  Object.fromEntries(
+    NAV_GROUP_ORDER.map((group) => [group, group === 'Advanced']),
+  ),
 )
 
 function toggleGroup(group: string) {

@@ -50,7 +50,7 @@ describe('signAndSubmit', () => {
     const args = (submit.mock.calls[0][0] as { plan_sha256: string })
       .plan_sha256
     expect(args).toBe(
-      '293efea328fb5324b3fac03869de4e836a6ea9b3b38824e08dafa426891a0494',
+      '3719e74f6dd6fdee3e1c21cfe69f8f044865dbb8b37a95156929f4869c8f3507',
     )
     expect(submit).toHaveBeenCalledWith(
       expect.objectContaining({ relays: RELAYS }),

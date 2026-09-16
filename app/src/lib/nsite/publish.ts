@@ -52,6 +52,7 @@ export async function signAndSubmit(
     d: params.d,
     paths: params.items,
     servers: params.servers,
+    relays: params.relays,
   })
   const signed = await params.signEvent({
     ...event,
@@ -71,6 +72,7 @@ export async function reviewDigest(params: {
   d: string
   items: ManifestItem[]
   servers: string[]
+  relays?: string[]
 }): Promise<string> {
   return planDigest({ ...params, paths: params.items })
 }

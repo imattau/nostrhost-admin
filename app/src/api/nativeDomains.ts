@@ -124,6 +124,26 @@ export type LifecycleOperation = {
   [field: string]: unknown
 }
 
+export type PrimaryDomainStatus = {
+  current: string
+  candidates: { domain: string; ready: boolean; reasons: string[] }[]
+}
+
+export type PrimaryDomainPlan = {
+  action: string
+  risk: 'high'
+  reversibility: string
+  current_domain: string
+  target_domain: string
+  old_admin_url: string
+  new_admin_url: string
+  new_portal_url: string
+  changes: string[]
+  unchanged: string[]
+  sign_in_again: boolean
+  plan_sha256: string
+}
+
 export type DomainAddInput = {
   domain: string
   provider_type?: DnsProviderType
@@ -141,6 +161,26 @@ export type DomainAddInput = {
 
 export function getDomains() {
   return request<DomainList>('/package/domain/list', 'GET')
+}
+
+export function getPrimaryDomain() {
+  return request<PrimaryDomainStatus>('/package/domain/primary', 'GET')
+}
+
+export function planPrimaryDomain(domain: string) {
+  return request<PrimaryDomainPlan>(
+    '/package/domain/primary/plan',
+    'POST',
+    JSON.stringify({ domain }),
+  )
+}
+
+export function applyPrimaryDomain(domain: string, planSha256: string) {
+  return request<{ operation: unknown; admin_url: string; portal_url: string }>(
+    '/package/domain/primary/apply',
+    'POST',
+    JSON.stringify({ domain, plan_sha256: planSha256 }),
+  )
 }
 
 export function getDomainInspect(domain: string) {

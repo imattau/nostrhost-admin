@@ -22,6 +22,7 @@ import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import PeopleSectionNav from '@/components/native/PeopleSectionNav.vue'
 
 const { success } = useNotifications()
 
@@ -90,10 +91,11 @@ async function confirmRevoke(pubkey: string) {
 <template>
   <PageLayout>
     <PageHeader
-      eyebrow="Nostr identity administration"
-      title="Identities"
-      description="Link a signer's public key to a YunoHost admin account, or revoke a linked identity. Linking and revoking publish signed events to the control relay; there is no password store."
+      eyebrow="People"
+      title="Nostr identities"
+      description="Link the public identities people use to sign in and approve changes."
     />
+    <PeopleSectionNav />
 
     <Card v-if="publicKey">
       <CardHeader>

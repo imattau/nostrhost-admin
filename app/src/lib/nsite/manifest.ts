@@ -8,7 +8,7 @@
 //
 // Canonical forms shared with the fork:
 //   aggregate_hash(paths)   = sha256 of the sorted `<hash> <path>\n` lines
-//   plan_digest             = sha256 of JSON([kind, d, sortedPaths, sortedServers])
+//   plan_digest             = sha256 of JSON([kind, d, sortedPaths, sortedServers, sortedRelays])
 //                             with compact separators (no whitespace).
 
 import { sha256Hex, type InventoryItem } from './inventory'
@@ -62,18 +62,16 @@ export async function planDigest(params: {
   d: string
   paths: ManifestItem[]
   servers: string[]
+  relays?: string[]
 }): Promise<string> {
   const sortedPaths = params.paths
     .map((p) => [p.path, p.sha256])
     .sort(compareTuples)
   const sortedServers = [...new Set(params.servers)].sort()
-  const payload = JSON.stringify([
-    params.kind,
-    params.d,
-    sortedPaths,
-    sortedServers,
-  ])
-  return sha256Hex(new TextEncoder().encode(payload))
+  const payload: unknown[] = [params.kind, params.d, sortedPaths, sortedServers]
+  if (params.relays) payload.push([...new Set(params.relays)].sort())
+  const encoded = JSON.stringify(payload)
+  return sha256Hex(new TextEncoder().encode(encoded))
 }
 
 export async function buildUnsignedManifest(params: {

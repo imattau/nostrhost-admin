@@ -86,6 +86,7 @@ const busy = ref('')
 const { run } = useActionRunner(busy, '')
 
 const { pending: confirmingReject } = useConfirm<string | null>(null)
+const rejectReason = ref('')
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   operations.value = await listOperations(200)
@@ -137,12 +138,14 @@ async function confirmReject() {
   const requestId = confirmingReject.value
   if (!requestId) return
   confirmingReject.value = null
+  const reason = rejectReason.value.trim() || undefined
+  rejectReason.value = ''
   await run(
     `reject-${requestId}`,
     async () => {
       await sync()
-      const event = await signDecision('rejection', requestId, undefined)
-      await rejectOperation(requestId, undefined, event)
+      const event = await signDecision('rejection', requestId, reason)
+      await rejectOperation(requestId, reason, event)
       notifications.success(`Rejected ${requestId}.`)
       await load()
     },
@@ -319,8 +322,11 @@ async function toggleExpanded(requestId: string) {
                   <dt class="tw:font-semibold tw:text-muted-foreground">
                     Result
                   </dt>
-                  <dd class="tw:break-all tw:font-mono tw:text-foreground">
-                    {{ JSON.stringify(expandedDetail) }}
+                  <dd class="tw:break-all tw:text-foreground">
+                    <pre
+                      class="tw:whitespace-pre-wrap tw:font-mono tw:text-xs"
+                      >{{ JSON.stringify(expandedDetail, null, 2) }}</pre
+                    >
                   </dd>
                 </template>
               </dl>
@@ -362,7 +368,22 @@ async function toggleExpanded(requestId: string) {
       confirm-label="Reject"
       :busy="confirmingReject !== null && busy === `reject-${confirmingReject}`"
       @confirm="confirmReject"
-      @cancel="confirmingReject = null"
-    />
+      @cancel="
+        confirmingReject = null
+        rejectReason = ''
+      "
+    >
+      <label
+        for="reject-reason"
+        class="tw:mb-1 tw:block tw:text-xs tw:font-medium tw:text-muted-foreground"
+        >Reason (optional, recorded in the audit trail)</label
+      >
+      <textarea
+        id="reject-reason"
+        v-model="rejectReason"
+        rows="2"
+        class="tw:w-full tw:rounded-lg tw:border tw:border-border-subtle tw:bg-background tw:px-3 tw:py-2 tw:text-sm tw:text-foreground tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
+      />
+    </ConfirmDialog>
   </PageLayout>
 </template>

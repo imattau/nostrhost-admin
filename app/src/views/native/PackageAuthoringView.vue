@@ -97,11 +97,14 @@ function riskVariant(risk: string | undefined) {
       description="Draft a declarative package, inspect its resource plan, and declare it in the trusted catalogue. Planning is read-only and this screen cannot install packages; declaring publishes a signed catalogue entry."
     />
 
-    <Alert variant="success">
+    <Alert v-if="publicKey" variant="success">
       Signer connected ·
       <code class="tw:font-mono"
-        >{{ publicKey?.slice(0, 12) }}…{{ publicKey?.slice(-8) }}</code
+        >{{ publicKey.slice(0, 12) }}…{{ publicKey.slice(-8) }}</code
       >
+    </Alert>
+    <Alert v-else variant="warning">
+      No signer connected. Sign in to plan or declare a package.
     </Alert>
 
     <Card>

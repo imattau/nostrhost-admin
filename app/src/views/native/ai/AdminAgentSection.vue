@@ -124,7 +124,7 @@ watch(publicKey, (key) => {
           >
           <Button
             v-else
-            :variant="agentStatus.service_enabled ? 'danger' : 'primary'"
+            :variant="agentStatus.service_enabled ? 'warning' : 'primary'"
             size="sm"
             :disabled="agentActing"
             @click="toggleAgent"

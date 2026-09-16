@@ -72,6 +72,35 @@ export function planPackageManifest(packageData: Record<string, unknown>) {
   )
 }
 
+export type ManifestDiagnostic = {
+  code: string
+  path: Array<string | number>
+  message: string
+  hint?: string
+}
+
+export type FetchedManifest = {
+  package: Record<string, unknown>
+  valid: boolean
+  diagnostics: ManifestDiagnostic[]
+  commit: string
+}
+
+export function fetchManifestFromRepository(
+  repository: string,
+  options: { revision?: string; packagePath?: string } = {},
+) {
+  return request<FetchedManifest>(
+    '/package/authoring/fetch_manifest',
+    'POST',
+    JSON.stringify({
+      repository,
+      revision: options.revision || '',
+      package_path: options.packagePath || '',
+    }),
+  )
+}
+
 export function getAppManagement() {
   return request<AppManagement>('/package/app/management', 'GET')
 }
@@ -110,7 +139,10 @@ export function applyNativeAppSettings(
 }
 
 export type ChangeUrlPlan = PackagePlan & {
-  url_diff: { old: { domain: string; path: string }; new: { domain: string; path: string } }
+  url_diff: {
+    old: { domain: string; path: string }
+    new: { domain: string; path: string }
+  }
 }
 
 export function planChangeUrl(appId: string, domain: string, path: string) {

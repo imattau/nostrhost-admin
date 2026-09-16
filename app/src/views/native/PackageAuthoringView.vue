@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { declareCatalogueEntry } from '@/api/nativeCatalog'
-import { planPackageManifest, type PackagePlan } from '@/api/nativePackages'
+import {
+  fetchManifestFromRepository,
+  planPackageManifest,
+  type ManifestDiagnostic,
+  type PackagePlan,
+} from '@/api/nativePackages'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,29 +24,74 @@ import PageLayout from '@/components/native/PageLayout.vue'
 const { publicKey, sync } = useSigner()
 const { success } = useNotifications()
 
-const manifest = ref(
-  JSON.stringify({ app: { id: 'example-app', version: '0.1.0' } }, null, 2),
-)
+// -- fetch from repository ---------------------------------------------------
+// The primary path: point at the repository the package.toml already lives
+// in and let the server clone and read it, instead of hand-pasting the
+// manifest as JSON.
+
+const repository = ref('')
+const revision = ref('')
+const packagePath = ref('')
+const packageData = ref<Record<string, unknown> | null>(null)
+const commit = ref('')
+const diagnostics = ref<ManifestDiagnostic[]>([])
+const fetching = ref(false)
+const { run: runFetch } = useActionRunner(fetching, false)
+
 const plan = ref<PackagePlan | null>(null)
 const planning = ref(false)
 const { run: runPlan } = useActionRunner(planning, false)
 
-async function reviewPlan() {
+async function fetchAndPlan() {
+  await runFetch(
+    true,
+    async () => {
+      plan.value = null
+      packageData.value = null
+      diagnostics.value = []
+      commit.value = ''
+      await sync()
+      const result = await fetchManifestFromRepository(
+        repository.value.trim(),
+        {
+          revision: revision.value.trim(),
+          packagePath: packagePath.value.trim(),
+        },
+      )
+      packageData.value = result.package
+      commit.value = result.commit
+      diagnostics.value = result.diagnostics
+      if (!result.valid) return
+      plan.value = await planPackageManifest(result.package)
+      if (!declareRepository.value)
+        declareRepository.value = repository.value.trim()
+    },
+    'Could not fetch the manifest from that repository.',
+  )
+}
+
+// -- advanced: paste a manifest directly --------------------------------
+// Kept for a package that has no repository yet (still being drafted
+// locally) - the fetch-from-repository flow above is the default path.
+
+const showAdvanced = ref(false)
+const manifestText = ref(
+  JSON.stringify({ app: { id: 'example-app', version: '0.1.0' } }, null, 2),
+)
+
+async function reviewPastedManifest() {
   await runPlan(
     true,
     async () => {
       plan.value = null
+      diagnostics.value = []
       await sync()
-      const packageData: unknown = JSON.parse(manifest.value)
-      if (
-        !packageData ||
-        typeof packageData !== 'object' ||
-        Array.isArray(packageData)
-      )
+      const parsed: unknown = JSON.parse(manifestText.value)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
         throw new Error('The package manifest must be a JSON object.')
-      plan.value = await planPackageManifest(
-        packageData as Record<string, unknown>,
-      )
+      packageData.value = parsed as Record<string, unknown>
+      commit.value = ''
+      plan.value = await planPackageManifest(packageData.value)
     },
     'Plan request failed.',
   )
@@ -59,12 +109,12 @@ const declaring = ref(false)
 const { run: runDeclare } = useActionRunner(declaring, false)
 
 async function declareInCatalogue() {
+  if (!packageData.value) return
   await runDeclare(
     true,
     async () => {
-      const packageData = JSON.parse(manifest.value) as Record<string, unknown>
       const result = await declareCatalogueEntry(
-        packageData,
+        packageData.value as Record<string, unknown>,
         declareRepository.value.trim(),
       )
       success(
@@ -87,6 +137,11 @@ function riskVariant(risk: string | undefined) {
   if (risk === 'medium') return 'warning'
   return 'success'
 }
+
+const diagnosticLocation = (diagnostic: ManifestDiagnostic) =>
+  diagnostic.path.length ? diagnostic.path.join('.') : 'package'
+
+const busy = computed(() => fetching.value || planning.value)
 </script>
 
 <template>
@@ -94,7 +149,7 @@ function riskVariant(risk: string | undefined) {
     <PageHeader
       eyebrow="NostrHost native package planner"
       title="Package authoring"
-      description="Draft a declarative package, inspect its resource plan, and declare it in the trusted catalogue. Planning is read-only and this screen cannot install packages; declaring publishes a signed catalogue entry."
+      description="Point at the repository a package already lives in, inspect its resource plan, and declare it in the trusted catalogue. Planning is read-only and this screen cannot install packages; declaring publishes a signed catalogue entry."
     />
 
     <Alert v-if="publicKey" variant="success">
@@ -104,32 +159,119 @@ function riskVariant(risk: string | undefined) {
       >
     </Alert>
     <Alert v-else variant="warning">
-      No signer connected. Sign in to plan or declare a package.
+      No signer connected. Sign in to fetch, plan, or declare a package.
     </Alert>
 
     <Card>
       <CardHeader>
-        <CardTitle>package.json</CardTitle>
+        <CardTitle>Package repository</CardTitle>
       </CardHeader>
-      <CardContent>
-        <Label for="package-manifest">Package manifest</Label>
-        <Textarea
-          id="package-manifest"
-          v-model="manifest"
-          spellcheck="false"
-          autocapitalize="off"
-          autocomplete="off"
-          aria-describedby="manifest-help"
-        />
-        <p id="manifest-help" class="tw:text-sm tw:text-muted-foreground">
-          Enter a JSON package object. The server validates it and returns a
-          read-only resource plan; it does not install packages.
+      <CardContent class="tw:grid tw:gap-3">
+        <div class="tw:grid tw:gap-4 tw:sm:grid-cols-[2fr_1fr_1fr]">
+          <div class="tw:grid tw:gap-1.5">
+            <Label for="repo-url">Repository URL</Label>
+            <Input
+              id="repo-url"
+              v-model="repository"
+              placeholder="https://git.example.com/my-app.git"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+          <div class="tw:grid tw:gap-1.5">
+            <Label for="repo-revision">Branch or tag (optional)</Label>
+            <Input
+              id="repo-revision"
+              v-model="revision"
+              placeholder="default branch"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+          <div class="tw:grid tw:gap-1.5">
+            <Label for="repo-path">Package path (optional)</Label>
+            <Input
+              id="repo-path"
+              v-model="packagePath"
+              placeholder="repo root"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+        <p class="tw:text-sm tw:text-muted-foreground">
+          Reads <code class="tw:font-mono">package.toml</code> straight from the
+          repository (a shallow clone, https:// only) and validates it the same
+          way the authoring CLI does.
         </p>
         <div>
           <Button
-            :disabled="!publicKey || planning"
+            :disabled="!publicKey || busy || !repository.trim()"
             variant="primary"
-            @click="reviewPlan"
+            @click="fetchAndPlan"
+            >{{ fetching ? 'Fetching…' : 'Fetch & review plan' }}</Button
+          >
+        </div>
+      </CardContent>
+    </Card>
+
+    <Card v-if="diagnostics.length">
+      <CardHeader>
+        <CardTitle>Manifest problems</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul class="tw:m-0 tw:grid tw:gap-2 tw:p-0 tw:list-none">
+          <li
+            v-for="(diagnostic, index) in diagnostics"
+            :key="index"
+            class="tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
+          >
+            <code class="tw:font-mono tw:text-xs tw:text-muted-foreground">{{
+              diagnosticLocation(diagnostic)
+            }}</code>
+            <p class="tw:m-0">{{ diagnostic.message }}</p>
+            <p
+              v-if="diagnostic.hint"
+              class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+            >
+              {{ diagnostic.hint }}
+            </p>
+          </li>
+        </ul>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <span>Advanced: paste a manifest</span>
+          <Button
+            variant="outline"
+            size="sm"
+            @click="showAdvanced = !showAdvanced"
+          >
+            {{ showAdvanced ? 'Hide' : 'Show' }}
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent v-if="showAdvanced">
+        <p class="tw:text-sm tw:text-muted-foreground">
+          For a package that has no repository yet. Enter a JSON package object;
+          the server validates it and returns a read-only resource plan.
+        </p>
+        <Label for="package-manifest">Package manifest (JSON)</Label>
+        <Textarea
+          id="package-manifest"
+          v-model="manifestText"
+          spellcheck="false"
+          autocapitalize="off"
+          autocomplete="off"
+        />
+        <div class="tw:mt-2">
+          <Button
+            :disabled="!publicKey || busy"
+            variant="outline"
+            @click="reviewPastedManifest"
             >{{ planning ? 'Building plan…' : 'Review plan' }}</Button
           >
         </div>
@@ -146,6 +288,11 @@ function riskVariant(risk: string | undefined) {
         <p class="tw:text-sm tw:text-muted-foreground">
           {{ plan.operations.length }} resource operations. No host changes have
           been made.
+          <template v-if="commit"
+            >Read at commit
+            <code class="tw:font-mono">{{ commit.slice(0, 12) }}</code
+            >.</template
+          >
         </p>
         <ol class="tw:grid tw:gap-3">
           <li

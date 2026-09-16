@@ -8,10 +8,7 @@ const props = withDefaults(defineProps<{ class?: string }>(), {
 })
 
 const classes = computed(() =>
-  cn(
-    'tw:rounded-2xl tw:border tw:border-border-subtle tw:bg-surface tw:p-6',
-    props.class,
-  ),
+  cn('tw:border-t tw:border-border-subtle tw:py-6', props.class),
 )
 </script>
 

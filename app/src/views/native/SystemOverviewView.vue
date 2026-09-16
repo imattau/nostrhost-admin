@@ -15,11 +15,12 @@ import {
 import { listOperations, type OperationEntry } from '@/api/nativeOperations'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAsyncResource } from '@/composables/useAsyncResource'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import RuledSection from '@/components/native/RuledSection.vue'
+import StatusMark from '@/components/native/StatusMark.vue'
 
 const health = ref<Health | null>(null)
 const status = ref<SystemStatus | null>(null)
@@ -28,14 +29,19 @@ const identities = ref<Identity[] | null>(null)
 const recentOperations = ref<OperationEntry[] | null>(null)
 
 const { publicKey, loading, load } = useAsyncResource(async () => {
-  const [healthResult, statusResult, versionsResult, identitiesResult, operationsResult] =
-    await Promise.all([
-      getHealth(),
-      getSystemStatus(),
-      getSystemVersions(),
-      getIdentities(),
-      listOperations(5),
-    ])
+  const [
+    healthResult,
+    statusResult,
+    versionsResult,
+    identitiesResult,
+    operationsResult,
+  ] = await Promise.all([
+    getHealth(),
+    getSystemStatus(),
+    getSystemVersions(),
+    getIdentities(),
+    listOperations(5),
+  ])
   health.value = healthResult
   status.value = statusResult
   versions.value = versionsResult
@@ -92,202 +98,228 @@ const platformVersions = computed(() =>
     ? toEntries(versions.value, (name) => !name.startsWith('nostrhost'))
     : [],
 )
+
+const attentionOperations = computed(() =>
+  (recentOperations.value ?? []).filter((operation) =>
+    ['REQUESTED', 'FAILED', 'REJECTED'].includes(operation.state),
+  ),
+)
 </script>
 
 <template>
   <PageLayout>
     <PageHeader
-      eyebrow="NostrHost native status"
-      title="System overview"
-      description="Read-only reachability, version, and identity reads from the native API. This screen cannot change host state."
+      eyebrow="Home"
+      :title="status?.hostname || 'Your server'"
+      description="What needs attention, what changed recently, and the system underneath your apps."
     />
 
-    <div v-if="publicKey" class="tw:flex tw:items-center tw:justify-between">
-      <p class="tw:text-sm tw:text-muted-foreground">
-        Signed in as
-        <code class="tw:font-mono">{{ shortenKey(publicKey) }}</code>
-      </p>
-      <Button variant="outline" size="sm" :disabled="loading" @click="load">{{
-        loading ? 'Refreshing…' : 'Refresh'
-      }}</Button>
-    </div>
-
-    <Card v-if="publicKey">
-      <CardHeader>
-        <CardTitle>Host status</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div v-if="health || status" class="tw:flex tw:flex-wrap tw:items-center tw:gap-x-6 tw:gap-y-2">
-          <div v-if="health" class="tw:flex tw:items-center tw:gap-2">
-            <Badge :variant="health.ok ? 'success' : 'danger'">
-              {{ health.ok ? 'Reachable' : 'Unreachable' }}
-            </Badge>
-            <span class="tw:text-sm tw:text-muted-foreground"
-              >API version {{ health.version }}</span
-            >
-          </div>
-          <div v-if="status" class="tw:flex tw:items-center tw:gap-1.5 tw:text-sm">
-            <span class="tw:text-muted-foreground">Host</span>
-            <code class="tw:font-mono tw:text-foreground">{{ status.hostname }}</code>
-          </div>
-          <div v-if="status?.loadavg" class="tw:flex tw:items-center tw:gap-1.5 tw:text-sm">
+    <template v-if="publicKey">
+      <div
+        class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-y tw:border-border-subtle tw:py-4"
+      >
+        <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-x-8 tw:gap-y-3">
+          <StatusMark
+            v-if="health"
+            :state="health.ok ? 'healthy' : 'danger'"
+            :label="
+              health.ok
+                ? 'Control plane reachable'
+                : 'Control plane unavailable'
+            "
+          />
+          <span v-if="status?.loadavg" class="tw:text-sm">
             <span class="tw:text-muted-foreground">Load</span>
-            <code class="tw:font-mono tw:text-foreground">{{ status.loadavg.join(' / ') }}</code>
-          </div>
+            <code class="tw:ml-2 tw:font-mono">{{
+              status.loadavg.join(' / ')
+            }}</code>
+          </span>
+          <span v-if="health" class="tw:text-sm">
+            <span class="tw:text-muted-foreground">API</span>
+            <code class="tw:ml-2 tw:font-mono">{{ health.version }}</code>
+          </span>
         </div>
-        <p v-else class="tw:text-sm tw:text-muted-foreground">
-          {{ loading ? 'Checking…' : 'No health data yet.' }}
-        </p>
-      </CardContent>
-    </Card>
+        <Button variant="ghost" size="sm" :disabled="loading" @click="load">
+          {{ loading ? 'Refreshing…' : 'Refresh state' }}
+        </Button>
+      </div>
 
-    <Card v-if="publicKey">
-      <CardHeader>
-        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
-          <span>Recent operations</span>
+      <RuledSection title="Needs attention" labelledby="attention-title">
+        <ul
+          v-if="attentionOperations.length"
+          class="tw:m-0 tw:divide-y tw:divide-border-subtle tw:border-y tw:border-border-subtle tw:p-0"
+        >
+          <li
+            v-for="op in attentionOperations"
+            :key="op.id"
+            class="tw:flex tw:items-center tw:justify-between tw:gap-4 tw:py-3"
+          >
+            <div class="tw:min-w-0">
+              <strong class="tw:block tw:text-sm">{{
+                op.tool ?? 'Signed operation'
+              }}</strong>
+              <code
+                class="tw:block tw:truncate tw:font-mono tw:text-xs tw:text-muted-foreground"
+                >{{ op.request_id }}</code
+              >
+            </div>
+            <Badge :variant="operationStateVariant(op.state)">{{
+              op.state
+            }}</Badge>
+          </li>
+        </ul>
+        <div
+          v-else
+          class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:py-2"
+        >
+          <StatusMark
+            state="healthy"
+            label="No recent operations need attention"
+          />
+          <RouterLink
+            :to="{ name: 'native-diagnosis' }"
+            class="workbench-link tw:text-sm"
+            >Open diagnosis →</RouterLink
+          >
+        </div>
+      </RuledSection>
+
+      <RuledSection title="Recent signed activity" labelledby="activity-title">
+        <template #actions>
           <RouterLink
             :to="{ name: 'native-operations' }"
-            class="tw:text-xs tw:font-medium tw:text-brand-500 tw:hover:underline"
-            >View all →</RouterLink
+            class="workbench-link tw:text-sm"
+            >View ledger →</RouterLink
           >
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul v-if="recentOperations && recentOperations.length" class="tw:grid tw:gap-2">
+        </template>
+        <ul
+          v-if="recentOperations && recentOperations.length"
+          class="tw:m-0 tw:divide-y tw:divide-border-subtle tw:border-y tw:border-border-subtle tw:p-0"
+        >
           <li
             v-for="op in recentOperations"
             :key="op.id"
-            class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
+            class="tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:py-3 tw:text-sm"
           >
-            <code class="tw:font-mono tw:text-xs">{{ op.tool ?? op.request_id }}</code>
-            <Badge :variant="operationStateVariant(op.state)">{{ op.state }}</Badge>
+            <div class="tw:min-w-0">
+              <strong class="tw:block tw:font-medium">{{
+                op.tool ?? 'Operation'
+              }}</strong>
+              <code
+                class="tw:block tw:truncate tw:font-mono tw:text-xs tw:text-muted-foreground"
+                >{{ op.request_id }}</code
+              >
+            </div>
+            <Badge :variant="operationStateVariant(op.state)">{{
+              op.state
+            }}</Badge>
           </li>
         </ul>
         <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
           Loading…
         </p>
         <EmptyState v-else title="No operations recorded yet" />
-      </CardContent>
-    </Card>
+      </RuledSection>
 
-    <Card v-if="publicKey">
-      <CardHeader>
-        <CardTitle class="tw:flex tw:items-center tw:justify-between tw:gap-2">
-          <span>Diagnosis</span>
-          <RouterLink
-            :to="{ name: 'native-diagnosis' }"
-            class="tw:text-xs tw:font-medium tw:text-brand-500 tw:hover:underline"
-            >View report →</RouterLink
-          >
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p class="tw:text-sm tw:text-muted-foreground">
-          Per-category health checks — DNS, mail, ports, services, and more.
-          Reachability alone doesn't cover this; open the full report to see
-          current issues and manage ignore filters.
-        </p>
-      </CardContent>
-    </Card>
-
-    <Card v-if="publicKey">
-      <CardHeader>
-        <CardTitle>Installed versions</CardTitle>
-      </CardHeader>
-      <CardContent class="tw:grid tw:gap-5">
-        <template v-if="versions && Object.keys(versions).length">
-          <div v-if="nostrhostVersions.length" class="tw:grid tw:gap-2">
-            <p
-              class="tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+      <RuledSection title="System inventory" labelledby="inventory-title">
+        <div class="tw:grid tw:gap-8 tw:md:grid-cols-2">
+          <div class="tw:min-w-0">
+            <h3
+              class="tw:m-0 tw:text-xs tw:font-semibold tw:text-muted-foreground"
             >
               NostrHost
-            </p>
-            <ul class="tw:grid tw:gap-2">
-              <li
+            </h3>
+            <dl
+              class="tw:mt-2 tw:divide-y tw:divide-border-subtle tw:border-y tw:border-border-subtle"
+            >
+              <div
                 v-for="entry in nostrhostVersions"
                 :key="entry.name"
-                class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+                class="tw:flex tw:justify-between tw:gap-3 tw:py-2.5 tw:text-sm"
               >
-                <span class="tw:text-sm tw:text-foreground">{{
-                  entry.label
-                }}</span>
-                <span class="tw:text-sm tw:text-muted-foreground">
+                <dt>{{ entry.label }}</dt>
+                <dd
+                  class="tw:m-0 tw:font-mono tw:text-xs tw:text-muted-foreground"
+                >
                   {{ entry.info.version ?? 'unknown' }}
-                  <template v-if="entry.info.repo">
-                    · {{ entry.info.repo }}</template
-                  >
-                </span>
-              </li>
-            </ul>
+                </dd>
+              </div>
+            </dl>
           </div>
-
-          <div v-if="platformVersions.length" class="tw:grid tw:gap-2">
-            <p
-              class="tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+          <div class="tw:min-w-0">
+            <h3
+              class="tw:m-0 tw:text-xs tw:font-semibold tw:text-muted-foreground"
             >
-              Platform (built on YunoHost)
-            </p>
-            <ul class="tw:grid tw:gap-2">
-              <li
+              Platform
+            </h3>
+            <dl
+              class="tw:mt-2 tw:divide-y tw:divide-border-subtle tw:border-y tw:border-border-subtle"
+            >
+              <div
                 v-for="entry in platformVersions"
                 :key="entry.name"
-                class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+                class="tw:flex tw:justify-between tw:gap-3 tw:py-2.5 tw:text-sm"
               >
-                <span class="tw:text-sm tw:text-foreground">{{
-                  entry.label
-                }}</span>
-                <span class="tw:text-sm tw:text-muted-foreground">
+                <dt>{{ entry.label }}</dt>
+                <dd
+                  class="tw:m-0 tw:font-mono tw:text-xs tw:text-muted-foreground"
+                >
                   {{ entry.info.version ?? 'unknown' }}
-                  <template v-if="entry.info.repo">
-                    · {{ entry.info.repo }}</template
-                  >
-                </span>
-              </li>
-            </ul>
+                </dd>
+              </div>
+            </dl>
           </div>
-        </template>
-        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
-          Loading…
+        </div>
+        <p
+          v-if="!loading && !versions"
+          class="tw:text-sm tw:text-muted-foreground"
+        >
+          No version data yet.
         </p>
-        <EmptyState v-else title="No version data yet" />
-      </CardContent>
-    </Card>
+      </RuledSection>
 
-    <Card v-if="publicKey">
-      <CardHeader>
-        <CardTitle>Linked identities</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ul v-if="identities && identities.length" class="tw:grid tw:gap-2">
-          <li
-            v-for="identity in identities"
-            :key="identity.pubkey"
-            class="tw:grid tw:gap-1 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+      <RuledSection title="Linked identities" labelledby="identities-title">
+        <template #actions>
+          <RouterLink
+            :to="{ name: 'native-identities' }"
+            class="workbench-link tw:text-sm"
+            >Manage identities →</RouterLink
           >
-            <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-              <strong class="tw:text-sm tw:text-foreground">{{
-                identity.username
-              }}</strong>
-              <Badge :variant="identity.enabled ? 'success' : 'neutral'">
-                {{ identity.enabled ? 'Enabled' : 'Disabled' }}
-              </Badge>
-            </div>
-            <code class="tw:font-mono tw:text-xs tw:text-muted-foreground">{{
-              shortenKey(identity.pubkey)
-            }}</code>
-            <span class="tw:text-xs tw:text-muted-foreground"
-              >{{ identity.signer_type
-              }}<template v-if="identity.label">
-                · {{ identity.label }}</template
-              ></span
+        </template>
+        <div v-if="identities && identities.length" class="tw:overflow-x-auto">
+          <table class="tw:w-full tw:border-collapse tw:text-left tw:text-sm">
+            <thead
+              class="tw:border-y tw:border-border-subtle tw:text-xs tw:text-muted-foreground"
             >
-          </li>
-        </ul>
-        <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
-          Loading…
-        </p>
-        <EmptyState v-else title="No linked identities yet" />
-      </CardContent>
-    </Card>
+              <tr>
+                <th class="tw:py-2 tw:font-medium">Account</th>
+                <th class="tw:py-2 tw:font-medium">Signer</th>
+                <th class="tw:py-2 tw:font-medium">Public key</th>
+                <th class="tw:py-2 tw:text-right tw:font-medium">State</th>
+              </tr>
+            </thead>
+            <tbody class="tw:divide-y tw:divide-border-subtle">
+              <tr v-for="identity in identities" :key="identity.pubkey">
+                <td class="tw:py-3 tw:font-medium">{{ identity.username }}</td>
+                <td class="tw:py-3 tw:text-muted-foreground">
+                  {{ identity.signer_type }}
+                </td>
+                <td class="tw:py-3">
+                  <code class="tw:font-mono tw:text-xs">{{
+                    shortenKey(identity.pubkey)
+                  }}</code>
+                </td>
+                <td class="tw:py-3 tw:text-right">
+                  <Badge :variant="identity.enabled ? 'success' : 'neutral'">{{
+                    identity.enabled ? 'Enabled' : 'Disabled'
+                  }}</Badge>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <EmptyState v-else-if="!loading" title="No linked identities yet" />
+      </RuledSection>
+    </template>
   </PageLayout>
 </template>

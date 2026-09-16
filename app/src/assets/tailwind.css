@@ -46,27 +46,113 @@
   --color-muted-foreground: var(--nh-muted-foreground);
   --color-border-subtle: var(--nh-border);
   --color-border-subtle-dark: var(--nh-border);
+  --color-canvas: var(--nh-canvas);
+  --color-workbench: var(--nh-workbench);
+  --color-selection: var(--nh-selection);
+  --color-signature: var(--nh-signature);
+  --color-healthy: var(--nh-healthy);
+  --color-caution: var(--nh-caution);
+  --color-destructive: var(--nh-destructive);
+  --color-focus: var(--nh-focus);
 }
 
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --nh-background: #121222;
-  --nh-foreground: #f1f5f9;
-  --nh-surface: #16162b;
-  --nh-surface-muted: #1e1e33;
-  --nh-muted-foreground: #94a3b8;
-  --nh-border: #2a2a47;
+  --nh-canvas: #171814;
+  --nh-background: var(--nh-canvas);
+  --nh-foreground: #ece9df;
+  --nh-workbench: #1d1f1a;
+  --nh-surface: var(--nh-workbench);
+  --nh-surface-muted: #262821;
+  --nh-muted-foreground: #aaa697;
+  --nh-border: #3b3c34;
+  --nh-selection: #302a43;
+  --nh-signature: #b6a0f5;
+  --nh-healthy: #78c8a5;
+  --nh-caution: #e3b765;
+  --nh-destructive: #ef8e87;
+  --nh-focus: #c8b5ff;
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --nh-background: #f8f7fc;
-  --nh-foreground: #201b2e;
-  --nh-surface: #ffffff;
-  --nh-surface-muted: #f1eff7;
-  --nh-muted-foreground: #686279;
-  --nh-border: #e5e1ef;
+  --nh-canvas: #f2efe7;
+  --nh-background: var(--nh-canvas);
+  --nh-foreground: #24231f;
+  --nh-workbench: #fbfaf6;
+  --nh-surface: var(--nh-workbench);
+  --nh-surface-muted: #eae6dc;
+  --nh-muted-foreground: #686459;
+  --nh-border: #cec8bb;
+  --nh-selection: #e9e1fa;
+  --nh-signature: #6347a8;
+  --nh-healthy: #27684f;
+  --nh-caution: #85530b;
+  --nh-destructive: #a33e39;
+  --nh-focus: #6347a8;
+}
+
+@layer base {
+  html {
+    background: var(--nh-canvas);
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    background: var(--nh-canvas);
+    color: var(--nh-foreground);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: var(--nh-selection);
+  }
+
+  :focus-visible {
+    outline-color: var(--nh-focus);
+  }
+}
+
+/* Product-level patterns intentionally live here rather than in every view. */
+@layer components {
+  .workbench-link {
+    color: var(--nh-signature);
+    text-underline-offset: 0.18em;
+  }
+
+  .workbench-rule {
+    border-color: var(--nh-border);
+    border-top-width: 1px;
+  }
+
+  /* Legacy views still carry old radius utilities while they migrate to the
+     workbench primitives. Keep them visually within the same restrained
+     system instead of letting nested SaaS-style cards reappear. */
+  [class~='tw:rounded-lg'],
+  [class~='tw:rounded-xl'],
+  [class~='tw:rounded-2xl'] {
+    border-radius: 3px;
+  }
+
+  @media (pointer: coarse) {
+    button,
+    a,
+    select,
+    input[type='checkbox'],
+    input[type='radio'] {
+      min-height: 44px;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

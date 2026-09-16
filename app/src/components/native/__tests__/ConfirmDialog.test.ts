@@ -8,7 +8,9 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: { open: true, tier: 'soft', title: 'Create group?' },
     })
-    const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Confirm')
+    const confirmButton = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Confirm')
     expect(confirmButton?.attributes('disabled')).toBeUndefined()
   })
 
@@ -16,7 +18,9 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: { open: true, tier: 'disruptive', title: 'Restart service?' },
     })
-    const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Confirm')
+    const confirmButton = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Confirm')
     expect(confirmButton?.attributes('disabled')).toBeUndefined()
   })
 
@@ -29,7 +33,8 @@ describe('ConfirmDialog', () => {
         confirmPhrase: 'shutdown',
       },
     })
-    const confirmButton = () => wrapper.findAll('button').find((b) => b.text() === 'Confirm')
+    const confirmButton = () =>
+      wrapper.findAll('button').find((b) => b.text() === 'Confirm')
     expect(confirmButton()?.attributes('disabled')).toBeDefined()
 
     const input = wrapper.find('input[type="text"]')
@@ -44,7 +49,9 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: { open: true, tier: 'soft', title: 'Create group?', busy: true },
     })
-    const confirmButton = wrapper.findAll('button').find((b) => b.text() === 'Working…')
+    const confirmButton = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Working…')
     expect(confirmButton?.attributes('disabled')).toBeDefined()
   })
 
@@ -52,10 +59,28 @@ describe('ConfirmDialog', () => {
     const wrapper = mount(ConfirmDialog, {
       props: { open: true, tier: 'soft', title: 'Create group?' },
     })
-    await wrapper.findAll('button').find((b) => b.text() === 'Cancel')!.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Cancel')!
+      .trigger('click')
     expect(wrapper.emitted('cancel')).toHaveLength(1)
 
-    await wrapper.findAll('button').find((b) => b.text() === 'Confirm')!.trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Confirm')!
+      .trigger('click')
     expect(wrapper.emitted('confirm')).toHaveLength(1)
+  })
+
+  it('closes from Escape', async () => {
+    const wrapper = mount(ConfirmDialog, {
+      props: { open: true, tier: 'soft', title: 'Create group?' },
+      attachTo: document.body,
+    })
+    await wrapper
+      .get('[role="alertdialog"]')
+      .trigger('keydown', { key: 'Escape' })
+    expect(wrapper.emitted('cancel')).toHaveLength(1)
+    wrapper.unmount()
   })
 })

@@ -6,9 +6,9 @@ import {
   resetAllSettings,
   resetSetting,
   setSetting,
+  type FullSettingOption,
   type SettingValue,
 } from '@/api/nativeSettings'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,14 @@ import PageLayout from '@/components/native/PageLayout.vue'
 const { success } = useNotifications()
 
 const settings = ref<Record<string, SettingValue>>({})
+type SettingMeta = {
+  label: string
+  help?: string
+  type: FullSettingOption['type']
+  choices: Array<{ value: string; label: string }>
+  group: string
+}
+const metadata = ref<Record<string, SettingMeta>>({})
 
 const busy = ref('')
 const { run } = useActionRunner(busy, '')
@@ -31,17 +39,68 @@ const { run } = useActionRunner(busy, '')
 const settingKeys = computed(() => Object.keys(settings.value).sort())
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
-  const result = await getSettings()
-  settings.value = result.settings
+  const result = await getSettings(true)
+  const nextValues: Record<string, SettingValue> = {}
+  const nextMetadata: Record<string, SettingMeta> = {}
+  const text = (
+    value: string | Record<string, string> | undefined,
+    fallback: string,
+  ) =>
+    typeof value === 'string'
+      ? value
+      : value?.en || Object.values(value || {})[0] || fallback
+
+  for (const panel of result.settings.panels || []) {
+    for (const section of panel.sections || []) {
+      for (const option of section.options || []) {
+        const key = [panel.id, section.id, option.id].filter(Boolean).join('.')
+        const rawValue =
+          option.current_value ?? option.value ?? option.default ?? null
+        const value =
+          option.type === 'boolean'
+            ? rawValue === true ||
+              rawValue === 1 ||
+              rawValue === '1' ||
+              rawValue === 'true'
+            : option.type === 'number' || option.type === 'integer'
+              ? rawValue === null || rawValue === ''
+                ? null
+                : Number(rawValue)
+              : rawValue
+        nextValues[key] = value
+        nextMetadata[key] = {
+          label: text(option.ask || option.name, option.id),
+          help: option.help ? text(option.help, '') : undefined,
+          type: option.type,
+          choices: (option.choices || []).map((choice) =>
+            typeof choice === 'string'
+              ? { value: choice, label: choice }
+              : { value: choice.value, label: choice.label || choice.value },
+          ),
+          group: text(section.name, section.id || text(panel.name, panel.id)),
+        }
+      }
+    }
+  }
+
+  if (Object.keys(nextValues).length === 0) {
+    const fallback = await getSettings()
+    settings.value = fallback.settings
+    metadata.value = {}
+  } else {
+    settings.value = nextValues
+    metadata.value = nextMetadata
+  }
 }, 'Failed to load settings.')
 
 // -- edit a setting -------------------------------------------------------------
 
-type EditorKind = 'boolean' | 'number' | 'text'
+type EditorKind = 'boolean' | 'number' | 'text' | 'select'
 
 const editingKey = ref<string | null>(null)
 const editValue = ref('')
 const editorKind = ref<EditorKind>('text')
+const editorChoices = ref<Array<{ value: string; label: string }>>([])
 
 function kindOf(value: SettingValue): EditorKind {
   if (typeof value === 'boolean') return 'boolean'
@@ -51,7 +110,15 @@ function kindOf(value: SettingValue): EditorKind {
 
 function startEdit(key: string) {
   editingKey.value = key
-  editorKind.value = kindOf(settings.value[key])
+  const meta = metadata.value[key]
+  editorChoices.value = meta?.choices || []
+  editorKind.value = editorChoices.value.length
+    ? 'select'
+    : meta?.type === 'boolean'
+      ? 'boolean'
+      : meta?.type === 'number' || meta?.type === 'integer'
+        ? 'number'
+        : kindOf(settings.value[key])
   editValue.value = String(settings.value[key] ?? '')
 }
 
@@ -168,12 +235,29 @@ async function confirmResetAll() {
             <li
               v-for="key in settingKeys"
               :key="key"
-              class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+              class="tw:grid tw:gap-2 tw:border-b tw:border-border-subtle tw:py-4 last:tw:border-b-0"
             >
               <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <code class="tw:font-mono tw:text-sm">{{ key }}</code>
+                <div class="tw:min-w-0">
+                  <strong class="tw:block tw:text-sm">{{
+                    metadata[key]?.label || key
+                  }}</strong>
+                  <code
+                    class="tw:mt-0.5 tw:block tw:font-mono tw:text-[11px] tw:text-muted-foreground"
+                    >{{ key }}</code
+                  >
+                  <p
+                    v-if="metadata[key]?.help"
+                    class="tw:mb-0 tw:mt-1 tw:max-w-2xl tw:text-xs tw:leading-5 tw:text-muted-foreground"
+                  >
+                    {{ metadata[key].help }}
+                  </p>
+                </div>
                 <span class="tw:flex tw:items-center tw:gap-2">
-                  <Badge variant="neutral">{{ String(settings[key]) }}</Badge>
+                  <span
+                    class="tw:max-w-48 tw:truncate tw:text-sm tw:text-muted-foreground"
+                    >{{ String(settings[key]) }}</span
+                  >
                   <template v-if="confirmingReset === key">
                     <span class="tw:text-xs tw:text-muted-foreground"
                       >Reset?</span
@@ -212,7 +296,7 @@ async function confirmResetAll() {
 
               <div
                 v-if="editingKey === key"
-                class="tw:grid tw:gap-2 tw:rounded-lg tw:bg-surface-muted tw:p-3"
+                class="tw:grid tw:gap-2 tw:border-l-2 tw:border-signature tw:bg-selection/35 tw:p-3"
               >
                 <Select
                   v-if="editorKind === 'boolean'"
@@ -221,6 +305,19 @@ async function confirmResetAll() {
                 >
                   <option value="true">true</option>
                   <option value="false">false</option>
+                </Select>
+                <Select
+                  v-else-if="editorKind === 'select'"
+                  v-model="editValue"
+                  class="tw:max-w-[320px]"
+                >
+                  <option
+                    v-for="choice in editorChoices"
+                    :key="choice.value"
+                    :value="choice.value"
+                  >
+                    {{ choice.label }}
+                  </option>
                 </Select>
                 <Input
                   v-else

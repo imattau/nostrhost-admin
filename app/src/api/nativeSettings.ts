@@ -6,6 +6,37 @@ export type SettingsList = {
   settings: Record<string, SettingValue>
 }
 
+export type FullSettingOption = {
+  id: string
+  name?: string | Record<string, string>
+  type: 'boolean' | 'number' | 'integer' | 'string' | 'select' | string
+  current_value?: SettingValue
+  value?: SettingValue
+  default?: SettingValue
+  ask?: string | Record<string, string>
+  help?: string | Record<string, string>
+  choices?: Array<string | { value: string; label?: string }>
+}
+
+export type FullSettingSection = {
+  id: string
+  name?: string | Record<string, string>
+  options?: FullSettingOption[]
+}
+
+export type FullSettingPanel = {
+  id: string
+  name?: string | Record<string, string>
+  sections?: FullSettingSection[]
+}
+
+export type SettingsFullList = {
+  settings: {
+    panels?: FullSettingPanel[]
+    [field: string]: unknown
+  }
+}
+
 export type LifecycleOperation = {
   ok: boolean
   request_id?: string
@@ -13,8 +44,10 @@ export type LifecycleOperation = {
   [field: string]: unknown
 }
 
+export function getSettings(full: true): Promise<SettingsFullList>
+export function getSettings(full?: false): Promise<SettingsList>
 export function getSettings(full = false) {
-  return request<SettingsList>(
+  return request<SettingsList | SettingsFullList>(
     `/package/settings/list${full ? '?full=true' : ''}`,
     'GET',
   )

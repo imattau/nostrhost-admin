@@ -10,11 +10,11 @@ defineProps<{
 
 <template>
   <div
-    class="tw:flex tw:flex-col tw:items-center tw:gap-3 tw:rounded-xl tw:border tw:border-dashed tw:border-border-subtle tw:p-8 tw:text-center"
+    class="tw:flex tw:flex-col tw:items-center tw:gap-3 tw:border-y tw:border-border-subtle tw:py-8 tw:text-center"
   >
     <span
       v-if="icon"
-      class="tw:flex tw:size-10 tw:items-center tw:justify-center tw:rounded-full tw:bg-surface-muted tw:text-muted-foreground"
+      class="tw:flex tw:size-10 tw:items-center tw:justify-center tw:text-muted-foreground"
     >
       <component :is="icon" class="tw:size-5" aria-hidden="true" />
     </span>

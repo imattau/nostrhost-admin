@@ -8,7 +8,10 @@ const props = withDefaults(defineProps<{ class?: string }>(), {
 })
 
 const classes = computed(() =>
-  cn('tw:text-lg tw:font-bold tw:text-foreground', props.class),
+  cn(
+    'tw:text-base tw:font-semibold tw:tracking-tight tw:text-foreground',
+    props.class,
+  ),
 )
 </script>
 

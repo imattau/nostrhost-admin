@@ -7,20 +7,30 @@ defineProps<{
 </script>
 
 <template>
-  <header class="tw:border-b tw:border-border-subtle tw:pb-4">
-    <div class="tw:flex tw:flex-col tw:gap-1 tw:sm:flex-row tw:sm:items-start tw:sm:justify-between">
+  <header class="tw:pb-7">
+    <div
+      class="tw:flex tw:flex-col tw:gap-3 tw:sm:flex-row tw:sm:items-end tw:sm:justify-between"
+    >
       <div>
-        <p
-          class="tw:font-mono tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-brand-500"
-        >
+        <p class="tw:m-0 tw:text-xs tw:font-semibold tw:text-muted-foreground">
           {{ eyebrow }}
         </p>
-        <h1 class="tw:mt-1 tw:text-2xl tw:font-bold tw:text-foreground">{{ title }}</h1>
-        <p v-if="description" class="tw:mt-2 tw:max-w-2xl tw:text-sm tw:text-muted-foreground">
+        <h1
+          class="tw:mb-0 tw:mt-2 tw:text-[1.75rem] tw:font-semibold tw:leading-tight tw:tracking-[-0.025em] tw:text-foreground"
+        >
+          {{ title }}
+        </h1>
+        <p
+          v-if="description"
+          class="tw:mb-0 tw:mt-2 tw:max-w-3xl tw:text-sm tw:leading-6 tw:text-muted-foreground"
+        >
           {{ description }}
         </p>
       </div>
-      <div v-if="$slots.actions" class="tw:flex tw:shrink-0 tw:items-center tw:gap-2">
+      <div
+        v-if="$slots.actions"
+        class="tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:pb-0.5"
+      >
         <slot name="actions" />
       </div>
     </div>

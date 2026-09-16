@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   createBackup,
@@ -10,6 +11,7 @@ import {
   type BackupArchiveDetail,
   type BackupArchiveInfo,
 } from '@/api/nativeBackups'
+import { getAppManagement } from '@/api/nativePackages'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -21,17 +23,35 @@ import { useNotifications } from '@/composables/useNotifications'
 import { parseList } from '@/lib/utils'
 import { toErrorMessage } from '@/utils/errors'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
+import ActionMenu from '@/components/native/ActionMenu.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { success, danger } = useNotifications()
+const route = useRoute()
+const router = useRouter()
 
 const archives = ref<Record<string, BackupArchiveInfo>>({})
+const installedApps = ref<Array<{ id: string; name: string }>>([])
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
-  const result = await getBackups()
+  const [result, inventory] = await Promise.all([
+    getBackups(),
+    getAppManagement(),
+  ])
   archives.value = result.archives
+  installedApps.value = inventory.apps
+    .filter((app) => app.installed)
+    .map((app) => ({ id: app.id, name: app.name }))
+  const requested = route.query.archive
+  if (
+    typeof requested === 'string' &&
+    archives.value[requested] &&
+    expandedArchive.value !== requested
+  ) {
+    await toggleDetail(requested)
+  }
 }, 'Failed to load backups.')
 
 // -- archive contents (expand-in-place) --------------------------------------
@@ -42,7 +62,11 @@ const archiveDetail = ref<BackupArchiveDetail | null>(null)
 async function toggleDetail(name: string) {
   if (expandedArchive.value === name) {
     expandedArchive.value = null
+    await router.replace({ query: { ...route.query, archive: undefined } })
     return
+  }
+  if (route.query.archive !== name) {
+    await router.replace({ query: { ...route.query, archive: name } })
   }
   expandedArchive.value = name
   archiveDetail.value = null
@@ -53,6 +77,14 @@ async function toggleDetail(name: string) {
     danger(toErrorMessage(cause, `Failed to load contents of ${name}.`))
   }
 }
+
+watch(
+  () => route.query.archive,
+  async (archive) => {
+    if (typeof archive !== 'string' || expandedArchive.value === archive) return
+    if (archives.value[archive]) await toggleDetail(archive)
+  },
+)
 const busy = ref('')
 const { run } = useActionRunner(busy, '')
 
@@ -80,7 +112,7 @@ function formatSize(size: number | string) {
 const showCreateForm = ref(false)
 const createName = ref('')
 const createDescription = ref('')
-const createApps = ref('')
+const createApps = ref<string[]>([])
 const createSystem = ref('')
 const { pending: confirmingCreate, request: requestCreateConfirm } =
   useConfirm(false)
@@ -88,7 +120,7 @@ const { pending: confirmingCreate, request: requestCreateConfirm } =
 function resetCreateForm() {
   createName.value = ''
   createDescription.value = ''
-  createApps.value = ''
+  createApps.value = []
   createSystem.value = ''
   confirmingCreate.value = false
 }
@@ -106,7 +138,7 @@ async function confirmCreate() {
       const result = await createBackup({
         name: createName.value.trim() || undefined,
         description: createDescription.value.trim() || undefined,
-        apps: parseList(createApps.value),
+        apps: createApps.value,
         system: parseList(createSystem.value),
       })
       success(
@@ -226,15 +258,25 @@ async function confirmDelete(name: string) {
           </div>
           <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
             <div class="tw:grid tw:gap-1.5">
-              <Label for="backup-create-apps"
-                >Apps (comma-separated, blank = all)</Label
-              >
-              <Input
+              <Label for="backup-create-apps">Apps to include</Label>
+              <select
                 id="backup-create-apps"
                 v-model="createApps"
-                placeholder="nextcloud, wordpress"
-                autocomplete="off"
-              />
+                multiple
+                class="tw:min-h-32 tw:w-full tw:rounded-[3px] tw:border tw:border-border-subtle tw:bg-workbench tw:px-3 tw:py-2 tw:text-sm tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-focus"
+              >
+                <option
+                  v-for="app in installedApps"
+                  :key="app.id"
+                  :value="app.id"
+                >
+                  {{ app.name }} · {{ app.id }}
+                </option>
+              </select>
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                Leave empty to include every installed app. Use Ctrl/⌘ to select
+                several.
+              </p>
             </div>
             <div class="tw:grid tw:gap-1.5">
               <Label for="backup-create-system"
@@ -247,28 +289,7 @@ async function confirmDelete(name: string) {
               />
             </div>
           </div>
-          <div
-            v-if="confirmingCreate"
-            class="tw:flex tw:items-center tw:justify-end tw:gap-2"
-          >
-            <span class="tw:text-xs tw:text-muted-foreground"
-              >Create this backup archive now?</span
-            >
-            <Button
-              variant="outline"
-              size="sm"
-              @click="confirmingCreate = false"
-              >Cancel</Button
-            >
-            <Button
-              variant="danger"
-              size="sm"
-              :disabled="busy !== ''"
-              @click="confirmCreate"
-              >Confirm</Button
-            >
-          </div>
-          <div v-else class="tw:flex tw:justify-end">
+          <div class="tw:flex tw:justify-end">
             <Button size="sm" :disabled="busy !== ''" @click="requestCreate">{{
               busy === 'create' ? 'Creating…' : 'Create backup'
             }}</Button>
@@ -366,21 +387,37 @@ async function confirmDelete(name: string) {
                   busy === `restore-${archive.name}` ? 'Restoring…' : 'Restore'
                 }}</Button
               >
-              <Button
-                variant="danger"
-                size="sm"
-                :disabled="busy !== ''"
-                @click="requestDelete(archive.name)"
-                >{{
-                  busy === `delete-${archive.name}` ? 'Deleting…' : 'Delete'
-                }}</Button
-              >
+              <ActionMenu :label="`More actions for ${archive.name}`">
+                <button
+                  type="button"
+                  role="menuitem"
+                  class="tw:flex tw:min-h-10 tw:w-full tw:items-center tw:px-3 tw:py-2 tw:text-left tw:text-sm tw:font-medium tw:text-destructive tw:hover:bg-surface-muted"
+                  :disabled="busy !== ''"
+                  @click="requestDelete(archive.name)"
+                >
+                  {{
+                    busy === `delete-${archive.name}`
+                      ? 'Deleting…'
+                      : 'Delete archive'
+                  }}
+                </button>
+              </ActionMenu>
             </div>
           </li>
         </ul>
       </CardContent>
     </Card>
 
+    <ConfirmDialog
+      :open="confirmingCreate"
+      tier="soft"
+      title="Create this backup?"
+      description="The selected apps and system configuration are copied into a new local archive."
+      confirm-label="Create backup"
+      :busy="busy === 'create'"
+      @confirm="confirmCreate"
+      @cancel="confirmingCreate = false"
+    />
     <ConfirmDialog
       :open="confirmingRestore !== null"
       tier="disruptive"

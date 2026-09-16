@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   DNS_PROVIDER_TYPES,
@@ -40,6 +41,8 @@ import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { success, danger } = useNotifications()
+const route = useRoute()
+const router = useRouter()
 
 const domains = ref<string[]>([])
 const selectedDomain = ref<string | null>(null)
@@ -77,9 +80,20 @@ const { publicKey, sync, loading, load } = useAsyncResource(async () => {
     selectedDomain.value = null
     inspect.value = null
   }
+  const requested = route.query.domain
+  if (
+    !selectedDomain.value &&
+    typeof requested === 'string' &&
+    domains.value.includes(requested)
+  ) {
+    await selectDomain(requested)
+  }
 }, 'Failed to load domains.')
 
 async function selectDomain(domain: string) {
+  if (route.query.domain !== domain) {
+    await router.replace({ query: { ...route.query, domain } })
+  }
   selectedDomain.value = domain
   inspect.value = null
   await runInspect(
@@ -91,6 +105,20 @@ async function selectDomain(domain: string) {
     `Failed to inspect ${domain}.`,
   )
 }
+
+watch(
+  () => route.query.domain,
+  async (domain) => {
+    if (typeof domain !== 'string' || selectedDomain.value === domain) return
+    if (domains.value.includes(domain)) await selectDomain(domain)
+  },
+)
+
+const providerCredentials = computed(() =>
+  credentials.value.filter((credential) =>
+    credential.ref.startsWith(`secret:dns/${addProviderType.value}/`),
+  ),
+)
 
 // -- add domain -------------------------------------------------------------
 
@@ -352,7 +380,7 @@ const driftBadge = computed(() => {
 </script>
 
 <template>
-  <PageLayout>
+  <PageLayout width="workspace">
     <PageHeader
       eyebrow="Network"
       title="Domains"
@@ -360,448 +388,494 @@ const driftBadge = computed(() => {
     />
 
     <template v-if="publicKey">
-      <Card>
-        <CardHeader>
-          <CardTitle
-            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-          >
-            <span>Registered domains</span>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="busy !== ''"
-              @click="showAddForm = !showAddForm"
-              >{{ showAddForm ? 'Cancel' : 'Add domain' }}</Button
+      <div
+        class="tw:grid tw:items-start tw:gap-8 tw:lg:grid-cols-[minmax(17rem,0.75fr)_minmax(24rem,1.25fr)]"
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle
+              class="tw:flex tw:items-center tw:justify-between tw:gap-2"
             >
-          </CardTitle>
-        </CardHeader>
-        <CardContent class="tw:grid tw:gap-4">
-          <div
-            v-if="showAddForm"
-            class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
-          >
-            <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="add-domain-name">Domain name</Label>
-                <Input
-                  id="add-domain-name"
-                  v-model="addDomainName"
-                  placeholder="example.com"
-                  spellcheck="false"
-                  autocomplete="off"
-                />
-              </div>
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="add-domain-provider">DNS provider</Label>
-                <Select id="add-domain-provider" v-model="addProviderType">
-                  <option
-                    v-for="type in DNS_PROVIDER_TYPES"
-                    :key="type"
-                    :value="type"
-                  >
-                    {{ type }}
-                  </option>
-                </Select>
-              </div>
-            </div>
+              <span>Registered domains</span>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="busy !== ''"
+                @click="showAddForm = !showAddForm"
+                >{{ showAddForm ? 'Cancel' : 'Add domain' }}</Button
+              >
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="tw:grid tw:gap-4">
             <div
-              v-if="addProviderType !== 'manual'"
-              class="tw:grid tw:gap-4 tw:sm:grid-cols-2"
+              v-if="showAddForm"
+              class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
             >
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="add-domain-zone">Provider zone (optional)</Label>
-                <Input
-                  id="add-domain-zone"
-                  v-model="addProviderZone"
-                  autocomplete="off"
-                />
+              <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
+                <div class="tw:grid tw:gap-1.5">
+                  <Label for="add-domain-name">Domain name</Label>
+                  <Input
+                    id="add-domain-name"
+                    v-model="addDomainName"
+                    placeholder="example.com"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="tw:grid tw:gap-1.5">
+                  <Label for="add-domain-provider">DNS provider</Label>
+                  <Select id="add-domain-provider" v-model="addProviderType">
+                    <option
+                      v-for="type in DNS_PROVIDER_TYPES"
+                      :key="type"
+                      :value="type"
+                    >
+                      {{ type }}
+                    </option>
+                  </Select>
+                </div>
               </div>
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="add-domain-credential"
-                  >Credential ref (secret:dns/{{
-                    addProviderType
-                  }}/&lt;name&gt;)</Label
-                >
-                <Input
-                  id="add-domain-credential"
-                  v-model="addCredential"
-                  :placeholder="`secret:dns/${addProviderType}/primary`"
-                  autocomplete="off"
-                />
+              <div
+                v-if="addProviderType !== 'manual'"
+                class="tw:grid tw:gap-4 tw:sm:grid-cols-2"
+              >
+                <div class="tw:grid tw:gap-1.5">
+                  <Label for="add-domain-zone">Provider zone (optional)</Label>
+                  <Input
+                    id="add-domain-zone"
+                    v-model="addProviderZone"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="tw:grid tw:gap-1.5">
+                  <Label for="add-domain-credential">Provider credential</Label>
+                  <Select id="add-domain-credential" v-model="addCredential">
+                    <option value="">Choose a stored credential…</option>
+                    <option
+                      v-for="credential in providerCredentials"
+                      :key="credential.ref"
+                      :value="credential.ref"
+                    >
+                      {{
+                        credential.ref.replace(
+                          `secret:dns/${addProviderType}/`,
+                          '',
+                        )
+                      }}
+                    </option>
+                  </Select>
+                  <p
+                    v-if="providerCredentials.length === 0"
+                    class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+                  >
+                    Add a {{ addProviderType }} credential under Advanced first.
+                  </p>
+                </div>
+              </div>
+              <div class="tw:flex tw:flex-wrap tw:gap-4 tw:text-sm">
+                <label class="tw:flex tw:items-center tw:gap-2">
+                  <input
+                    v-model="addPrimary"
+                    type="checkbox"
+                    class="tw:size-4 tw:accent-brand-500"
+                  />
+                  Primary domain
+                </label>
+                <label class="tw:flex tw:items-center tw:gap-2">
+                  <input
+                    v-model="addIpv4"
+                    type="checkbox"
+                    class="tw:size-4 tw:accent-brand-500"
+                  />
+                  IPv4
+                </label>
+                <label class="tw:flex tw:items-center tw:gap-2">
+                  <input
+                    v-model="addIpv6"
+                    type="checkbox"
+                    class="tw:size-4 tw:accent-brand-500"
+                  />
+                  IPv6
+                </label>
+                <label class="tw:flex tw:items-center tw:gap-2">
+                  <input
+                    v-model="addWildcard"
+                    type="checkbox"
+                    class="tw:size-4 tw:accent-brand-500"
+                  />
+                  Wildcard
+                </label>
+                <label class="tw:flex tw:items-center tw:gap-2">
+                  <input
+                    v-model="addNip05"
+                    type="checkbox"
+                    class="tw:size-4 tw:accent-brand-500"
+                  />
+                  NIP-05
+                </label>
+              </div>
+              <div class="tw:flex tw:justify-end">
+                <Button size="sm" :disabled="busy !== ''" @click="requestAdd">{{
+                  busy === 'add' ? 'Registering…' : 'Register domain'
+                }}</Button>
               </div>
             </div>
-            <div class="tw:flex tw:flex-wrap tw:gap-4 tw:text-sm">
-              <label class="tw:flex tw:items-center tw:gap-2">
-                <input
-                  v-model="addPrimary"
-                  type="checkbox"
-                  class="tw:size-4 tw:accent-brand-500"
-                />
-                Primary domain
-              </label>
-              <label class="tw:flex tw:items-center tw:gap-2">
-                <input
-                  v-model="addIpv4"
-                  type="checkbox"
-                  class="tw:size-4 tw:accent-brand-500"
-                />
-                IPv4
-              </label>
-              <label class="tw:flex tw:items-center tw:gap-2">
-                <input
-                  v-model="addIpv6"
-                  type="checkbox"
-                  class="tw:size-4 tw:accent-brand-500"
-                />
-                IPv6
-              </label>
-              <label class="tw:flex tw:items-center tw:gap-2">
-                <input
-                  v-model="addWildcard"
-                  type="checkbox"
-                  class="tw:size-4 tw:accent-brand-500"
-                />
-                Wildcard
-              </label>
-              <label class="tw:flex tw:items-center tw:gap-2">
-                <input
-                  v-model="addNip05"
-                  type="checkbox"
-                  class="tw:size-4 tw:accent-brand-500"
-                />
-                NIP-05
-              </label>
-            </div>
-            <div class="tw:flex tw:justify-end">
-              <Button size="sm" :disabled="busy !== ''" @click="requestAdd">{{
-                busy === 'add' ? 'Registering…' : 'Register domain'
-              }}</Button>
-            </div>
-          </div>
 
-          <EmptyState
-            v-if="!loading && domains.length === 0"
-            title="No domains registered yet"
-            description="Register a domain above to start provisioning apps and sites on it."
-          />
-          <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
-            Loading…
-          </p>
-          <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
-            <li
-              v-for="domain in domains"
-              :key="domain"
-              class="tw:rounded-lg tw:border tw:p-3"
-              :class="
-                selectedDomain === domain
-                  ? 'tw:border-brand-500 tw:bg-brand-500/5'
-                  : 'tw:border-border-subtle'
-              "
-            >
-              <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <button
-                  type="button"
-                  class="tw:m-0 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-sm tw:text-foreground"
-                  @click="selectDomain(domain)"
+            <EmptyState
+              v-if="!loading && domains.length === 0"
+              title="No domains registered yet"
+              description="Register a domain above to start provisioning apps and sites on it."
+            />
+            <p v-else-if="loading" class="tw:text-sm tw:text-muted-foreground">
+              Loading…
+            </p>
+            <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
+              <li
+                v-for="domain in domains"
+                :key="domain"
+                class="tw:rounded-lg tw:border tw:p-3"
+                :class="
+                  selectedDomain === domain
+                    ? 'tw:border-brand-500 tw:bg-brand-500/5'
+                    : 'tw:border-border-subtle'
+                "
+              >
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
                 >
-                  {{ domain }}
-                </button>
+                  <button
+                    type="button"
+                    class="tw:m-0 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:font-mono tw:text-sm tw:text-foreground"
+                    @click="selectDomain(domain)"
+                  >
+                    {{ domain }}
+                  </button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="busy !== ''"
+                    @click="requestRemove(domain)"
+                    >{{
+                      busy === `remove-${domain}` ? 'Removing…' : 'Remove'
+                    }}</Button
+                  >
+                </div>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card v-if="selectedDomain">
+          <CardHeader>
+            <CardTitle
+              class="tw:flex tw:items-center tw:justify-between tw:gap-2"
+            >
+              <span class="tw:font-mono">{{ selectedDomain }}</span>
+              <span class="tw:flex tw:items-center tw:gap-2">
+                <RouterLink
+                  :to="{ name: 'native-nsites' }"
+                  class="tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
+                  >View sites →</RouterLink
+                >
+                <Badge v-if="inspect" :variant="driftBadge.variant">{{
+                  driftBadge.label
+                }}</Badge>
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent class="tw:grid tw:gap-4">
+            <p
+              v-if="inspectLoading"
+              class="tw:text-sm tw:text-muted-foreground"
+            >
+              Loading…
+            </p>
+            <template v-else-if="inspect">
+              <div class="tw:grid tw:gap-1 tw:text-sm">
+                <p class="tw:m-0">
+                  Provider
+                  <code class="tw:font-mono">{{ inspect.provider.type }}</code>
+                  · mode
+                  <code class="tw:font-mono">{{ inspect.mode }}</code>
+                  <template v-if="inspect.domain.primary">
+                    · <Badge variant="neutral">primary</Badge>
+                  </template>
+                </p>
+                <p
+                  v-if="inspect.drift.note"
+                  class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+                >
+                  {{ inspect.drift.note }}
+                </p>
+              </div>
+
+              <div v-if="inspect.plan.changes?.length" class="tw:grid tw:gap-1">
+                <p
+                  class="tw:m-0 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+                >
+                  Pending DNS changes
+                </p>
+                <ul class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
+                  <li
+                    v-for="(change, index) in inspect.plan.changes"
+                    :key="index"
+                    class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:text-sm"
+                  >
+                    <code class="tw:font-mono"
+                      >{{ change.record.type }}
+                      {{ change.record.name ?? '' }}</code
+                    >
+                    <Badge variant="warning">{{ change.action }}</Badge>
+                  </li>
+                </ul>
+              </div>
+              <p v-else class="tw:m-0 tw:text-sm tw:text-muted-foreground">
+                No pending DNS changes.
+              </p>
+
+              <div
+                class="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2"
+              >
                 <Button
                   variant="outline"
                   size="sm"
                   :disabled="busy !== ''"
-                  @click="requestRemove(domain)"
+                  @click="runVerify(selectedDomain)"
                   >{{
-                    busy === `remove-${domain}` ? 'Removing…' : 'Remove'
+                    busy === `verify-${selectedDomain}`
+                      ? 'Verifying…'
+                      : 'Verify DNS'
+                  }}</Button
+                >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="busy !== ''"
+                  @click="requestApplyDns(selectedDomain)"
+                  >{{
+                    busy === `apply-${selectedDomain}`
+                      ? 'Applying…'
+                      : 'Apply DNS'
                   }}</Button
                 >
               </div>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card v-if="selectedDomain">
-        <CardHeader>
-          <CardTitle
-            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
+            </template>
+          </CardContent>
+        </Card>
+      </div>
+      <details class="tw:border-t tw:border-border-subtle tw:py-5">
+        <summary
+          class="tw:cursor-pointer tw:text-sm tw:font-semibold tw:text-foreground tw:marker:text-signature"
+        >
+          Advanced domain tools
+          <span class="tw:ml-2 tw:font-normal tw:text-muted-foreground"
+            >Free hostnames, credentials, and public IP state</span
           >
-            <span class="tw:font-mono">{{ selectedDomain }}</span>
-            <span class="tw:flex tw:items-center tw:gap-2">
-              <RouterLink
-                :to="{ name: 'native-nsites' }"
-                class="tw:text-xs tw:font-medium tw:text-brand-500 tw:no-underline tw:hover:underline"
-                >View sites →</RouterLink
+        </summary>
+        <div class="tw:mt-3">
+          <Card>
+            <CardHeader>
+              <CardTitle
+                class="tw:flex tw:items-center tw:justify-between tw:gap-2"
               >
-              <Badge v-if="inspect" :variant="driftBadge.variant">{{
-                driftBadge.label
-              }}</Badge>
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent class="tw:grid tw:gap-4">
-          <p v-if="inspectLoading" class="tw:text-sm tw:text-muted-foreground">
-            Loading…
-          </p>
-          <template v-else-if="inspect">
-            <div class="tw:grid tw:gap-1 tw:text-sm">
-              <p class="tw:m-0">
-                Provider
-                <code class="tw:font-mono">{{ inspect.provider.type }}</code>
-                · mode
-                <code class="tw:font-mono">{{ inspect.mode }}</code>
-                <template v-if="inspect.domain.primary">
-                  · <Badge variant="neutral">primary</Badge>
-                </template>
-              </p>
-              <p
-                v-if="inspect.drift.note"
-                class="tw:m-0 tw:text-xs tw:text-muted-foreground"
-              >
-                {{ inspect.drift.note }}
-              </p>
-            </div>
-
-            <div v-if="inspect.plan.changes?.length" class="tw:grid tw:gap-1">
-              <p
-                class="tw:m-0 tw:text-xs tw:font-semibold tw:uppercase tw:tracking-wide tw:text-muted-foreground"
-              >
-                Pending DNS changes
-              </p>
-              <ul class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
-                <li
-                  v-for="(change, index) in inspect.plan.changes"
-                  :key="index"
-                  class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:text-sm"
+                <span>Free hostname claims</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="busy !== ''"
+                  @click="showClaimForm = !showClaimForm"
+                  >{{ showClaimForm ? 'Cancel' : 'Claim hostname' }}</Button
                 >
-                  <code class="tw:font-mono"
-                    >{{ change.record.type }}
-                    {{ change.record.name ?? '' }}</code
+              </CardTitle>
+            </CardHeader>
+            <CardContent class="tw:grid tw:gap-3">
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                Free hostnames under nohost.me, noho.st and ynh.fr, claimed and
+                signed with this server's Nostr identity.
+              </p>
+              <div
+                v-if="showClaimForm"
+                class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+              >
+                <div class="tw:grid tw:gap-1.5">
+                  <Label for="claim-hostname"
+                    >Hostname (e.g. myserver.nohost.me)</Label
                   >
-                  <Badge variant="warning">{{ change.action }}</Badge>
+                  <Input
+                    id="claim-hostname"
+                    v-model="claimHostname"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                </div>
+                <div class="tw:flex tw:justify-end">
+                  <Button
+                    size="sm"
+                    :disabled="busy !== ''"
+                    @click="submitClaim"
+                    >{{ busy === 'claim' ? 'Claiming…' : 'Claim' }}</Button
+                  >
+                </div>
+              </div>
+
+              <EmptyState
+                v-if="subscriptions.length === 0"
+                title="No free-hostname claims yet"
+              />
+              <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
+                <li
+                  v-for="sub in subscriptions"
+                  :key="sub.hostname"
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
+                >
+                  <code class="tw:font-mono">{{ sub.hostname }}</code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="busy !== ''"
+                    @click="requestUnsubscribe(sub.hostname)"
+                    >{{
+                      busy === `unsubscribe-${sub.hostname}`
+                        ? 'Releasing…'
+                        : 'Release'
+                    }}</Button
+                  >
                 </li>
               </ul>
-            </div>
-            <p v-else class="tw:m-0 tw:text-sm tw:text-muted-foreground">
-              No pending DNS changes.
-            </p>
+            </CardContent>
+          </Card>
 
-            <div
-              class="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2"
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="busy !== ''"
-                @click="runVerify(selectedDomain)"
-                >{{
-                  busy === `verify-${selectedDomain}`
-                    ? 'Verifying…'
-                    : 'Verify DNS'
-                }}</Button
+          <Card>
+            <CardHeader>
+              <CardTitle
+                class="tw:flex tw:items-center tw:justify-between tw:gap-2"
               >
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="busy !== ''"
-                @click="requestApplyDns(selectedDomain)"
-                >{{
-                  busy === `apply-${selectedDomain}` ? 'Applying…' : 'Apply DNS'
-                }}</Button
+                <span>DNS provider credentials</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="busy !== ''"
+                  @click="showCredentialForm = !showCredentialForm"
+                  >{{
+                    showCredentialForm ? 'Cancel' : 'Add credential'
+                  }}</Button
+                >
+              </CardTitle>
+            </CardHeader>
+            <CardContent class="tw:grid tw:gap-3">
+              <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                Provider API tokens for automated DNS providers. Values are
+                write-only — they are never shown again after saving.
+              </p>
+              <div
+                v-if="showCredentialForm"
+                class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
               >
-            </div>
-          </template>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle
-            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-          >
-            <span>Free hostname claims</span>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="busy !== ''"
-              @click="showClaimForm = !showClaimForm"
-              >{{ showClaimForm ? 'Cancel' : 'Claim hostname' }}</Button
-            >
-          </CardTitle>
-        </CardHeader>
-        <CardContent class="tw:grid tw:gap-3">
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-            Free hostnames under nohost.me, noho.st and ynh.fr, claimed and
-            signed with this server's Nostr identity.
-          </p>
-          <div
-            v-if="showClaimForm"
-            class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
-          >
-            <div class="tw:grid tw:gap-1.5">
-              <Label for="claim-hostname"
-                >Hostname (e.g. myserver.nohost.me)</Label
-              >
-              <Input
-                id="claim-hostname"
-                v-model="claimHostname"
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </div>
-            <div class="tw:flex tw:justify-end">
-              <Button size="sm" :disabled="busy !== ''" @click="submitClaim">{{
-                busy === 'claim' ? 'Claiming…' : 'Claim'
-              }}</Button>
-            </div>
-          </div>
-
-          <EmptyState
-            v-if="subscriptions.length === 0"
-            title="No free-hostname claims yet"
-          />
-          <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
-            <li
-              v-for="sub in subscriptions"
-              :key="sub.hostname"
-              class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
-            >
-              <code class="tw:font-mono">{{ sub.hostname }}</code>
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="busy !== ''"
-                @click="requestUnsubscribe(sub.hostname)"
-                >{{
-                  busy === `unsubscribe-${sub.hostname}`
-                    ? 'Releasing…'
-                    : 'Release'
-                }}</Button
-              >
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle
-            class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-          >
-            <span>DNS provider credentials</span>
-            <Button
-              variant="outline"
-              size="sm"
-              :disabled="busy !== ''"
-              @click="showCredentialForm = !showCredentialForm"
-              >{{ showCredentialForm ? 'Cancel' : 'Add credential' }}</Button
-            >
-          </CardTitle>
-        </CardHeader>
-        <CardContent class="tw:grid tw:gap-3">
-          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-            Provider API tokens for automated DNS providers. Values are
-            write-only — they are never shown again after saving.
-          </p>
-          <div
-            v-if="showCredentialForm"
-            class="tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
-          >
-            <div class="tw:grid tw:gap-4 tw:sm:grid-cols-3">
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="credential-provider">Provider</Label>
-                <Select id="credential-provider" v-model="credentialProvider">
-                  <option
-                    v-for="type in DNS_PROVIDER_TYPES.filter(
-                      (t) => t !== 'manual',
-                    )"
-                    :key="type"
-                    :value="type"
+                <div class="tw:grid tw:gap-4 tw:sm:grid-cols-3">
+                  <div class="tw:grid tw:gap-1.5">
+                    <Label for="credential-provider">Provider</Label>
+                    <Select
+                      id="credential-provider"
+                      v-model="credentialProvider"
+                    >
+                      <option
+                        v-for="type in DNS_PROVIDER_TYPES.filter(
+                          (t) => t !== 'manual',
+                        )"
+                        :key="type"
+                        :value="type"
+                      >
+                        {{ type }}
+                      </option>
+                    </Select>
+                  </div>
+                  <div class="tw:grid tw:gap-1.5">
+                    <Label for="credential-name">Name</Label>
+                    <Input
+                      id="credential-name"
+                      v-model="credentialName"
+                      placeholder="primary"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="tw:grid tw:gap-1.5">
+                    <Label for="credential-value">Token value</Label>
+                    <Input
+                      id="credential-value"
+                      v-model="credentialValue"
+                      type="password"
+                      autocomplete="off"
+                    />
+                  </div>
+                </div>
+                <div class="tw:flex tw:justify-end">
+                  <Button
+                    size="sm"
+                    :disabled="busy !== ''"
+                    @click="submitCredential"
+                    >{{
+                      busy === 'credential-set' ? 'Saving…' : 'Save credential'
+                    }}</Button
                   >
-                    {{ type }}
-                  </option>
-                </Select>
+                </div>
               </div>
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="credential-name">Name</Label>
-                <Input
-                  id="credential-name"
-                  v-model="credentialName"
-                  placeholder="primary"
-                  autocomplete="off"
-                />
-              </div>
-              <div class="tw:grid tw:gap-1.5">
-                <Label for="credential-value">Token value</Label>
-                <Input
-                  id="credential-value"
-                  v-model="credentialValue"
-                  type="password"
-                  autocomplete="off"
-                />
-              </div>
-            </div>
-            <div class="tw:flex tw:justify-end">
-              <Button
-                size="sm"
-                :disabled="busy !== ''"
-                @click="submitCredential"
-                >{{
-                  busy === 'credential-set' ? 'Saving…' : 'Save credential'
-                }}</Button
-              >
-            </div>
-          </div>
 
-          <EmptyState
-            v-if="credentials.length === 0"
-            title="No DNS credentials configured"
-          />
-          <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
-            <li
-              v-for="cred in credentials"
-              :key="cred.ref"
-              class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
-            >
-              <code class="tw:font-mono">{{ cred.ref }}</code>
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="busy !== ''"
-                @click="requestRemoveCredential(cred.ref)"
-                >{{
-                  busy === `credential-remove-${cred.ref}`
-                    ? 'Removing…'
-                    : 'Remove'
-                }}</Button
-              >
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
+              <EmptyState
+                v-if="credentials.length === 0"
+                title="No DNS credentials configured"
+              />
+              <ul v-else class="tw:m-0 tw:grid tw:gap-1 tw:pl-0">
+                <li
+                  v-for="cred in credentials"
+                  :key="cred.ref"
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3 tw:text-sm"
+                >
+                  <code class="tw:font-mono">{{ cred.ref }}</code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="busy !== ''"
+                    @click="requestRemoveCredential(cred.ref)"
+                    >{{
+                      busy === `credential-remove-${cred.ref}`
+                        ? 'Removing…'
+                        : 'Remove'
+                    }}</Button
+                  >
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Network</CardTitle>
-        </CardHeader>
-        <CardContent class="tw:grid tw:gap-1 tw:text-sm">
-          <p class="tw:m-0">
-            Public IPv4:
-            <code class="tw:font-mono">{{ publicIp?.ipv4 ?? 'unknown' }}</code>
-          </p>
-          <p class="tw:m-0">
-            Public IPv6:
-            <code class="tw:font-mono">{{ publicIp?.ipv6 ?? 'unknown' }}</code>
-          </p>
-          <p
-            v-if="dnsWatch && dnsWatch.dynamic_domains.length"
-            class="tw:m-0 tw:text-xs tw:text-muted-foreground"
-          >
-            DDNS watcher tracks {{ dnsWatch.dynamic_domains.length }} dynamic-IP
-            domain(s): {{ dnsWatch.dynamic_domains.join(', ') }}
-          </p>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Network</CardTitle>
+            </CardHeader>
+            <CardContent class="tw:grid tw:gap-1 tw:text-sm">
+              <p class="tw:m-0">
+                Public IPv4:
+                <code class="tw:font-mono">{{
+                  publicIp?.ipv4 ?? 'unknown'
+                }}</code>
+              </p>
+              <p class="tw:m-0">
+                Public IPv6:
+                <code class="tw:font-mono">{{
+                  publicIp?.ipv6 ?? 'unknown'
+                }}</code>
+              </p>
+              <p
+                v-if="dnsWatch && dnsWatch.dynamic_domains.length"
+                class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+              >
+                DDNS watcher tracks
+                {{ dnsWatch.dynamic_domains.length }} dynamic-IP domain(s):
+                {{ dnsWatch.dynamic_domains.join(', ') }}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </details>
     </template>
 
     <ConfirmDialog

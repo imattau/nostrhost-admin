@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { ChevronDown } from '@lucide/vue'
 
@@ -21,6 +22,8 @@ import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const services = ref<ServiceStatusMap | null>(null)
+const route = useRoute()
+const router = useRouter()
 
 const pendingAction = ref<{ name: string; action: ServiceAction } | null>(null)
 const { run } = useActionRunner(pendingAction, null)
@@ -31,9 +34,21 @@ const {
 } = useConfirm<{ name: string; action: ServiceAction } | null>(null)
 const expanded = ref<string | null>(null)
 
-function toggleExpanded(name: string) {
+async function toggleExpanded(name: string) {
   expanded.value = expanded.value === name ? null : name
+  await router.replace({
+    query: { ...route.query, service: expanded.value || undefined },
+  })
 }
+
+watch(
+  () => route.query.service,
+  (service) => {
+    if (typeof service === 'string' && service !== expanded.value)
+      expanded.value = service
+  },
+  { immediate: true },
+)
 
 const serviceNames = computed(() =>
   services.value ? Object.keys(services.value).sort() : [],
@@ -114,7 +129,7 @@ function bootVariant(startOnBoot: string) {
           <li
             v-for="name in serviceNames"
             :key="name"
-            class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+            class="tw:grid tw:gap-2 tw:border-b tw:border-border-subtle tw:py-3 last:tw:border-b-0"
           >
             <button
               type="button"

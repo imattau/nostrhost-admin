@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   applyCatalogueApp,
   applyChangeUrl,
@@ -31,8 +31,11 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import AppLogo from '@/components/native/AppLogo.vue'
+import ChangeLedger from '@/components/native/ChangeLedger.vue'
+import InspectorPane from '@/components/native/InspectorPane.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
+import ResourceList from '@/components/native/ResourceList.vue'
 import { useActionRunner } from '@/composables/useActionRunner'
 import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
@@ -49,6 +52,8 @@ type Action = 'install' | 'upgrade' | 'remove' | 'settings' | 'change-url'
 const { publicKey, sync } = useSigner()
 const { success } = useNotifications()
 const route = useRoute()
+const router = useRouter()
+const planPanel = ref<InstanceType<typeof ChangeLedger> | null>(null)
 
 const apps = ref<AppManagementEntry[]>([])
 const catalogueError = ref('')
@@ -116,7 +121,7 @@ async function loadApps() {
         selected.value =
           apps.value.find((item) => item.id === selected.value?.id) || null
       } else {
-        const deepLinkId = route.query.id
+        const deepLinkId = route.query.app ?? route.query.id
         const match =
           typeof deepLinkId === 'string'
             ? apps.value.find((item) => item.id === deepLinkId)
@@ -155,6 +160,11 @@ async function loadPermission(app: AppManagementEntry) {
 }
 
 async function chooseApp(app: AppManagementEntry) {
+  if (route.query.app !== app.id) {
+    await router.replace({
+      query: { ...route.query, id: undefined, app: app.id },
+    })
+  }
   selected.value = app
   settings.value = null
   values.value = {}
@@ -175,6 +185,20 @@ async function chooseApp(app: AppManagementEntry) {
     'Could not load app settings.',
   )
   await loadPermission(app)
+}
+
+watch(
+  () => route.query.app,
+  async (appId) => {
+    if (typeof appId !== 'string' || selected.value?.id === appId) return
+    const app = apps.value.find((item) => item.id === appId)
+    if (app) await chooseApp(app)
+  },
+)
+
+async function focusPlan() {
+  await nextTick()
+  planPanel.value?.focus()
 }
 
 async function saveGeneral() {
@@ -251,6 +275,7 @@ async function previewLifecycle(
       action.value = null
       plan.value = await planCatalogueApp(app.id, nextAction)
       action.value = nextAction
+      await focusPlan()
     },
     `Could not build ${nextAction} plan.`,
   )
@@ -266,6 +291,7 @@ async function previewSettings() {
       action.value = null
       plan.value = await planNativeAppSettings(app.id, values.value)
       action.value = 'settings'
+      await focusPlan()
     },
     'Could not build settings plan.',
   )
@@ -281,6 +307,7 @@ async function previewChangeUrl() {
       action.value = null
       plan.value = await planChangeUrl(app.id, newDomain.value, newPath.value)
       action.value = 'change-url'
+      await focusPlan()
     },
     'Could not build change-url plan.',
   )
@@ -363,56 +390,60 @@ function cancelPlan() {
       v-if="publicKey"
       class="tw:grid tw:gap-5 tw:lg:grid-cols-[minmax(0,1fr)_minmax(19rem,0.8fr)]"
     >
-      <section
-        class="tw:space-y-3"
-        aria-label="Application catalogue and installed apps"
-      >
-        <div class="tw:flex tw:flex-wrap tw:gap-2">
-          <label class="tw:sr-only" for="app-search">Search applications</label>
-          <input
-            id="app-search"
-            v-model="search"
-            class="tw:min-w-48 tw:flex-1 tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
-            placeholder="Search apps"
-          />
-          <label class="tw:sr-only" for="app-filter">Filter applications</label>
-          <select
-            id="app-filter"
-            v-model="filter"
-            class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
-          >
-            <option value="all">All apps</option>
-            <option value="installed">Installed</option>
-            <option value="available">Not installed</option>
-            <option value="version-differs">Version differs</option>
-            <option value="installed-unlisted">Installed · unlisted</option>
-          </select>
-          <label class="tw:sr-only" for="app-category"
-            >Filter by category</label
-          >
-          <select
-            id="app-category"
-            v-model="category"
-            class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
-          >
-            <option value="all">All categories</option>
-            <option v-for="item in categories" :key="item" :value="item">
-              {{ item }}
-            </option>
-          </select>
-          <Button variant="outline" :disabled="busy !== ''" @click="loadApps">{{
-            busy === 'load' ? 'Loading…' : 'Refresh'
-          }}</Button>
-        </div>
-        <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-          {{ visibleApps.length }} of {{ apps.length }} apps
-        </p>
-        <ul
-          class="tw:m-0 tw:divide-y tw:divide-border-subtle tw:overflow-hidden tw:rounded-xl tw:border tw:border-border-subtle tw:bg-surface tw:p-0"
-        >
+      <ResourceList label="Application catalogue and installed apps">
+        <template #tools>
+          <div class="tw:flex tw:flex-wrap tw:gap-2">
+            <label class="tw:sr-only" for="app-search"
+              >Search applications</label
+            >
+            <input
+              id="app-search"
+              v-model="search"
+              class="tw:min-w-48 tw:flex-1 tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+              placeholder="Search apps"
+            />
+            <label class="tw:sr-only" for="app-filter"
+              >Filter applications</label
+            >
+            <select
+              id="app-filter"
+              v-model="filter"
+              class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+            >
+              <option value="all">All apps</option>
+              <option value="installed">Installed</option>
+              <option value="available">Not installed</option>
+              <option value="version-differs">Version differs</option>
+              <option value="installed-unlisted">Installed · unlisted</option>
+            </select>
+            <label class="tw:sr-only" for="app-category"
+              >Filter by category</label
+            >
+            <select
+              id="app-category"
+              v-model="category"
+              class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+            >
+              <option value="all">All categories</option>
+              <option v-for="item in categories" :key="item" :value="item">
+                {{ item }}
+              </option>
+            </select>
+            <Button
+              variant="outline"
+              :disabled="busy !== ''"
+              @click="loadApps"
+              >{{ busy === 'load' ? 'Loading…' : 'Refresh' }}</Button
+            >
+          </div>
+          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+            {{ visibleApps.length }} of {{ apps.length }} apps
+          </p>
+        </template>
+        <ul class="tw:m-0 tw:contents tw:p-0">
           <li v-for="app in visibleApps" :key="app.id">
             <button
-              class="tw:flex tw:w-full tw:items-start tw:gap-3 tw:border-0 tw:bg-transparent tw:p-4 tw:text-left tw:text-foreground tw:[font:inherit] tw:transition-colors tw:hover:bg-surface-muted tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
+              class="tw:flex tw:min-h-14 tw:w-full tw:items-start tw:gap-3 tw:border-0 tw:bg-transparent tw:px-3 tw:py-3 tw:text-left tw:text-foreground tw:[font:inherit] tw:transition-colors tw:hover:bg-surface-muted tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-focus"
               :aria-pressed="selected?.id === app.id"
               @click="chooseApp(app)"
             >
@@ -434,7 +465,7 @@ function cancelPlan() {
                 >
               </span>
               <span
-                class="tw:shrink-0 tw:rounded-full tw:bg-surface-muted tw:px-2 tw:py-1 tw:text-xs"
+                class="tw:shrink-0 tw:border-l tw:border-border-subtle tw:pl-2 tw:text-xs tw:text-muted-foreground"
                 >{{ label(app) }}</span
               >
             </button>
@@ -446,11 +477,12 @@ function cancelPlan() {
             No apps match this filter.
           </li>
         </ul>
-      </section>
+      </ResourceList>
 
-      <aside
-        class="tw:space-y-4 tw:rounded-xl tw:border tw:border-border-subtle tw:bg-surface tw:p-4"
-        aria-label="Selected application details"
+      <InspectorPane
+        label="Selected application details"
+        sticky
+        class="tw:space-y-4"
       >
         <template v-if="selected">
           <div class="tw:flex tw:items-start tw:gap-3">
@@ -766,75 +798,61 @@ function cancelPlan() {
               }}</Button>
             </div>
           </section>
+
+          <ChangeLedger
+            v-if="plan && action"
+            ref="planPanel"
+            :title="`Review ${action} plan · ${plan.package.id} ${plan.package.version}`"
+            :digest="`plan ${plan.plan_sha256.slice(0, 16)}…`"
+            :operations="plan.operations"
+          >
+            <template #actions>
+              <Button
+                variant="outline"
+                :disabled="busy !== ''"
+                @click="cancelPlan"
+                >Cancel</Button
+              >
+            </template>
+            <ul
+              v-if="plan.settings_diff?.length"
+              class="tw:mb-0 tw:mt-4 tw:list-none tw:space-y-1 tw:border-t tw:border-border-subtle tw:pt-3 tw:text-sm"
+            >
+              <li v-for="change in plan.settings_diff" :key="change.key">
+                <strong>{{ change.key }}</strong
+                >: {{ change.old }} → {{ change.new }}
+              </li>
+            </ul>
+            <p
+              v-if="action === 'change-url' && 'url_diff' in plan"
+              class="tw:mb-0 tw:mt-4 tw:border-t tw:border-border-subtle tw:pt-3 tw:text-sm"
+            >
+              <strong>URL</strong>:
+              {{ (plan as ChangeUrlPlan).url_diff.old.domain
+              }}{{ (plan as ChangeUrlPlan).url_diff.old.path }} →
+              {{ (plan as ChangeUrlPlan).url_diff.new.domain
+              }}{{ (plan as ChangeUrlPlan).url_diff.new.path }}
+            </p>
+            <div
+              class="tw:mt-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-t tw:border-border-subtle tw:pt-4"
+            >
+              <p
+                class="tw:m-0 tw:max-w-xl tw:text-xs tw:leading-5 tw:text-muted-foreground"
+              >
+                The server revalidates this plan digest before submitting the
+                signed change.
+              </p>
+              <Button :disabled="busy !== ''" @click="applyPlan">{{
+                busy === 'apply' ? 'Applying…' : `Approve and apply ${action}`
+              }}</Button>
+            </div>
+          </ChangeLedger>
         </template>
         <p v-else class="tw:m-0 tw:text-sm tw:text-muted-foreground">
           Select an app to see its catalogue and installation details.
         </p>
-      </aside>
+      </InspectorPane>
     </div>
-
-    <section
-      v-if="plan && action"
-      class="tw:space-y-3 tw:rounded-xl tw:border tw:border-brand-300 tw:bg-surface tw:p-4"
-      aria-labelledby="plan-title"
-    >
-      <div
-        class="tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-3"
-      >
-        <div>
-          <h2 id="plan-title" class="tw:m-0 tw:text-base tw:font-semibold">
-            Review {{ action }} plan · {{ plan.package.id }}
-            {{ plan.package.version }}
-          </h2>
-          <p class="tw:mb-0 tw:mt-1 tw:text-sm tw:text-muted-foreground">
-            {{ plan.operations.length }} resource operations · plan
-            {{ plan.plan_sha256.slice(0, 16) }}…
-          </p>
-        </div>
-        <Button variant="outline" :disabled="busy !== ''" @click="cancelPlan"
-          >Cancel</Button
-        >
-      </div>
-      <ul
-        v-if="plan.settings_diff?.length"
-        class="tw:m-0 tw:list-none tw:space-y-1 tw:rounded-lg tw:bg-surface-muted tw:p-3 tw:text-sm"
-      >
-        <li v-for="change in plan.settings_diff" :key="change.key">
-          <strong>{{ change.key }}</strong
-          >: {{ change.old }} → {{ change.new }}
-        </li>
-      </ul>
-      <p
-        v-if="action === 'change-url' && 'url_diff' in plan"
-        class="tw:m-0 tw:rounded-lg tw:bg-surface-muted tw:p-3 tw:text-sm"
-      >
-        <strong>URL</strong>: {{ (plan as ChangeUrlPlan).url_diff.old.domain
-        }}{{ (plan as ChangeUrlPlan).url_diff.old.path }} →
-        {{ (plan as ChangeUrlPlan).url_diff.new.domain
-        }}{{ (plan as ChangeUrlPlan).url_diff.new.path }}
-      </p>
-      <ol class="tw:m-0 tw:space-y-2 tw:pl-5 tw:text-sm">
-        <li
-          v-for="(operation, index) in plan.operations"
-          :key="`${operation.resource}-${index}`"
-        >
-          <strong>{{ operation.summary }}</strong>
-          <span class="tw:ml-2 tw:text-xs tw:text-muted-foreground"
-            >{{ operation.risk || 'low' }} risk ·
-            {{
-              operation.reversible ? 'reversible' : 'no automatic reverse'
-            }}</span
-          >
-        </li>
-      </ol>
-      <Button :disabled="busy !== ''" @click="applyPlan">{{
-        busy === 'apply' ? 'Applying…' : `Approve and apply ${action}`
-      }}</Button>
-      <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-        The server revalidates this plan digest and submits the change through
-        the signed operation and policy path.
-      </p>
-    </section>
 
     <ConfirmDialog
       :open="confirmingRevoke !== null"

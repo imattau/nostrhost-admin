@@ -37,30 +37,58 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>()
 
 const typed = ref('')
 const headingRef = ref<HTMLElement | null>(null)
+const dialogRef = ref<HTMLElement | null>(null)
+let returnFocus: HTMLElement | null = null
 
 watch(
   () => props.open,
   async (isOpen) => {
     typed.value = ''
     if (isOpen) {
+      returnFocus = document.activeElement as HTMLElement | null
       await nextTick()
       headingRef.value?.focus()
+    } else {
+      returnFocus?.focus()
+      returnFocus = null
     }
   },
 )
 
 const tierButtonVariant = computed(() =>
-  props.tier === 'destructive' ? 'danger' : props.tier === 'disruptive' ? 'warning' : 'primary',
+  props.tier === 'destructive'
+    ? 'danger'
+    : props.tier === 'disruptive'
+      ? 'warning'
+      : 'primary',
 )
 
 const canConfirm = computed(() => {
   if (props.busy) return false
   if (props.tier !== 'destructive') return true
-  return props.confirmPhrase !== undefined && typed.value === props.confirmPhrase
+  return (
+    props.confirmPhrase !== undefined && typed.value === props.confirmPhrase
+  )
 })
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') emit('cancel')
+  if (event.key !== 'Tab' || !dialogRef.value) return
+  const focusable = Array.from(
+    dialogRef.value.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]',
+    ),
+  )
+  if (!focusable.length) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 </script>
 
@@ -72,10 +100,11 @@ function onKeydown(event: KeyboardEvent) {
     @click.self="emit('cancel')"
   >
     <div
+      ref="dialogRef"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
-      class="tw:w-full tw:max-w-md tw:rounded-2xl tw:border tw:border-border-subtle tw:bg-surface tw:p-6 tw:shadow-xl"
+      class="tw:w-full tw:max-w-md tw:rounded-[4px] tw:border tw:border-border-subtle tw:border-t-4 tw:border-t-signature tw:bg-workbench tw:p-6 tw:shadow-xl"
     >
       <h2
         id="confirm-dialog-title"
@@ -98,19 +127,28 @@ function onKeydown(event: KeyboardEvent) {
           for="confirm-dialog-phrase"
           class="tw:mb-1 tw:block tw:text-xs tw:font-medium tw:text-muted-foreground"
         >
-          Type <code class="tw:font-mono tw:text-foreground">{{ confirmPhrase }}</code> to confirm
+          Type
+          <code class="tw:font-mono tw:text-foreground">{{
+            confirmPhrase
+          }}</code>
+          to confirm
         </label>
         <input
           id="confirm-dialog-phrase"
           v-model="typed"
           type="text"
           autocomplete="off"
-          class="tw:w-full tw:rounded-lg tw:border tw:border-border-subtle tw:bg-background tw:px-3 tw:py-2 tw:text-sm tw:text-foreground tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-brand-500"
+          class="tw:w-full tw:rounded-[3px] tw:border tw:border-border-subtle tw:bg-background tw:px-3 tw:py-2 tw:text-sm tw:text-foreground tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-focus"
         />
       </div>
 
       <div class="tw:mt-6 tw:flex tw:justify-end tw:gap-2">
-        <Button variant="outline" size="sm" :disabled="busy" @click="emit('cancel')">
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="busy"
+          @click="emit('cancel')"
+        >
           {{ cancelLabel }}
         </Button>
         <Button

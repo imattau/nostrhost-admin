@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import {
   approveOperation,
@@ -28,6 +29,8 @@ import { useConfirm } from '@/composables/useConfirm'
 import { shortenKey } from '@/lib/utils'
 
 const notifications = useNotifications()
+const route = useRoute()
+const router = useRouter()
 const {
   connected: bunkerConnected,
   remoteNpub: bunkerRemoteNpub,
@@ -90,6 +93,10 @@ const rejectReason = ref('')
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   operations.value = await listOperations(200)
+  const requested = route.query.operation
+  if (typeof requested === 'string' && expanded.value !== requested) {
+    await toggleExpanded(requested)
+  }
 }, 'Failed to load operations.')
 
 const filteredOperations = computed(() => {
@@ -154,13 +161,23 @@ async function confirmReject() {
   )
 }
 
+function cancelReject() {
+  confirmingReject.value = null
+  rejectReason.value = ''
+}
+
 const expanded = ref<string | null>(null)
 const expandedDetail = ref<OperationEntry | null>(null)
 
 async function toggleExpanded(requestId: string) {
   if (expanded.value === requestId) {
     expanded.value = null
+    expandedDetail.value = null
+    await router.replace({ query: { ...route.query, operation: undefined } })
     return
+  }
+  if (route.query.operation !== requestId) {
+    await router.replace({ query: { ...route.query, operation: requestId } })
   }
   expanded.value = requestId
   expandedDetail.value = null
@@ -172,6 +189,14 @@ async function toggleExpanded(requestId: string) {
     )
   }
 }
+
+watch(
+  () => route.query.operation,
+  async (requestId) => {
+    if (typeof requestId !== 'string' || expanded.value === requestId) return
+    await toggleExpanded(requestId)
+  },
+)
 </script>
 
 <template>
@@ -368,10 +393,7 @@ async function toggleExpanded(requestId: string) {
       confirm-label="Reject"
       :busy="confirmingReject !== null && busy === `reject-${confirmingReject}`"
       @confirm="confirmReject"
-      @cancel="
-        confirmingReject = null
-        rejectReason = ''
-      "
+      @cancel="cancelReject"
     >
       <label
         for="reject-reason"

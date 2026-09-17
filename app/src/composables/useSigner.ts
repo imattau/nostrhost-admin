@@ -76,6 +76,12 @@ async function _refreshSession(): Promise<SessionInfo> {
     })
     if (!response.ok)
       throw new Error(`session probe failed (${response.status})`)
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.toLowerCase().includes('application/json')) {
+      throw new Error(
+        'The admin API is not available on this domain. Open Administration from the primary-domain portal.',
+      )
+    }
     const info = (await response.json()) as SessionInfo
     publicKey.value = info.pubkey
     username.value = info.username

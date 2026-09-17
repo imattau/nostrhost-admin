@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { useSigner } from '@/composables/useSigner'
 
-const { admin, publicKey, username, connect } = useSigner()
+const { admin, publicKey, username, connect, error } = useSigner()
 const route = useRoute()
 
 const denied = route.query.denied === '1'
@@ -15,6 +15,7 @@ const portalUrl = `${window.location.origin}/nostrhost/sso/`
 // there is no session the user is sent to the portal login (which redirects
 // back here); a signed-in non-admin sees a refusal rather than a login.
 onMounted(() => {
+  if (error.value) return // show the routing/session error instead of looping
   if (publicKey.value && !admin.value) return // stay on this refusal screen
   // `redirect` is the bare in-app path the router guard captured (e.g.
   // "/apps"); the console uses hash history with base /nostrhost/admin/, so
@@ -32,7 +33,24 @@ onMounted(() => {
   <div
     class="tw:flex tw:min-h-screen tw:items-center tw:justify-center tw:bg-background tw:p-6 tw:font-sans"
   >
-    <div v-if="denied" class="tw:flex tw:flex-col tw:items-center tw:gap-4 tw:text-center">
+    <div
+      v-if="error"
+      class="tw:flex tw:max-w-lg tw:flex-col tw:items-center tw:gap-4 tw:text-center"
+    >
+      <div>
+        <p class="tw:text-lg tw:font-medium tw:text-foreground">
+          Administration unavailable
+        </p>
+        <p class="tw:mt-2 tw:text-sm tw:text-muted-foreground">{{ error }}</p>
+      </div>
+      <Button variant="outline" size="sm" as="a" :href="portalUrl">
+        Open portal
+      </Button>
+    </div>
+    <div
+      v-else-if="denied"
+      class="tw:flex tw:flex-col tw:items-center tw:gap-4 tw:text-center"
+    >
       <div>
         <p class="tw:text-lg tw:font-medium tw:text-foreground">Access denied</p>
         <p class="tw:mt-2 tw:text-sm tw:text-muted-foreground">

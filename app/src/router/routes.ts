@@ -38,13 +38,13 @@ const routes: RouteRecordRaw[] = [
     name: 'app-management',
     path: '/apps',
     component: () => import('@/views/native/AppManagementView.vue'),
-    meta: { nav: { label: 'Applications', group: 'Main' } },
+    meta: { nav: { label: 'Installed apps', group: 'Main' } },
   },
   {
     name: 'native-catalogue',
     path: '/catalogue',
     component: () => import('@/views/native/CatalogueView.vue'),
-    meta: { nav: { label: 'Catalogue trust', group: 'Advanced' } },
+    meta: { nav: { label: 'Apps & sites', group: 'Main' } },
   },
   {
     name: 'native-packages',

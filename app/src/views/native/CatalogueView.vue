@@ -434,9 +434,9 @@ watch(publicKey, (key) => {
 <template>
   <PageLayout>
     <PageHeader
-      eyebrow="Trusted native catalogue"
+      eyebrow="Apps & sites"
       title="Catalogue"
-      description="Browse, publish, endorse and verify signed app declarations this node trusts, synced from the control relay."
+      description="Browse signed app declarations this node trusts and static sites (nsites) discovered on the configured relays. Endorse, publish, verify and manage trust from the other tabs."
     />
 
     <div

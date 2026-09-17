@@ -378,7 +378,7 @@ function cancelPlan() {
   <PageLayout width="workspace">
     <PageHeader
       eyebrow="NostrHost"
-      title="Applications"
+      title="Installed apps"
       description="Browse trusted releases and manage apps installed on this server."
     />
 

@@ -465,10 +465,21 @@ const selectedPrimaryCandidate = computed(() =>
                   <Input
                     id="add-domain-name"
                     v-model="addDomainName"
-                    placeholder="example.com"
+                    :placeholder="
+                      addProviderType === 'duckdns'
+                        ? 'mybox or mybox.duckdns.org'
+                        : 'example.com'
+                    "
                     spellcheck="false"
                     autocomplete="off"
                   />
+                  <p
+                    v-if="addProviderType === 'duckdns'"
+                    class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+                  >
+                    Enter the DuckDNS subname or full hostname. The server will
+                    store it as subname.duckdns.org.
+                  </p>
                 </div>
                 <div class="tw:grid tw:gap-1.5">
                   <Label for="add-domain-provider">DNS provider</Label>
@@ -517,6 +528,13 @@ const selectedPrimaryCandidate = computed(() =>
                     class="tw:m-0 tw:text-xs tw:text-muted-foreground"
                   >
                     Add a {{ addProviderType }} credential under Advanced first.
+                  </p>
+                  <p
+                    v-else-if="addProviderType === 'duckdns'"
+                    class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+                  >
+                    The credential must contain the raw account token from
+                    DuckDNS, not an update URL or credential reference.
                   </p>
                 </div>
               </div>

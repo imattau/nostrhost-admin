@@ -22,22 +22,25 @@ const REQUEST_TIMEOUT_MS = 30_000
 export class OperationError extends Error {
   state?: string
   reason?: string
+  error?: string
   request_id?: string
   pending_approval: boolean
 
   constructor(data: {
     state?: string
     reason?: string
+    error?: string
     request_id?: string
     pending_approval?: boolean
   }) {
     super(
       data.pending_approval
         ? 'This operation is pending approval.'
-        : data.reason || 'The operation was rejected.',
+        : data.error || data.reason || 'The operation was rejected.',
     )
     this.state = data.state
     this.reason = data.reason
+    this.error = data.error
     this.request_id = data.request_id
     this.pending_approval = Boolean(data.pending_approval)
   }
@@ -132,7 +135,11 @@ export async function request<T>(
     })
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === 'AbortError') {
-      throw new ApiError(0, `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s.`, 'timeout')
+      throw new ApiError(
+        0,
+        `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s.`,
+        'timeout',
+      )
     }
     throw cause
   } finally {
@@ -161,7 +168,12 @@ export async function request<T>(
   // failed, or parked the operation for approval — `ok: false` in the body is
   // the real signal. `ok` is absent from plain reads (e.g. /package/session),
   // so only writes with a body carry it.
-  if (method === 'POST' && data && typeof data === 'object' && data.ok === false) {
+  if (
+    method === 'POST' &&
+    data &&
+    typeof data === 'object' &&
+    data.ok === false
+  ) {
     throw new OperationError(data)
   }
   return data as T

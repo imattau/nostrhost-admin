@@ -81,6 +81,7 @@ const KIND_FILTERS = [
 const discoveredSites = ref<NsiteDiscoveredSite[] | null>(null)
 const sitesLoading = ref(false)
 const sitesLoaded = ref(false)
+const discoverError = ref('')
 const registeringSite = ref('')
 const { run: runRegisterSite } = useActionRunner(registeringSite, '')
 
@@ -154,17 +155,26 @@ async function loadBrowse() {
   ])
   entries.value = list.entries
   selfPublisher.value = profile.self_publisher
-  await loadDiscover()
+  // Non-blocking: the relay scan runs in the background so the Browse tab
+  // renders the catalogue immediately, even if a relay is slow/unreachable.
+  void loadDiscover()
 }
 
 async function loadDiscover(force = false) {
   if (sitesLoaded.value && !force) return
   if (sitesLoading.value) return
   sitesLoading.value = true
+  discoverError.value = ''
   try {
     const result = await discoverNsites()
     discoveredSites.value = result.sites
     sitesLoaded.value = true
+  } catch (err) {
+    // A slow/unreachable relay must not fail the whole Browse tab: keep any
+    // previously discovered sites, surface an inline dismissible warning and
+    // let Refresh retry (sitesLoaded stays false).
+    discoverError.value =
+      err instanceof Error ? err.message : 'Site discovery failed.'
   } finally {
     sitesLoading.value = false
   }
@@ -501,6 +511,25 @@ watch(publicKey, (key) => {
           </button>
         </div>
       </div>
+
+      <Alert
+        v-if="discoverError"
+        variant="warning"
+        role="status"
+        class="tw:mt-3"
+      >
+        <div class="tw:flex tw:items-center tw:justify-between tw:gap-2">
+          <span>Site discovery failed: {{ discoverError }}</span>
+          <button
+            type="button"
+            class="tw:shrink-0 tw:text-muted-foreground tw:hover:text-foreground"
+            aria-label="Dismiss discovery warning"
+            @click="discoverError = ''"
+          >
+            ×
+          </button>
+        </div>
+      </Alert>
 
       <Alert
         v-if="reverifyResult && !reverifyResult.ok"

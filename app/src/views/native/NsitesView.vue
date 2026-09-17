@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, provide, ref, watch } from 'vue'
+import { nextTick, onMounted, provide, ref, watch } from 'vue'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSigner } from '@/composables/useSigner'
@@ -25,6 +25,19 @@ watch(publicKey, (key) => {
 })
 
 const wizardVisible = ref(false)
+const wizardAnchor = ref<InstanceType<typeof PublishWizardSection> | null>(null)
+
+// The wizard is an inline card below the sites list; bring it into view when
+// it opens so it never appears to have "done nothing".
+watch(wizardVisible, async (visible) => {
+  if (visible) {
+    await nextTick()
+    wizardAnchor.value?.$el?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }
+})
 </script>
 
 <template>
@@ -41,9 +54,12 @@ const wizardVisible = ref(false)
         :wizard-visible="wizardVisible"
         @toggle-wizard="wizardVisible = !wizardVisible"
       />
+      <PublishWizardSection
+        ref="wizardAnchor"
+        v-model:visible="wizardVisible"
+      />
       <CustomDomainsSection />
       <CreateCopySection />
-      <PublishWizardSection v-model:visible="wizardVisible" />
 
       <Card>
         <CardHeader>

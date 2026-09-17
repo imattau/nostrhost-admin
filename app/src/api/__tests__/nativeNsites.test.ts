@@ -168,3 +168,35 @@ describe('Phase 3a site registry + publish client', () => {
     )
   })
 })
+
+describe('discoverNsites', () => {
+  it('returns the discovery envelope from /package/nsite/discover', async () => {
+    const envelope = {
+      sites: [
+        {
+          label: 'npub1test',
+          pubkey: 'pk',
+          kind: 15128,
+          d: '',
+          title: 'Test site',
+          servers: ['https://blossom.example.com'],
+          relays: [],
+          event_id: 'evt',
+          created_at: 1750000000,
+          paths_count: 2,
+          app: '',
+          registered: false,
+        },
+      ],
+      relays_queried: ['wss://nos.lol'],
+      count: 1,
+      truncated: false,
+    }
+    vi.mocked(request).mockResolvedValueOnce(envelope)
+    const { discoverNsites } = await import('@/api/nativeNsites')
+    const result = await discoverNsites()
+    expect(result.count).toBe(1)
+    expect(result.sites[0].label).toBe('npub1test')
+    expect(request).toHaveBeenCalledWith('/package/nsite/discover', 'GET')
+  })
+})

@@ -24,6 +24,11 @@ import {
   type CatalogueReverifyResult,
   type CatalogueTrustEntry,
 } from '@/api/nativeCatalog'
+import {
+  discoverNsites,
+  registerNsite,
+  type NsiteDiscoveredSite,
+} from '@/api/nativeNsites'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -67,6 +72,17 @@ const search = ref('')
 const category = ref('all')
 const busyAppId = ref('')
 const { run: runBusyAppId } = useActionRunner(busyAppId, '')
+const browseKind = ref<'all' | 'apps' | 'nsites'>('all')
+const KIND_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'apps', label: 'Apps' },
+  { id: 'nsites', label: 'Nsites' },
+] as const
+const discoveredSites = ref<NsiteDiscoveredSite[] | null>(null)
+const sitesLoading = ref(false)
+const sitesLoaded = ref(false)
+const registeringSite = ref('')
+const { run: runRegisterSite } = useActionRunner(registeringSite, '')
 
 const categories = computed(() => {
   const found = new Set<string>()
@@ -76,18 +92,55 @@ const categories = computed(() => {
   return Array.from(found).sort()
 })
 
-const visibleEntries = computed(() =>
-  (entries.value || []).filter((entry) => {
-    const matchesCategory =
-      category.value === 'all' || entry.declaration.Category === category.value
-    const needle = search.value.trim().toLocaleLowerCase()
-    const matchesSearch =
-      !needle ||
-      `${entry.declaration.Name} ${entry.declaration.AppID} ${entry.declaration.Description}`
-        .toLocaleLowerCase()
-        .includes(needle)
-    return matchesCategory && matchesSearch
-  }),
+type BrowseCard =
+  | { type: 'app'; entry: CatalogueEntry }
+  | { type: 'nsite'; site: NsiteDiscoveredSite }
+
+const visibleCards = computed<BrowseCard[]>(() => {
+  const needle = search.value.trim().toLocaleLowerCase()
+  const cards: BrowseCard[] = []
+  if (browseKind.value !== 'nsites') {
+    for (const entry of entries.value || []) {
+      const matchesCategory =
+        category.value === 'all' ||
+        entry.declaration.Category === category.value
+      const matchesSearch =
+        !needle ||
+        `${entry.declaration.Name} ${entry.declaration.AppID} ${entry.declaration.Description}`
+          .toLocaleLowerCase()
+          .includes(needle)
+      if (matchesCategory && matchesSearch) {
+        cards.push({ type: 'app', entry })
+      }
+    }
+  }
+  if (browseKind.value !== 'apps') {
+    for (const site of discoveredSites.value || []) {
+      const matchesSearch =
+        !needle ||
+        `${site.label} ${site.pubkey} ${site.title} ${site.d}`
+          .toLocaleLowerCase()
+          .includes(needle)
+      if (matchesSearch) cards.push({ type: 'nsite', site })
+    }
+  }
+  return cards
+})
+
+const summaryText = computed(() => {
+  if (browseKind.value === 'nsites') {
+    return `${visibleCards.value.length} of ${discoveredSites.value?.length ?? 0} discovered site(s)`
+  }
+  if (browseKind.value === 'apps') {
+    return `${visibleCards.value.length} of ${entries.value?.length ?? 0} trusted app(s)`
+  }
+  return `${entries.value?.length ?? 0} app(s) · ${discoveredSites.value?.length ?? 0} site(s)`
+})
+
+const hasBrowseContent = computed(
+  () =>
+    (entries.value?.length ?? 0) > 0 ||
+    (discoveredSites.value?.length ?? 0) > 0,
 )
 
 function shortHash(hash: string) {
@@ -101,6 +154,46 @@ async function loadBrowse() {
   ])
   entries.value = list.entries
   selfPublisher.value = profile.self_publisher
+  await loadDiscover()
+}
+
+async function loadDiscover(force = false) {
+  if (sitesLoaded.value && !force) return
+  if (sitesLoading.value) return
+  sitesLoading.value = true
+  try {
+    const result = await discoverNsites()
+    discoveredSites.value = result.sites
+    sitesLoaded.value = true
+  } finally {
+    sitesLoading.value = false
+  }
+}
+
+function siteKindName(kind: number): string {
+  return kind === 35128 ? 'named' : kind === 15128 ? 'root' : String(kind)
+}
+
+function formatSiteDate(ts: number): string {
+  if (!ts) return '—'
+  return new Date(ts * 1000).toISOString().slice(0, 10)
+}
+
+async function registerDiscoveredSite(site: NsiteDiscoveredSite) {
+  await runRegisterSite(
+    site.label,
+    async () => {
+      await registerNsite({
+        pubkey: site.pubkey,
+        kind: site.kind,
+        d: site.d,
+        title: site.title || undefined,
+      })
+      success('Registration submitted for review.')
+      await loadDiscover(true)
+    },
+    'Registration failed.',
+  )
 }
 
 async function publishUnderMyKey(appId: string) {
@@ -314,6 +407,7 @@ function selectTab(tab: TabId) {
 }
 
 async function refreshCurrentTab() {
+  if (activeTab.value === 'browse') sitesLoaded.value = false
   loadedTabs.delete(activeTab.value)
   await loadTab(activeTab.value)
 }
@@ -382,12 +476,30 @@ watch(publicKey, (key) => {
         class="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-2"
       >
         <p class="tw:text-sm tw:text-muted-foreground">
-          {{
-            entries
-              ? `${visibleEntries.length} of ${entries.length} trusted app(s)`
-              : ''
-          }}
+          {{ summaryText }}
+          <span v-if="sitesLoading" class="tw:ml-1">· scanning relays…</span>
         </p>
+        <div
+          class="tw:flex tw:items-center tw:gap-1 tw:rounded-md tw:border tw:border-border-subtle tw:p-0.5"
+          role="group"
+          aria-label="Catalogue content filter"
+        >
+          <button
+            v-for="option in KIND_FILTERS"
+            :key="option.id"
+            type="button"
+            :aria-pressed="browseKind === option.id"
+            class="tw:rounded tw:px-2.5 tw:py-1 tw:text-sm tw:font-medium"
+            :class="
+              browseKind === option.id
+                ? 'tw:bg-brand-500 tw:text-white'
+                : 'tw:text-muted-foreground tw:hover:text-foreground'
+            "
+            @click="browseKind = option.id"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
 
       <Alert
@@ -399,10 +511,7 @@ watch(publicKey, (key) => {
         {{ reverifyResult.error }}
       </Alert>
 
-      <div
-        v-if="entries && entries.length"
-        class="tw:flex tw:flex-wrap tw:gap-2"
-      >
+      <div v-if="hasBrowseContent" class="tw:flex tw:flex-wrap tw:gap-2">
         <label class="tw:sr-only" for="catalogue-search"
           >Search catalogue</label
         >
@@ -410,12 +519,16 @@ watch(publicKey, (key) => {
           id="catalogue-search"
           v-model="search"
           class="tw:min-w-48 tw:flex-1 tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
-          placeholder="Search trusted apps"
+          placeholder="Search apps and sites"
         />
-        <label class="tw:sr-only" for="catalogue-category"
+        <label
+          v-if="browseKind !== 'nsites'"
+          class="tw:sr-only"
+          for="catalogue-category"
           >Filter by category</label
         >
         <select
+          v-if="browseKind !== 'nsites'"
           id="catalogue-category"
           v-model="category"
           class="tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
@@ -428,139 +541,250 @@ watch(publicKey, (key) => {
       </div>
 
       <EmptyState
-        v-if="entries && entries.length === 0"
+        v-if="browseKind === 'apps' && entries && entries.length === 0"
         title="No trusted apps in the catalogue yet"
       />
       <EmptyState
-        v-else-if="entries && visibleEntries.length === 0"
-        title="No trusted apps match this search or category"
+        v-else-if="
+          browseKind === 'nsites' &&
+          discoveredSites &&
+          discoveredSites.length === 0
+        "
+        title="No sites discovered on the relays yet"
+        description="nsite.discover scans the configured catalogue + lookup relays for kind-15128/35128 manifests."
+      />
+      <EmptyState
+        v-else-if="visibleCards.length === 0 && hasBrowseContent"
+        title="Nothing matches this search or category"
       />
 
       <div
-        v-if="visibleEntries.length"
+        v-if="visibleCards.length"
         class="tw:grid tw:gap-4 tw:sm:grid-cols-2 tw:lg:grid-cols-3"
       >
-        <Card v-for="entry in visibleEntries" :key="entry.event_id">
-          <CardHeader>
-            <CardTitle
-              class="tw:flex tw:items-center tw:justify-between tw:gap-2"
-            >
-              <span class="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-                <AppLogo
-                  :name="entry.declaration.Name || entry.declaration.AppID"
-                  :logo="entry.logo"
+        <template
+          v-for="card in visibleCards"
+          :key="card.type === 'app' ? card.entry.event_id : card.site.label"
+        >
+          <Card v-if="card.type === 'nsite'">
+            <CardHeader>
+              <CardTitle
+                class="tw:flex tw:items-center tw:justify-between tw:gap-2"
+              >
+                <span class="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                  <span class="tw:truncate">{{
+                    card.site.title || card.site.label
+                  }}</span>
+                </span>
+                <Badge variant="neutral">{{
+                  siteKindName(card.site.kind)
+                }}</Badge>
+              </CardTitle>
+              <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">
+                {{ card.site.label }}
+                <Badge
+                  v-if="card.site.registered"
+                  variant="success"
+                  class="tw:ml-1"
+                  >registered</Badge
+                >
+              </p>
+            </CardHeader>
+            <CardContent>
+              <dl class="tw:grid tw:gap-1.5 tw:text-xs">
+                <div class="tw:grid tw:gap-0.5">
+                  <dt class="tw:text-muted-foreground">Pubkey</dt>
+                  <dd class="tw:truncate tw:font-mono tw:text-foreground">
+                    {{ truncatePubkey(card.site.pubkey) }}
+                  </dd>
+                </div>
+                <div
+                  v-if="card.site.d"
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Name</dt>
+                  <dd class="tw:font-mono tw:text-foreground">
+                    {{ card.site.d }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Paths</dt>
+                  <dd class="tw:font-mono tw:text-foreground">
+                    {{ card.site.paths_count }}
+                  </dd>
+                </div>
+                <div v-if="card.site.servers.length" class="tw:grid tw:gap-0.5">
+                  <dt class="tw:text-muted-foreground">Blossom</dt>
+                  <dd class="tw:truncate tw:font-mono tw:text-foreground">
+                    {{ card.site.servers.join(', ') }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Updated</dt>
+                  <dd class="tw:text-foreground">
+                    {{ formatSiteDate(card.site.created_at) }}
+                  </dd>
+                </div>
+              </dl>
+              <div class="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">
+                <Button
+                  v-if="!card.site.registered"
+                  variant="outline"
                   size="sm"
-                />
-                <span class="tw:truncate">{{
-                  entry.declaration.Name || entry.declaration.AppID
-                }}</span>
-              </span>
-              <Badge variant="brand">v{{ entry.declaration.Version }}</Badge>
-            </CardTitle>
-            <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">
-              {{ entry.declaration.AppID }}
-              <span v-if="entry.declaration.Category"
-                >· {{ entry.declaration.Category }}</span
-              >
-              <Badge
-                v-if="entry.declaration.Publisher === selfPublisher"
-                variant="neutral"
-                class="tw:ml-1"
-                >mine</Badge
-              >
-            </p>
-          </CardHeader>
-          <CardContent>
-            <p
-              v-if="entry.declaration.Description"
-              class="tw:mb-3 tw:line-clamp-2 tw:text-xs tw:text-muted-foreground"
-            >
-              {{ entry.declaration.Description }}
-            </p>
-            <dl class="tw:grid tw:gap-1.5 tw:text-xs">
-              <div class="tw:grid tw:gap-0.5">
-                <dt class="tw:text-muted-foreground">Repository</dt>
-                <dd class="tw:truncate tw:font-mono tw:text-foreground">
-                  {{ entry.declaration.Repository }}
-                </dd>
+                  :disabled="registeringSite === card.site.label"
+                  @click="registerDiscoveredSite(card.site)"
+                  >{{
+                    registeringSite === card.site.label
+                      ? 'Submitting…'
+                      : 'Register'
+                  }}</Button
+                >
               </div>
-              <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <dt class="tw:text-muted-foreground">Commit</dt>
-                <dd class="tw:font-mono tw:text-foreground">
-                  {{ shortHash(entry.declaration.Commit) }}
-                </dd>
-              </div>
-              <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <dt class="tw:text-muted-foreground">Manifest hash</dt>
-                <dd class="tw:font-mono tw:text-foreground">
-                  {{ shortHash(entry.declaration.ManifestHash) }}
-                </dd>
-              </div>
-              <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <dt class="tw:text-muted-foreground">Content hash</dt>
-                <dd class="tw:font-mono tw:text-foreground">
-                  {{ shortHash(entry.declaration.ContentHash) }}
-                </dd>
-              </div>
-              <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <dt class="tw:text-muted-foreground">Architectures</dt>
-                <dd class="tw:truncate tw:text-foreground">
-                  {{ (entry.declaration.Architectures || []).join(', ') }}
-                </dd>
-              </div>
-              <div class="tw:flex tw:items-center tw:justify-between tw:gap-3">
-                <dt class="tw:text-muted-foreground">Provenance event</dt>
-                <dd class="tw:font-mono tw:text-foreground">
-                  {{ shortHash(entry.event_id) }}
-                </dd>
-              </div>
-            </dl>
-            <div class="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">
-              <RouterLink
-                :to="{
-                  name: 'app-management',
-                  query: { id: entry.declaration.AppID },
-                }"
-                class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:bg-brand-500 tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:text-white tw:no-underline hover:tw:bg-brand-600"
-                >Install</RouterLink
+            </CardContent>
+          </Card>
+          <Card v-else>
+            <CardHeader>
+              <CardTitle
+                class="tw:flex tw:items-center tw:justify-between tw:gap-2"
               >
-              <a
-                v-if="entry.nsite"
-                :href="entry.nsite.url"
-                target="_blank"
-                rel="noreferrer"
-                class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:bg-brand-500 tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:text-white tw:no-underline hover:tw:bg-brand-600"
-                >Open nsite
-                <span class="tw:font-mono tw:text-xs"
-                  >{{ entry.nsite.label }} ↗</span
-                ></a
+                <span class="tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                  <AppLogo
+                    :name="
+                      card.entry.declaration.Name ||
+                      card.entry.declaration.AppID
+                    "
+                    :logo="card.entry.logo"
+                    size="sm"
+                  />
+                  <span class="tw:truncate">{{
+                    card.entry.declaration.Name || card.entry.declaration.AppID
+                  }}</span>
+                </span>
+                <Badge variant="brand"
+                  >v{{ card.entry.declaration.Version }}</Badge
+                >
+              </CardTitle>
+              <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">
+                {{ card.entry.declaration.AppID }}
+                <span v-if="card.entry.declaration.Category"
+                  >· {{ card.entry.declaration.Category }}</span
+                >
+                <Badge
+                  v-if="card.entry.declaration.Publisher === selfPublisher"
+                  variant="neutral"
+                  class="tw:ml-1"
+                  >mine</Badge
+                >
+              </p>
+            </CardHeader>
+            <CardContent>
+              <p
+                v-if="card.entry.declaration.Description"
+                class="tw:mb-3 tw:line-clamp-2 tw:text-xs tw:text-muted-foreground"
               >
-              <Button
-                v-if="entry.declaration.Publisher !== selfPublisher"
-                variant="outline"
-                size="sm"
-                :disabled="busyAppId === entry.declaration.AppID"
-                @click="publishUnderMyKey(entry.declaration.AppID)"
-                >{{
-                  busyAppId === entry.declaration.AppID
-                    ? 'Publishing…'
-                    : 'Publish under my key'
-                }}</Button
-              >
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="busyAppId === entry.declaration.AppID"
-                @click="reverifyEntry(entry.declaration.AppID)"
-                >{{
-                  busyAppId === entry.declaration.AppID
-                    ? 'Reverifying…'
-                    : 'Reverify'
-                }}</Button
-              >
-            </div>
-          </CardContent>
-        </Card>
+                {{ card.entry.declaration.Description }}
+              </p>
+              <dl class="tw:grid tw:gap-1.5 tw:text-xs">
+                <div class="tw:grid tw:gap-0.5">
+                  <dt class="tw:text-muted-foreground">Repository</dt>
+                  <dd class="tw:truncate tw:font-mono tw:text-foreground">
+                    {{ card.entry.declaration.Repository }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Commit</dt>
+                  <dd class="tw:font-mono tw:text-foreground">
+                    {{ shortHash(card.entry.declaration.Commit) }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Manifest hash</dt>
+                  <dd class="tw:font-mono tw:text-foreground">
+                    {{ shortHash(card.entry.declaration.ManifestHash) }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Content hash</dt>
+                  <dd class="tw:font-mono tw:text-foreground">
+                    {{ shortHash(card.entry.declaration.ContentHash) }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Architectures</dt>
+                  <dd class="tw:truncate tw:text-foreground">
+                    {{
+                      (card.entry.declaration.Architectures || []).join(', ')
+                    }}
+                  </dd>
+                </div>
+                <div
+                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
+                >
+                  <dt class="tw:text-muted-foreground">Provenance event</dt>
+                  <dd class="tw:font-mono tw:text-foreground">
+                    {{ shortHash(card.entry.event_id) }}
+                  </dd>
+                </div>
+              </dl>
+              <div class="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">
+                <RouterLink
+                  :to="{
+                    name: 'app-management',
+                    query: { id: card.entry.declaration.AppID },
+                  }"
+                  class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:bg-brand-500 tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:text-white tw:no-underline hover:tw:bg-brand-600"
+                  >Install</RouterLink
+                >
+                <a
+                  v-if="card.entry.nsite"
+                  :href="card.entry.nsite.url"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="tw:inline-flex tw:items-center tw:gap-1.5 tw:rounded-md tw:bg-brand-500 tw:px-3 tw:py-1.5 tw:text-sm tw:font-medium tw:text-white tw:no-underline hover:tw:bg-brand-600"
+                  >Open nsite
+                  <span class="tw:font-mono tw:text-xs"
+                    >{{ card.entry.nsite.label }} ↗</span
+                  ></a
+                >
+                <Button
+                  v-if="card.entry.declaration.Publisher !== selfPublisher"
+                  variant="outline"
+                  size="sm"
+                  :disabled="busyAppId === card.entry.declaration.AppID"
+                  @click="publishUnderMyKey(card.entry.declaration.AppID)"
+                  >{{
+                    busyAppId === card.entry.declaration.AppID
+                      ? 'Publishing…'
+                      : 'Publish under my key'
+                  }}</Button
+                >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :disabled="busyAppId === card.entry.declaration.AppID"
+                  @click="reverifyEntry(card.entry.declaration.AppID)"
+                  >{{
+                    busyAppId === card.entry.declaration.AppID
+                      ? 'Reverifying…'
+                      : 'Reverify'
+                  }}</Button
+                >
+              </div>
+            </CardContent>
+          </Card>
+        </template>
       </div>
     </template>
 

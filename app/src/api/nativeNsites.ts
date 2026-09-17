@@ -198,6 +198,34 @@ export function validateNsiteManifest(event: unknown) {
   )
 }
 
+// -- nsite discovery (catalogue Browse) ------------------------------------
+
+export type NsiteDiscoveredSite = {
+  label: string
+  pubkey: string
+  kind: number
+  d: string
+  title: string
+  servers: string[]
+  relays: string[]
+  event_id: string
+  created_at: number
+  paths_count: number
+  app: string
+  registered: boolean
+}
+
+export type NsiteDiscoverEnvelope = {
+  sites: NsiteDiscoveredSite[]
+  relays_queried: string[]
+  count: number
+  truncated: boolean
+}
+
+export function discoverNsites() {
+  return request<NsiteDiscoverEnvelope>('/package/nsite/discover', 'GET')
+}
+
 export function planNsitePublish(input: {
   pubkey: string
   kind: number

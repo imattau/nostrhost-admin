@@ -213,6 +213,17 @@ export type NsiteDiscoveredSite = {
   paths_count: number
   app: string
   registered: boolean
+  blobs_ok: boolean | null
+  blobs_checked: number
+}
+
+export type NsiteBlobCheckSummary = {
+  checked: number
+  ok: number
+  unknown: number
+  excluded: number
+  blocked: number
+  truncated: boolean
 }
 
 export type NsiteDiscoverEnvelope = {
@@ -220,10 +231,41 @@ export type NsiteDiscoverEnvelope = {
   relays_queried: string[]
   count: number
   truncated: boolean
+  blob_check: NsiteBlobCheckSummary
+  cached: boolean
+  cached_at: number | null
 }
 
-export function discoverNsites() {
-  return request<NsiteDiscoverEnvelope>('/package/nsite/discover', 'GET')
+export function discoverNsites(refresh = false) {
+  return request<NsiteDiscoverEnvelope>(
+    `/package/nsite/discover${refresh ? '?refresh=1' : ''}`,
+    'GET',
+  )
+}
+
+export type NsiteBlockListEnvelope = {
+  pubkeys: string[]
+  count: number
+}
+
+export function nsiteBlockList() {
+  return request<NsiteBlockListEnvelope>('/package/nsite/block/list', 'GET')
+}
+
+export function nsiteBlockAdd(pubkey: string) {
+  return request<LifecycleOperation>(
+    '/package/nsite/block/add',
+    'POST',
+    JSON.stringify({ pubkey }),
+  )
+}
+
+export function nsiteBlockRemove(pubkey: string) {
+  return request<LifecycleOperation>(
+    '/package/nsite/block/remove',
+    'POST',
+    JSON.stringify({ pubkey }),
+  )
 }
 
 export function planNsitePublish(input: {

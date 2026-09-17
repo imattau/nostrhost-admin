@@ -8,6 +8,9 @@ import {
   getNsiteGatewayStatus,
   getNsiteInspect,
   getNsiteList,
+  nsiteBlockAdd,
+  nsiteBlockList,
+  nsiteBlockRemove,
   planNsitePublish,
   publishNsite,
   registerNsite,
@@ -186,11 +189,23 @@ describe('discoverNsites', () => {
           paths_count: 2,
           app: '',
           registered: false,
+          blobs_ok: true,
+          blobs_checked: 1,
         },
       ],
       relays_queried: ['wss://nos.lol'],
       count: 1,
       truncated: false,
+      blob_check: {
+        checked: 1,
+        ok: 1,
+        unknown: 0,
+        excluded: 0,
+        blocked: 0,
+        truncated: false,
+      },
+      cached: false,
+      cached_at: null,
     }
     vi.mocked(request).mockResolvedValueOnce(envelope)
     const { discoverNsites } = await import('@/api/nativeNsites')
@@ -198,5 +213,62 @@ describe('discoverNsites', () => {
     expect(result.count).toBe(1)
     expect(result.sites[0].label).toBe('npub1test')
     expect(request).toHaveBeenCalledWith('/package/nsite/discover', 'GET')
+  })
+
+  it('forces a live scan with refresh=1', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      sites: [],
+      relays_queried: [],
+      count: 0,
+      truncated: false,
+      blob_check: {
+        checked: 0,
+        ok: 0,
+        unknown: 0,
+        excluded: 0,
+        blocked: 0,
+        truncated: false,
+      },
+      cached: false,
+      cached_at: null,
+    })
+    const { discoverNsites } = await import('@/api/nativeNsites')
+    await discoverNsites(true)
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/discover?refresh=1',
+      'GET',
+    )
+  })
+})
+
+describe('nsite blocklist', () => {
+  it('lists the operator mute list from /package/nsite/block/list', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      pubkeys: ['pk1', 'pk2'],
+      count: 2,
+    })
+    const result = await nsiteBlockList()
+    expect(result.count).toBe(2)
+    expect(request).toHaveBeenCalledWith('/package/nsite/block/list', 'GET')
+  })
+
+  it('adds a pubkey via POST /package/nsite/block/add', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true, result: {} })
+    await nsiteBlockAdd('pk1')
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/block/add',
+      'POST',
+      JSON.stringify({ pubkey: 'pk1' }),
+    )
+  })
+
+  it('removes a pubkey via POST /package/nsite/block/remove', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true, result: {} })
+    await nsiteBlockRemove('pk1')
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/block/remove',
+      'POST',
+      JSON.stringify({ pubkey: 'pk1' }),
+    )
   })
 })

@@ -26,6 +26,9 @@ import {
 } from '@/api/nativeCatalog'
 import {
   discoverNsites,
+  nsiteBlockAdd,
+  nsiteBlockList,
+  nsiteBlockRemove,
   registerNsite,
   type NsiteDiscoveredSite,
 } from '@/api/nativeNsites'
@@ -51,6 +54,7 @@ const { success, danger } = useNotifications()
 
 const TABS = [
   { id: 'browse', label: 'Browse' },
+  { id: 'blocked', label: 'Blocked' },
   { id: 'attest', label: 'Attest' },
   { id: 'trust', label: 'Trust' },
   { id: 'profile', label: 'Profile' },
@@ -84,6 +88,13 @@ const sitesLoaded = ref(false)
 const discoverError = ref('')
 const registeringSite = ref('')
 const { run: runRegisterSite } = useActionRunner(registeringSite, '')
+const forceDiscover = ref(false)
+
+// -- blocked npubs (operator kind-10000 mute list) ------------------------
+
+const blockedPubkeys = ref<string[] | null>(null)
+const busyBlockKey = ref('')
+const { run: runBusyBlockKey } = useActionRunner(busyBlockKey, '')
 
 const categories = computed(() => {
   const found = new Set<string>()
@@ -157,7 +168,11 @@ async function loadBrowse() {
   selfPublisher.value = profile.self_publisher
   // Non-blocking: the relay scan runs in the background so the Browse tab
   // renders the catalogue immediately, even if a relay is slow/unreachable.
-  void loadDiscover()
+  // A manual Refresh forces a live scan (?refresh=1); otherwise the server's
+  // 5-minute cache makes revisits instant.
+  const force = forceDiscover.value
+  forceDiscover.value = false
+  void loadDiscover(force)
 }
 
 async function loadDiscover(force = false) {
@@ -166,7 +181,7 @@ async function loadDiscover(force = false) {
   sitesLoading.value = true
   discoverError.value = ''
   try {
-    const result = await discoverNsites()
+    const result = await discoverNsites(force)
     discoveredSites.value = result.sites
     sitesLoaded.value = true
   } catch (err) {
@@ -178,6 +193,45 @@ async function loadDiscover(force = false) {
   } finally {
     sitesLoading.value = false
   }
+}
+
+async function loadBlocked() {
+  const result = await nsiteBlockList()
+  blockedPubkeys.value = result.pubkeys
+}
+
+async function refreshBlocked() {
+  blockedPubkeys.value = (await nsiteBlockList()).pubkeys
+}
+
+async function blockDiscoveredSite(site: NsiteDiscoveredSite) {
+  await runBusyBlockKey(
+    site.pubkey,
+    async () => {
+      await nsiteBlockAdd(site.pubkey)
+      success('Block submitted for review.')
+      await refreshBlocked()
+      // The blocklist fingerprint is part of the discover cache key, so a
+      // forced re-scan excludes the npub's sites right away.
+      sitesLoaded.value = false
+      void loadDiscover(true)
+    },
+    'Block failed.',
+  )
+}
+
+async function unblockPubkey(pubkey: string) {
+  await runBusyBlockKey(
+    pubkey,
+    async () => {
+      await nsiteBlockRemove(pubkey)
+      success('Unblock submitted for review.')
+      await refreshBlocked()
+      sitesLoaded.value = false
+      void loadDiscover(true)
+    },
+    'Unblock failed.',
+  )
 }
 
 function siteKindName(kind: number): string {
@@ -392,6 +446,7 @@ async function submitVerify() {
 
 const tabLoaders: Record<TabId, () => Promise<void>> = {
   browse: loadBrowse,
+  blocked: loadBlocked,
   attest: loadAttest,
   trust: loadTrust,
   profile: loadProfile,
@@ -417,7 +472,10 @@ function selectTab(tab: TabId) {
 }
 
 async function refreshCurrentTab() {
-  if (activeTab.value === 'browse') sitesLoaded.value = false
+  if (activeTab.value === 'browse') {
+    sitesLoaded.value = false
+    forceDiscover.value = true
+  }
   loadedTabs.delete(activeTab.value)
   await loadTab(activeTab.value)
 }
@@ -608,6 +666,9 @@ watch(publicKey, (key) => {
                 <Badge variant="neutral">{{
                   siteKindName(card.site.kind)
                 }}</Badge>
+                <Badge v-if="card.site.blobs_ok === null" variant="warning"
+                  >blobs unverified</Badge
+                >
               </CardTitle>
               <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">
                 {{ card.site.label }}
@@ -670,6 +731,18 @@ watch(publicKey, (key) => {
                     registeringSite === card.site.label
                       ? 'Submitting…'
                       : 'Register'
+                  }}</Button
+                >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="tw:text-destructive-foreground"
+                  :disabled="busyBlockKey === card.site.pubkey"
+                  @click="blockDiscoveredSite(card.site)"
+                  >{{
+                    busyBlockKey === card.site.pubkey
+                      ? 'Blocking…'
+                      : 'Block npub'
                   }}</Button
                 >
               </div>
@@ -815,6 +888,54 @@ watch(publicKey, (key) => {
           </Card>
         </template>
       </div>
+    </template>
+
+    <!-- Blocked -->
+    <template v-if="publicKey && activeTab === 'blocked'">
+      <Card>
+        <CardHeader>
+          <CardTitle>Blocked npubs</CardTitle>
+          <p class="tw:text-sm tw:text-muted-foreground">
+            The operator's NIP-51 mute list on the control relay. Blocked npubs'
+            sites are excluded from the Browse results. Changes flow through the
+            approval chain like other admin operations.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <p
+            v-if="blockedPubkeys === null"
+            class="tw:text-sm tw:text-muted-foreground"
+          >
+            Loading…
+          </p>
+          <p
+            v-else-if="blockedPubkeys.length === 0"
+            class="tw:text-sm tw:text-muted-foreground"
+          >
+            Nothing blocked — every discovered site is shown.
+          </p>
+          <ul v-else class="tw:grid tw:gap-2">
+            <li
+              v-for="pubkey in blockedPubkeys"
+              :key="pubkey"
+              class="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-md tw:border tw:border-border-subtle tw:px-3 tw:py-2"
+            >
+              <span class="tw:truncate tw:font-mono tw:text-sm">{{
+                truncatePubkey(pubkey)
+              }}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="busyBlockKey === pubkey"
+                @click="unblockPubkey(pubkey)"
+                >{{
+                  busyBlockKey === pubkey ? 'Unblocking…' : 'Unblock'
+                }}</Button
+              >
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </template>
 
     <!-- Attest -->

@@ -209,12 +209,13 @@ async function blockDiscoveredSite(site: NsiteDiscoveredSite) {
     site.pubkey,
     async () => {
       await nsiteBlockAdd(site.pubkey)
-      success('Block submitted for review.')
+      success('Blocked.')
       await refreshBlocked()
-      // The blocklist fingerprint is part of the discover cache key, so a
-      // forced re-scan excludes the npub's sites right away.
+      // The discover cache stores the full site list and is re-filtered
+      // against the blocklist on every read, so the npub's sites disappear
+      // from the next (cache-hit) reload instantly - no forced rescan.
       sitesLoaded.value = false
-      void loadDiscover(true)
+      void loadDiscover()
     },
     'Block failed.',
   )
@@ -225,10 +226,10 @@ async function unblockPubkey(pubkey: string) {
     pubkey,
     async () => {
       await nsiteBlockRemove(pubkey)
-      success('Unblock submitted for review.')
+      success('Unblocked.')
       await refreshBlocked()
       sitesLoaded.value = false
-      void loadDiscover(true)
+      void loadDiscover()
     },
     'Unblock failed.',
   )

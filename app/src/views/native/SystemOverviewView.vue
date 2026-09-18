@@ -14,7 +14,7 @@ import {
 } from '@/api/nativeSystem'
 import { listOperations, type OperationEntry } from '@/api/nativeOperations'
 import { getPrimaryDomain } from '@/api/nativeDomains'
-import { getBackups } from '@/api/nativeBackups'
+import { getRestorePoints } from '@/api/nativeBackups'
 import { getAppManagement } from '@/api/nativePackages'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -51,7 +51,7 @@ const { publicKey, loading, load } = useAsyncResource(async () => {
     getIdentities(),
     listOperations(5),
     getPrimaryDomain(),
-    getBackups(),
+    getRestorePoints(),
     getAppManagement(),
   ])
   health.value = healthResult
@@ -60,7 +60,7 @@ const { publicKey, loading, load } = useAsyncResource(async () => {
   identities.value = identitiesResult
   recentOperations.value = operationsResult
   primaryDomain.value = primaryResult.current
-  hasBackup.value = Object.keys(backupResult.archives).length > 0
+  hasBackup.value = backupResult.snapshots.length > 0
   hasWorkload.value = appResult.apps.some((app) => app.installed)
 }, 'Failed to load system status.')
 

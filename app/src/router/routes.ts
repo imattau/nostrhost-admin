@@ -113,6 +113,12 @@ const routes: RouteRecordRaw[] = [
     meta: { nav: { label: 'Backups', group: 'Main' } },
   },
   {
+    name: 'native-recovery',
+    path: '/recovery',
+    component: () => import('@/views/native/RecoveryView.vue'),
+    meta: { nav: { label: 'Recovery', group: 'Main' } },
+  },
+  {
     name: 'native-diagnosis',
     path: '/diagnosis',
     component: () => import('@/views/native/DiagnosisView.vue'),

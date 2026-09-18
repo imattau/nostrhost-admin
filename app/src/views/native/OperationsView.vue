@@ -126,10 +126,10 @@ async function approve(requestId: string) {
       await sync()
       const event = await signDecision('approval', requestId, undefined)
       await approveOperation(requestId, undefined, event)
-      notifications.success(
+      notifications.info(
         event
-          ? `Approved ${requestId} with your remote signer.`
-          : `Approved ${requestId}.`,
+          ? `Approval for ${requestId} was submitted with your remote signer. Refreshing for executor confirmation.`
+          : `Approval for ${requestId} was submitted. Refreshing for executor confirmation.`,
       )
       await load()
     },
@@ -153,7 +153,9 @@ async function confirmReject() {
       await sync()
       const event = await signDecision('rejection', requestId, reason)
       await rejectOperation(requestId, reason, event)
-      notifications.success(`Rejected ${requestId}.`)
+      notifications.info(
+        `Rejection for ${requestId} was submitted. Refreshing for executor confirmation.`,
+      )
       await load()
     },
     (cause) =>

@@ -34,6 +34,21 @@ window.NostrConnectUI = (function () {
   // of localStorage so a rejected/failed signature cannot look successful.
   var pendingBunkers = new WeakMap();
 
+  async function connectSigner(signer, permissions) {
+    if (!permissions || permissions.length === 0) {
+      return signer.connect();
+    }
+    // nostr-tools 2.25 does not expose the NIP-46 connect permission string
+    // through BunkerSigner.connect(): its optional argument is client
+    // metadata. Send the standard third connect parameter directly so strict
+    // bunkers can authorize the requested operation-decision kinds.
+    return signer.sendRequest("connect", [
+      signer.bp.pubkey,
+      signer.bp.secret || "",
+      permissions.join(","),
+    ]);
+  }
+
   function bytesToHex(bytes) {
     var hex = "";
     for (var i = 0; i < bytes.length; i++) {
@@ -209,7 +224,7 @@ window.NostrConnectUI = (function () {
     return signer;
   }
 
-  async function connectViaBunkerUri(bunkerUriOrNip05, label, deferSave) {
+  async function connectViaBunkerUri(bunkerUriOrNip05, label, deferSave, permissions) {
     var vendor = window.NostrConnectVendor;
     var bp = await vendor.parseBunkerInput(bunkerUriOrNip05);
     if (!bp) {
@@ -217,7 +232,7 @@ window.NostrConnectUI = (function () {
     }
     var clientSecretKey = vendor.generateSecretKey();
     var signer = vendor.BunkerSigner.fromBunker(clientSecretKey, bp);
-    await signer.connect();
+    await connectSigner(signer, permissions);
     if (deferSave) {
       pendingBunkers.set(signer, {
         clientSecretKey: clientSecretKey,
@@ -231,7 +246,7 @@ window.NostrConnectUI = (function () {
     return signer;
   }
 
-  async function connectViaQr(onUriReady, abortSignal, label, deferSave) {
+  async function connectViaQr(onUriReady, abortSignal, label, deferSave, permissions) {
     var vendor = window.NostrConnectVendor;
     var clientSecretKey = vendor.generateSecretKey();
     var clientPubkey = vendor.getPublicKey(clientSecretKey);
@@ -240,6 +255,7 @@ window.NostrConnectUI = (function () {
       clientPubkey: clientPubkey,
       relays: DEFAULT_QR_RELAYS,
       secret: secret,
+      perms: permissions || [],
       name: document.title,
     });
     var qrDataUrl = await vendor.QRCode.toDataURL(uri, { width: 240, margin: 1 });
@@ -267,18 +283,18 @@ window.NostrConnectUI = (function () {
     return signer;
   }
 
-  async function reconnectSaved() {
+  async function reconnectSaved(permissions) {
     var saved = loadSavedBunker();
     if (!saved) return null;
     var vendor = window.NostrConnectVendor;
     var clientSecretKey = hexToBytes(saved.clientSecretKeyHex);
     var signer = vendor.BunkerSigner.fromBunker(clientSecretKey, saved.bunkerPointer);
-    await signer.connect();
+    await connectSigner(signer, permissions);
     signer.sessionId = saved.sessionId;
     return signer;
   }
 
-  async function reconnectSession(sessionId) {
+  async function reconnectSession(sessionId, permissions) {
     var saved = loadSavedList().filter(function (s) {
       return s.sessionId === sessionId;
     })[0];
@@ -286,7 +302,7 @@ window.NostrConnectUI = (function () {
     var vendor = window.NostrConnectVendor;
     var clientSecretKey = hexToBytes(saved.clientSecretKeyHex);
     var signer = vendor.BunkerSigner.fromBunker(clientSecretKey, saved.bunkerPointer);
-    await signer.connect();
+    await connectSigner(signer, permissions);
     signer.sessionId = saved.sessionId;
     return signer;
   }

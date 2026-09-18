@@ -71,7 +71,12 @@ export function approveOperation(
   note?: string,
   event?: SignedEvent,
 ) {
-  return request<{ ok: boolean; request_id: string; event_id?: string }>(
+  return request<{
+    ok: boolean
+    status: 'submitted'
+    request_id: string
+    event_id?: string
+  }>(
     `/package/operations/${encodeURIComponent(requestId)}/approve`,
     'POST',
     JSON.stringify({ note, event }),
@@ -83,7 +88,12 @@ export function rejectOperation(
   reason?: string,
   event?: SignedEvent,
 ) {
-  return request<{ ok: boolean; request_id: string; event_id?: string }>(
+  return request<{
+    ok: boolean
+    status: 'submitted'
+    request_id: string
+    event_id?: string
+  }>(
     `/package/operations/${encodeURIComponent(requestId)}/reject`,
     'POST',
     JSON.stringify({ reason, event }),

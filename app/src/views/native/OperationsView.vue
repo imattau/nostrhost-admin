@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
@@ -7,8 +7,10 @@ import {
   getApprovalTemplate,
   getOperation,
   getRejectionTemplate,
+  listNotifySigners,
   listOperations,
   rejectOperation,
+  type NotifySigners,
   type OperationEntry,
   type OperationState,
   type SignedEvent,
@@ -43,8 +45,41 @@ const {
 } = useBunkerSigner()
 const bunkerInput = ref('')
 
+// Whether the node itself pushes parked approvals to a remote signer, so this
+// page can tell an admin that their signer may be prompted without the
+// console open (see `nostrhost notify signer pair`).
+const nodeSigners = ref<NotifySigners | null>(null)
+
+async function loadNodeSigners() {
+  try {
+    nodeSigners.value = await listNotifySigners()
+  } catch {
+    nodeSigners.value = null
+  }
+}
+
+let pollTimer: ReturnType<typeof setInterval> | undefined
+
+// Keep the list live while the page is open: approvals may be pushed to a
+// signer and executed by the node without any interaction in this tab.
+async function refreshQuietly() {
+  if (document.visibilityState !== 'visible' || busy.value) return
+  try {
+    operations.value = await listOperations(200)
+  } catch {
+    // transient; the next tick or an explicit Refresh retries
+  }
+}
+
 onMounted(() => {
   tryReconnectSaved()
+  pollTimer = setInterval(refreshQuietly, 15000)
+  document.addEventListener('visibilitychange', refreshQuietly)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', refreshQuietly)
 })
 
 async function connectBunker() {
@@ -91,7 +126,18 @@ const { run } = useActionRunner(busy, '')
 const { pending: confirmingReject } = useConfirm<string | null>(null)
 const rejectReason = ref('')
 
+const nodeSignerStatus = computed(() => {
+  const info = nodeSigners.value
+  if (!info) return ''
+  if (info.this_admin)
+    return 'The node pushes parked approvals to your remote signer.'
+  if (info.remote)
+    return "The node pushes parked approvals to another admin's signer."
+  return 'No remote signer is registered with the node; approvals made here are signed in this browser or by the server key.'
+})
+
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
+  await loadNodeSigners()
   operations.value = await listOperations(200)
   const requested = route.query.operation
   if (typeof requested === 'string' && expanded.value !== requested) {
@@ -219,6 +265,12 @@ watch(
             Connect a NIP-46 bunker to sign approvals/rejections yourself
             instead of the server's admin key. This browser's connection is
             separate from any bunker saved on the portal's account page.
+          </p>
+          <p
+            v-if="nodeSignerStatus"
+            class="tw:text-xs tw:text-muted-foreground"
+          >
+            {{ nodeSignerStatus }}
           </p>
           <Alert v-if="bunkerError" variant="danger" role="alert">{{
             bunkerError

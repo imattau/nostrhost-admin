@@ -34,6 +34,23 @@ export function getOperation(requestId: string) {
   )
 }
 
+export type NotifySigners = {
+  remote: boolean
+  this_admin: boolean
+  targets: Array<{
+    signer_pubkey: string
+    relays: string[]
+    label: string | null
+    paired: boolean
+  }>
+}
+
+// Whether the node pushes parked approvals to a remote signer, and whether
+// this admin's own identity is one of them (see `nostrhost notify signer`).
+export function listNotifySigners() {
+  return request<NotifySigners>('/package/notify/signers', 'GET')
+}
+
 export type SignedEvent = {
   id: string
   pubkey: string

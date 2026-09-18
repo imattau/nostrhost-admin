@@ -5,6 +5,7 @@ import {
   approveOperation,
   getApprovalTemplate,
   getRejectionTemplate,
+  listNotifySigners,
   rejectOperation,
 } from '@/api/nativeOperations'
 
@@ -77,5 +78,14 @@ describe('rejectOperation', () => {
     await rejectOperation('x', 'no thanks')
     const [, , body] = vi.mocked(request).mock.calls[0]
     expect(JSON.parse(body as string).reason).toBe('no thanks')
+  })
+})
+
+describe('listNotifySigners', () => {
+  it('reads the node signer fan-out status', async () => {
+    const payload = { remote: true, this_admin: false, targets: [] }
+    vi.mocked(request).mockResolvedValueOnce(payload)
+    await expect(listNotifySigners()).resolves.toEqual(payload)
+    expect(request).toHaveBeenCalledWith('/package/notify/signers', 'GET')
   })
 })

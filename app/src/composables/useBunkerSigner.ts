@@ -36,7 +36,13 @@ declare global {
   }
 }
 
-const SCRIPTS = ['/nostr/nostr-connect-vendor.js', '/nostr/nostr-connect-ui.js']
+const publicAsset = (path: string) =>
+  `${import.meta.env.BASE_URL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+
+const SCRIPTS = [
+  publicAsset('nostr/nostr-connect-vendor.js'),
+  publicAsset('nostr/nostr-connect-ui.js'),
+]
 const APPROVAL_PERMISSIONS = [
   'get_public_key',
   'sign_event:2201',
@@ -49,7 +55,22 @@ function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${src}"]`)
     if (existing) {
-      resolve()
+      const ready = src.endsWith('nostr-connect-ui.js')
+        ? Boolean(window.NostrConnectUI)
+        : Boolean(
+            (window as Window & { NostrConnectVendor?: unknown })
+              .NostrConnectVendor,
+          )
+      if (ready) {
+        resolve()
+        return
+      }
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener(
+        'error',
+        () => reject(new Error(`failed to load ${src}`)),
+        { once: true },
+      )
       return
     }
     const script = document.createElement('script')

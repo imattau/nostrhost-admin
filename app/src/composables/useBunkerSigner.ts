@@ -13,14 +13,20 @@ import { ref } from 'vue'
 
 type NostrSigner = {
   signEvent(event: Record<string, unknown>): Promise<Record<string, unknown>>
+  getPublicKey(): Promise<string>
   close?(): Promise<void>
 }
 
 type NostrConnectUIApi = {
   hasSaved(): boolean
   getSavedInfo(): { relays: string[]; remoteNpub: string } | null
-  reconnectSaved(): Promise<NostrSigner | null>
-  connectViaBunkerUri(value: string): Promise<NostrSigner>
+  reconnectSaved(permissions?: string[]): Promise<NostrSigner | null>
+  connectViaBunkerUri(
+    value: string,
+    label?: string,
+    deferSave?: boolean,
+    permissions?: string[],
+  ): Promise<NostrSigner>
   clearSaved(): void
 }
 
@@ -31,6 +37,11 @@ declare global {
 }
 
 const SCRIPTS = ['/nostr/nostr-connect-vendor.js', '/nostr/nostr-connect-ui.js']
+const APPROVAL_PERMISSIONS = [
+  'get_public_key',
+  'sign_event:2201',
+  'sign_event:2202',
+]
 
 let loadPromise: Promise<void> | null = null
 
@@ -86,7 +97,7 @@ async function tryReconnectSaved() {
   try {
     const ui = await ensureLoaded()
     if (!ui.hasSaved()) return
-    signer = await ui.reconnectSaved()
+    signer = await ui.reconnectSaved(APPROVAL_PERMISSIONS)
     applySavedInfo(ui)
   } catch (cause) {
     error.value =
@@ -105,7 +116,12 @@ async function connectBunker(bunkerUriOrNip05: string) {
   error.value = ''
   try {
     const ui = await ensureLoaded()
-    signer = await ui.connectViaBunkerUri(bunkerUriOrNip05)
+    signer = await ui.connectViaBunkerUri(
+      bunkerUriOrNip05,
+      undefined,
+      false,
+      APPROVAL_PERMISSIONS,
+    )
     applySavedInfo(ui)
   } catch (cause) {
     error.value =
@@ -141,7 +157,14 @@ async function signTemplate(
   if (!signer) {
     throw new Error('No remote signer is connected.')
   }
-  return signer.signEvent(template)
+  const expectedPubkey = template.pubkey
+  const signed = await signer.signEvent(template)
+  if (typeof expectedPubkey === 'string' && signed.pubkey !== expectedPubkey) {
+    throw new Error(
+      'The remote signer key does not match the Nostr identity authenticated as this admin.',
+    )
+  }
+  return signed
 }
 
 export function useBunkerSigner() {

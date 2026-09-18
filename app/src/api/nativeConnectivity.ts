@@ -33,6 +33,14 @@ export type ConnectivityPlan = {
   plan_sha256: string
 }
 
+export type ConnectivityOperation = {
+  ok: boolean
+  error?: string
+  request_id?: string
+  state?: string
+  result?: unknown
+}
+
 export function getConnectivity() {
   return request<ConnectivityState>('/package/nostr/connectivity', 'GET')
 }
@@ -57,7 +65,10 @@ export function applyConnectivity(
   configuration: ConnectivityConfiguration,
   planSha256: string,
 ) {
-  return request<{ operation: unknown; effective: ConnectivityEffective }>(
+  return request<{
+    operation: ConnectivityOperation
+    effective: ConnectivityEffective
+  }>(
     '/package/nostr/connectivity/apply',
     'POST',
     JSON.stringify({ configuration, plan_sha256: planSha256 }),

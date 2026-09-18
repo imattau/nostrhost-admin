@@ -135,7 +135,18 @@ async function apply() {
   busy.value = true
   error.value = ''
   try {
-    await applyConnectivity(configuration.value, plan.value.plan_sha256)
+    const result = await applyConnectivity(
+      configuration.value,
+      plan.value.plan_sha256,
+    )
+    if (!result.operation?.ok) {
+      error.value =
+        result.operation?.error ??
+        'The change was not applied. Reloaded the current settings.'
+      plan.value = null
+      await load()
+      return
+    }
     message.value = 'Nostr network defaults were updated.'
     plan.value = null
     await load()

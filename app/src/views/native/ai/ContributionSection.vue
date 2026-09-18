@@ -31,10 +31,12 @@ const { run: runShare } = useActionRunner(sharingCycleId, '')
 const sharedCycleIds = ref<Set<string>>(new Set())
 const sharedPullRequestUrls = ref<Record<string, string>>({})
 
-// Suggested community dataset repo -- prefilled as a convenience only; the
-// operator can change or clear it, and sharing stays off until they opt in
-// and save a token.
-const DEFAULT_DATASET_REPO = '0xx0lostcause0xx0/nostrhost-agent'
+// Suggested community contributions repository -- prefilled as a convenience
+// only; the operator can change or clear it, and sharing stays off until they
+// opt in and save a token. Pull requests go here first so the repository's
+// validation workflow can run before its automatic merge, which then syncs the
+// shared file to the Hugging Face dataset.
+const DEFAULT_DATASET_REPO = 'imattau/nostrhost-contributions'
 
 const contributionSettings = ref<ContributionSettings | null>(null)
 const contributionRepo = ref('')
@@ -219,36 +221,36 @@ watch(publicKey, (key) => {
       >
         <div>
           <p class="tw:text-sm tw:font-medium tw:text-foreground">
-            Hugging Face sharing
+            Contribution sharing
           </p>
           <p class="tw:text-xs tw:text-muted-foreground">
-            Off until a dataset repo and token are saved below. Once configured,
+            Off until a GitHub repository and token are saved below. Once configured,
             sharing a cycle above opens a pull request with only that one
             redacted cycle — never a direct commit, never the raw audit journal.
           </p>
         </div>
 
         <div class="tw:grid tw:gap-1.5">
-          <Label for="hf-repo">Dataset repo</Label>
+          <Label for="contribution-repo">GitHub repository</Label>
           <Input
-            id="hf-repo"
+            id="contribution-repo"
             v-model="contributionRepo"
-            placeholder="owner/dataset"
+            placeholder="owner/repo"
             spellcheck="false"
             autocomplete="off"
           />
         </div>
         <div class="tw:grid tw:gap-1.5">
-          <Label for="hf-token">Hugging Face token</Label>
+          <Label for="contribution-token">GitHub token</Label>
           <Input
-            id="hf-token"
+            id="contribution-token"
             v-model="contributionToken"
             type="password"
             autocomplete="off"
             :placeholder="
               contributionSettings?.token_configured
                 ? 'Token already saved — leave blank to keep it'
-                : 'hf_…'
+                : 'ghp_…'
             "
           />
         </div>

@@ -34,6 +34,9 @@ export type AppManagementEntry = {
   logo?: string | null
   installation?: { native: boolean; source?: string; legacy: boolean }
   movable?: boolean
+  // Served URL ("domain/path") for installed apps; the management UI uses it
+  // to default the change-url form's domain/path fields.
+  domain_path?: string | null
   catalogue?: {
     publisher?: string
     repository?: string

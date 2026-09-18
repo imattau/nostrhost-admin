@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { getDomains } from '@/api/nativeDomains'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import AppLogo from '@/components/native/AppLogo.vue'
 import ChangeLedger from '@/components/native/ChangeLedger.vue'
@@ -64,6 +65,7 @@ const plan = ref<PackagePlan | ChangeUrlPlan | null>(null)
 const action = ref<Action | null>(null)
 const newDomain = ref('')
 const newPath = ref('')
+const domains = ref<string[]>([])
 const permission = ref<PermissionInfo | null>(null)
 const groupNames = ref<string[]>([])
 const editLabel = ref('')
@@ -114,9 +116,13 @@ async function loadApps() {
     'load',
     async () => {
       await sync()
-      const inventory = await getAppManagement()
+      const [inventory, domainResult] = await Promise.all([
+        getAppManagement(),
+        getDomains().catch(() => ({ domains: [] as string[] })),
+      ])
       apps.value = inventory.apps
       catalogueError.value = inventory.catalogue_error || ''
+      domains.value = domainResult.domains || []
       if (selected.value) {
         selected.value =
           apps.value.find((item) => item.id === selected.value?.id) || null
@@ -170,8 +176,9 @@ async function chooseApp(app: AppManagementEntry) {
   values.value = {}
   plan.value = null
   action.value = null
-  newDomain.value = ''
-  newPath.value = ''
+  const current = splitDomainPath(app.domain_path)
+  newDomain.value = current.domain
+  newPath.value = current.path
   permission.value = null
   grantPick.value = ''
   confirmingRevoke.value = null
@@ -356,6 +363,14 @@ async function applyPlan() {
     },
     `Could not apply ${chosenAction}.`,
   )
+}
+
+function splitDomainPath(domainPath: string | null | undefined) {
+  const value = domainPath?.trim() ?? ''
+  if (!value) return { domain: '', path: '/' }
+  const slash = value.indexOf('/')
+  if (slash === -1) return { domain: value, path: '/' }
+  return { domain: value.slice(0, slash), path: value.slice(slash) || '/' }
 }
 
 function label(app: AppManagementEntry) {
@@ -680,11 +695,30 @@ function cancelPlan() {
             </div>
             <label class="tw:block tw:space-y-1">
               <span class="tw:block tw:text-sm tw:font-medium">Domain</span>
-              <input
-                v-model="newDomain"
-                class="tw:w-full tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
-                placeholder="example.com"
-              />
+              <Select v-model="newDomain" class="tw:w-full tw:text-sm">
+                <option v-if="!domains.length" value="" disabled>
+                  No domains available
+                </option>
+                <option
+                  v-if="
+                    newDomain && !domains.includes(newDomain) && domains.length
+                  "
+                  :value="newDomain"
+                >
+                  {{ newDomain }} (current)
+                </option>
+                <option v-for="domain in domains" :key="domain" :value="domain">
+                  {{ domain }}
+                </option>
+              </Select>
+              <span
+                v-if="!domains.length"
+                class="tw:block tw:text-xs tw:text-muted-foreground"
+              >
+                <RouterLink :to="{ name: 'native-domains' }"
+                  >Manage domains</RouterLink
+                >
+              </span>
             </label>
             <label class="tw:block tw:space-y-1">
               <span class="tw:block tw:text-sm tw:font-medium">Path</span>

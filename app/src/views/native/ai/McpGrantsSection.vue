@@ -10,15 +10,18 @@ import {
 import {
   getMcpCaBundle,
   getMcpEndpoint,
+  setMcpEndpoint,
   type McpCaBundle,
   type McpEndpoint,
 } from '@/api/nativeMcp'
+import { getDomains } from '@/api/nativeDomains'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useActionRunner } from '@/composables/useActionRunner'
 import { useConfirm } from '@/composables/useConfirm'
 import { useNotifications } from '@/composables/useNotifications'
@@ -98,22 +101,49 @@ const transportTab = ref<'local' | 'remote'>('local')
 const mcpEndpoint = ref<McpEndpoint | null>(null)
 const mcpEndpointLoading = ref(false)
 const caBundle = ref<McpCaBundle | null>(null)
+const endpointDomains = ref<string[]>([])
+const selectedEndpointDomain = ref('')
+const mcpEndpointSaving = ref(false)
+const { run: runSetMcpEndpoint } = useActionRunner(mcpEndpointSaving, false)
 
 async function loadRemoteTransportInfo() {
   mcpEndpointLoading.value = true
   try {
-    const [endpoint, bundle] = await Promise.all([
+    const [endpoint, bundle, domainList] = await Promise.all([
       getMcpEndpoint(),
       getMcpCaBundle(),
+      getDomains().catch(() => ({ domains: [] as string[] })),
     ])
     mcpEndpoint.value = endpoint
     caBundle.value = bundle
+    endpointDomains.value = domainList.domains
+    selectedEndpointDomain.value = endpoint.configured
+      ? endpoint.domain
+      : domainList.domains.length === 1
+        ? domainList.domains[0]
+        : ''
   } catch {
     mcpEndpoint.value = { configured: false }
     caBundle.value = { available: false }
+    endpointDomains.value = []
+    selectedEndpointDomain.value = ''
   } finally {
     mcpEndpointLoading.value = false
   }
+}
+
+async function configureMcpEndpoint() {
+  if (!selectedEndpointDomain.value) return
+  await runSetMcpEndpoint(
+    true,
+    async () => {
+      await sync()
+      const endpoint = await setMcpEndpoint(selectedEndpointDomain.value)
+      mcpEndpoint.value = endpoint
+      success('MCP endpoint configured.')
+    },
+    'Failed to configure the MCP endpoint.',
+  )
 }
 
 function downloadCaBundle() {
@@ -485,44 +515,102 @@ watch(publicKey, (key) => {
             >
               Checking this node's MCP endpoint…
             </p>
-            <template v-else-if="mcpEndpoint?.configured">
-              <div
-                class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
-              >
-                <span
-                  class="tw:text-xs tw:font-mono tw:uppercase tw:tracking-wide tw:text-muted-foreground"
-                  >Run on the agent's machine</span
+            <template v-else>
+              <div class="tw:grid tw:gap-1.5">
+                <Label for="mcp-endpoint-domain">Endpoint domain</Label>
+                <div
+                  class="tw:grid tw:gap-2 tw:sm:grid-cols-[minmax(0,1fr)_auto]"
                 >
-                <code class="tw:font-mono tw:text-xs"
-                  >yunohost-mcp-connect setup --server https://{{
-                    mcpEndpoint.domain
-                  }}/mcp</code
-                >
-              </div>
-              <template v-if="caBundle?.available">
-                <Alert variant="info">
-                  This endpoint uses a self-signed certificate (a lab/test
-                  domain) — the agent's machine needs to trust it before
-                  connecting.
-                </Alert>
-                <div class="tw:flex tw:justify-end">
-                  <Button variant="outline" size="sm" @click="downloadCaBundle"
-                    >Download CA bundle</Button
+                  <Select
+                    id="mcp-endpoint-domain"
+                    v-model="selectedEndpointDomain"
+                    :disabled="mcpEndpointSaving || !endpointDomains.length"
+                  >
+                    <option value="" disabled>
+                      Choose a registered domain…
+                    </option>
+                    <option
+                      v-if="
+                        mcpEndpoint?.configured &&
+                        !endpointDomains.includes(mcpEndpoint.domain)
+                      "
+                      :value="mcpEndpoint.domain"
+                      disabled
+                    >
+                      {{ mcpEndpoint.domain }} (not registered)
+                    </option>
+                    <option
+                      v-for="domain in endpointDomains"
+                      :key="domain"
+                      :value="domain"
+                    >
+                      {{ domain }}
+                    </option>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="
+                      mcpEndpointSaving ||
+                      !selectedEndpointDomain ||
+                      (mcpEndpoint?.configured &&
+                        selectedEndpointDomain === mcpEndpoint.domain)
+                    "
+                    @click="configureMcpEndpoint"
+                    >{{
+                      mcpEndpointSaving
+                        ? 'Configuring…'
+                        : mcpEndpoint?.configured
+                          ? 'Update endpoint'
+                          : 'Configure endpoint'
+                    }}</Button
                   >
                 </div>
+                <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                  Choose a domain already registered in Domains &amp; DNS. It
+                  will route HTTPS MCP traffic to this node's local adapter.
+                </p>
+              </div>
+
+              <template v-if="mcpEndpoint?.configured">
+                <div
+                  class="tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-border-subtle tw:p-3"
+                >
+                  <span
+                    class="tw:text-xs tw:font-mono tw:uppercase tw:tracking-wide tw:text-muted-foreground"
+                    >Run on the agent's machine</span
+                  >
+                  <code class="tw:font-mono tw:text-xs"
+                    >yunohost-mcp-connect setup --server https://{{
+                      mcpEndpoint.domain
+                    }}/mcp</code
+                  >
+                </div>
+                <template v-if="caBundle?.available">
+                  <Alert variant="info">
+                    This endpoint uses a self-signed certificate (a lab/test
+                    domain) — the agent's machine needs to trust it before
+                    connecting.
+                  </Alert>
+                  <div class="tw:flex tw:justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      @click="downloadCaBundle"
+                      >Download CA bundle</Button
+                    >
+                  </div>
+                </template>
+                <p v-else class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                  This endpoint uses a public certificate — no extra trust setup
+                  needed.
+                </p>
               </template>
-              <p v-else class="tw:m-0 tw:text-xs tw:text-muted-foreground">
-                This endpoint uses a public certificate — no extra trust setup
-                needed.
-              </p>
+              <Alert v-else variant="info">
+                No MCP endpoint is configured on this node yet. Choose a
+                registered domain above to create it.
+              </Alert>
             </template>
-            <Alert v-else variant="info">
-              No MCP endpoint is configured on this node yet. On the node, run
-              <code class="tw:font-mono"
-                >nostrhost mcp route &lt;domain&gt;</code
-              >
-              to route a domain to it, then reopen this step.
-            </Alert>
           </template>
 
           <div class="tw:flex tw:justify-end">

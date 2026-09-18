@@ -9,10 +9,17 @@ export type McpCaBundle =
   | { available: true; pem: string }
 
 // The MCP endpoint's Caddy route (`nostrhost mcp route`) and its CA bundle
-// (`nostrhost mcp export-ca`) — read-only: this UI does not configure the
-// route itself, only shows what the operator has already set up.
+// (`nostrhost mcp export-ca`).
 export function getMcpEndpoint() {
   return request<McpEndpoint>('/package/mcp/endpoint', 'GET')
+}
+
+export function setMcpEndpoint(domain: string) {
+  return request<McpEndpoint>(
+    '/package/mcp/endpoint',
+    'POST',
+    JSON.stringify({ domain }),
+  )
 }
 
 export function getMcpCaBundle() {

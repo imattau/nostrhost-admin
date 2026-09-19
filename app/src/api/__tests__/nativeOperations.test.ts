@@ -4,9 +4,13 @@ import { request } from '@/api/client'
 import {
   approveOperation,
   getApprovalTemplate,
+  getNotifySignerPairing,
   getRejectionTemplate,
   listNotifySigners,
+  registerNotifySigner,
   rejectOperation,
+  removeNotifySigner,
+  startNotifySignerPairing,
 } from '@/api/nativeOperations'
 
 vi.mock('@/api/client', () => ({
@@ -87,5 +91,66 @@ describe('listNotifySigners', () => {
     vi.mocked(request).mockResolvedValueOnce(payload)
     await expect(listNotifySigners()).resolves.toEqual(payload)
     expect(request).toHaveBeenCalledWith('/package/notify/signers', 'GET')
+  })
+})
+
+describe('registerNotifySigner', () => {
+  it('posts the bunker uri and label', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      remote: true,
+      this_admin: true,
+      targets: [],
+    })
+    await registerNotifySigner('bunker://abc?relay=wss', 'phone')
+    const [path, method, body] = vi.mocked(request).mock.calls[0]
+    expect(path).toBe('/package/notify/signers')
+    expect(method).toBe('POST')
+    expect(JSON.parse(body as string)).toEqual({
+      bunker_uri: 'bunker://abc?relay=wss',
+      label: 'phone',
+    })
+  })
+})
+
+describe('removeNotifySigner', () => {
+  it('deletes by url-encoded pubkey', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ removed: true })
+    await removeNotifySigner('ab'.repeat(32))
+    expect(request).toHaveBeenCalledWith(
+      `/package/notify/signers/${'ab'.repeat(32)}`,
+      'DELETE',
+    )
+  })
+})
+
+describe('startNotifySignerPairing', () => {
+  it('posts the optional relays and label', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      pairing_id: 'p',
+      status: 'pending',
+      uri: 'nostrconnect://x',
+    })
+    await startNotifySignerPairing(['wss://relay.example'], 'phone')
+    const [path, method, body] = vi.mocked(request).mock.calls[0]
+    expect(path).toBe('/package/notify/signers/pair')
+    expect(method).toBe('POST')
+    expect(JSON.parse(body as string)).toEqual({
+      relays: ['wss://relay.example'],
+      label: 'phone',
+    })
+  })
+})
+
+describe('getNotifySignerPairing', () => {
+  it('polls a pairing by id', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      pairing_id: 'p',
+      status: 'paired',
+    })
+    await getNotifySignerPairing('p')
+    expect(request).toHaveBeenCalledWith(
+      '/package/notify/signers/pair/p',
+      'GET',
+    )
   })
 })

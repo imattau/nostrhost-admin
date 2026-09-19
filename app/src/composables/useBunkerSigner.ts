@@ -30,9 +30,19 @@ type NostrConnectUIApi = {
   clearSaved(): void
 }
 
+type NostrConnectVendorApi = {
+  QRCode: {
+    toDataURL(
+      text: string,
+      options?: { width?: number; margin?: number },
+    ): Promise<string>
+  }
+}
+
 declare global {
   interface Window {
     NostrConnectUI?: NostrConnectUIApi
+    NostrConnectVendor?: NostrConnectVendorApi
   }
 }
 
@@ -94,6 +104,18 @@ async function ensureLoaded(): Promise<NostrConnectUIApi> {
     throw new Error('Remote signer support failed to load.')
   }
   return window.NostrConnectUI
+}
+
+// Render a `nostrconnect://` URI (e.g. the node-side pairing URI returned by
+// the notify-signers API) as a QR data URL, using the same vendored QR code
+// the portal's connect flow uses. Ensures the vendor bundle is loaded first.
+export async function renderNostrConnectQr(uri: string): Promise<string> {
+  await ensureLoaded()
+  const vendor = window.NostrConnectVendor
+  if (!vendor?.QRCode) {
+    throw new Error('QR code support failed to load.')
+  }
+  return vendor.QRCode.toDataURL(uri, { width: 240, margin: 1 })
 }
 
 // Module-level so every view sees the same connection state.

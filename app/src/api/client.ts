@@ -53,7 +53,7 @@ export class OperationError extends Error {
 // keys.
 export async function request<T>(
   path: string,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   body?: string,
 ): Promise<T> {
   const headers = new Headers()

@@ -34,21 +34,68 @@ export function getOperation(requestId: string) {
   )
 }
 
+export type NotifySignerTarget = {
+  signer_pubkey: string
+  relays: string[]
+  label: string | null
+  paired: boolean
+}
+
 export type NotifySigners = {
   remote: boolean
   this_admin: boolean
-  targets: Array<{
-    signer_pubkey: string
-    relays: string[]
-    label: string | null
-    paired: boolean
-  }>
+  targets: NotifySignerTarget[]
 }
 
 // Whether the node pushes parked approvals to a remote signer, and whether
 // this admin's own identity is one of them (see `nostrhost notify signer`).
 export function listNotifySigners() {
   return request<NotifySigners>('/package/notify/signers', 'GET')
+}
+
+// Register the node (not this browser) with the admin's own remote signer
+// from a `bunker://` URI, so parked approvals reach it without a browser
+// session. Only the authenticated admin's own identity may be registered.
+export function registerNotifySigner(bunkerUri: string, label?: string) {
+  return request<NotifySigners>(
+    '/package/notify/signers',
+    'POST',
+    JSON.stringify({ bunker_uri: bunkerUri, label: label ?? null }),
+  )
+}
+
+export function removeNotifySigner(signerPubkey: string) {
+  return request<{ removed: boolean } & NotifySigners>(
+    `/package/notify/signers/${encodeURIComponent(signerPubkey)}`,
+    'DELETE',
+  )
+}
+
+export type NotifySignerPairing = {
+  pairing_id: string
+  status: 'pending' | 'paired' | 'failed' | 'expired'
+  uri: string
+  relays: string[]
+  expires_at: number
+  signer_pubkey: string | null
+  error: string | null
+}
+
+// Node-initiated pairing: the server returns a `nostrconnect://` URI to show
+// as a QR; poll the pairing until it reports `paired`.
+export function startNotifySignerPairing(relays?: string[], label?: string) {
+  return request<NotifySignerPairing>(
+    '/package/notify/signers/pair',
+    'POST',
+    JSON.stringify({ relays: relays ?? null, label: label ?? null }),
+  )
+}
+
+export function getNotifySignerPairing(pairingId: string) {
+  return request<NotifySignerPairing & Partial<NotifySigners>>(
+    `/package/notify/signers/pair/${encodeURIComponent(pairingId)}`,
+    'GET',
+  )
 }
 
 export type SignedEvent = {

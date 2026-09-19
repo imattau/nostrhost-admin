@@ -5,11 +5,16 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   approveOperation,
   getApprovalTemplate,
+  getNotifySignerPairing,
   getOperation,
   getRejectionTemplate,
   listNotifySigners,
   listOperations,
+  registerNotifySigner,
   rejectOperation,
+  removeNotifySigner,
+  startNotifySignerPairing,
+  type NotifySignerPairing,
   type NotifySigners,
   type OperationEntry,
   type OperationState,
@@ -24,7 +29,10 @@ import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 import { useAsyncResource } from '@/composables/useAsyncResource'
-import { useBunkerSigner } from '@/composables/useBunkerSigner'
+import {
+  renderNostrConnectQr,
+  useBunkerSigner,
+} from '@/composables/useBunkerSigner'
 import { useNotifications } from '@/composables/useNotifications'
 import { useActionRunner } from '@/composables/useActionRunner'
 import { useConfirm } from '@/composables/useConfirm'
@@ -58,6 +66,116 @@ async function loadNodeSigners() {
   }
 }
 
+// Node-side registration: the node (not this browser) pushes parked approvals
+// to the admin's own remote signer, so approvals work from any session.
+const nodeSignerInput = ref('')
+const nodeSignerLabel = ref('')
+const nodeSignerBusy = ref('')
+const nodeSignerError = ref('')
+const pairing = ref<NotifySignerPairing | null>(null)
+const pairingQr = ref('')
+let pairingTimer: ReturnType<typeof setInterval> | undefined
+
+const ownPubkey = computed(() => (publicKey.value ?? '').toLowerCase())
+const isOwnTarget = (pubkey: string) => pubkey.toLowerCase() === ownPubkey.value
+
+async function registerNodeSigner() {
+  const uri = nodeSignerInput.value.trim()
+  if (!uri) return
+  nodeSignerBusy.value = 'register'
+  nodeSignerError.value = ''
+  try {
+    nodeSigners.value = await registerNotifySigner(
+      uri,
+      nodeSignerLabel.value.trim() || undefined,
+    )
+    nodeSignerInput.value = ''
+    nodeSignerLabel.value = ''
+    notifications.success('Remote signer registered with the node.')
+  } catch (cause) {
+    nodeSignerError.value =
+      cause instanceof Error
+        ? cause.message
+        : 'Could not register that remote signer.'
+  } finally {
+    nodeSignerBusy.value = ''
+  }
+}
+
+async function removeNodeSigner(signerPubkey: string) {
+  if (!window.confirm('Stop pushing approvals to this remote signer?')) return
+  nodeSignerBusy.value = `remove-${signerPubkey}`
+  nodeSignerError.value = ''
+  try {
+    await removeNotifySigner(signerPubkey)
+    await loadNodeSigners()
+    notifications.success('Remote signer removed.')
+  } catch (cause) {
+    nodeSignerError.value =
+      cause instanceof Error
+        ? cause.message
+        : 'Could not remove that remote signer.'
+  } finally {
+    nodeSignerBusy.value = ''
+  }
+}
+
+async function startPairing() {
+  stopPairingPoll()
+  nodeSignerBusy.value = 'pair'
+  nodeSignerError.value = ''
+  try {
+    const started = await startNotifySignerPairing()
+    pairing.value = started
+    pairingQr.value = await renderNostrConnectQr(started.uri)
+    notifications.info(
+      'Scan the QR with your signer app to authorise this node.',
+    )
+    pairingTimer = setInterval(pollPairing, 3000)
+  } catch (cause) {
+    nodeSignerError.value =
+      cause instanceof Error
+        ? cause.message
+        : 'Could not start the signer pairing.'
+  } finally {
+    nodeSignerBusy.value = ''
+  }
+}
+
+async function pollPairing() {
+  const current = pairing.value
+  if (!current || current.status !== 'pending') return
+  try {
+    const next = await getNotifySignerPairing(current.pairing_id)
+    pairing.value = next
+    if (next.status === 'paired') {
+      stopPairingPoll()
+      await loadNodeSigners()
+      notifications.success(
+        'Remote signer paired. Approvals will now reach it without this browser.',
+      )
+    } else if (next.status !== 'pending') {
+      stopPairingPoll()
+      if (next.error) nodeSignerError.value = next.error
+    }
+  } catch {
+    // transient; the next tick retries
+  }
+}
+
+function stopPairingPoll() {
+  if (pairingTimer) {
+    clearInterval(pairingTimer)
+    pairingTimer = undefined
+  }
+}
+
+function cancelPairing() {
+  stopPairingPoll()
+  pairing.value = null
+  pairingQr.value = ''
+}
+
 let pollTimer: ReturnType<typeof setInterval> | undefined
 
 // Keep the list live while the page is open: approvals may be pushed to a
@@ -79,6 +197,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  stopPairingPoll()
   document.removeEventListener('visibilitychange', refreshQuietly)
 })
 
@@ -258,19 +377,14 @@ watch(
     <template v-if="publicKey">
       <Card>
         <CardHeader>
-          <CardTitle>Remote signer</CardTitle>
+          <CardTitle>Remote signer (this browser)</CardTitle>
         </CardHeader>
         <CardContent class="tw:grid tw:gap-2">
           <p class="tw:text-xs tw:text-muted-foreground">
             Connect a NIP-46 bunker to sign approvals/rejections yourself
             instead of the server's admin key. This browser's connection is
-            separate from any bunker saved on the portal's account page.
-          </p>
-          <p
-            v-if="nodeSignerStatus"
-            class="tw:text-xs tw:text-muted-foreground"
-          >
-            {{ nodeSignerStatus }}
+            separate from any bunker saved on the portal's account page; to
+            approve without this browser open, register the node below.
           </p>
           <Alert v-if="bunkerError" variant="danger" role="alert">{{
             bunkerError
@@ -300,6 +414,114 @@ watch(
               :disabled="bunkerBusy || !bunkerInput.trim()"
               @click="connectBunker"
               >Connect</Button
+            >
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Approve from anywhere</CardTitle>
+        </CardHeader>
+        <CardContent class="tw:grid tw:gap-3">
+          <p class="tw:text-xs tw:text-muted-foreground">
+            Register this node with your own remote signer so parked approvals
+            are pushed to it and can be signed from any browser/session, even
+            with this console closed. Only your own admin identity can be
+            registered, and your signer still confirms every signature.
+          </p>
+          <p
+            v-if="nodeSignerStatus"
+            class="tw:text-xs tw:text-muted-foreground"
+          >
+            {{ nodeSignerStatus }}
+          </p>
+          <Alert v-if="nodeSignerError" variant="danger" role="alert">{{
+            nodeSignerError
+          }}</Alert>
+
+          <ul
+            v-if="nodeSigners?.targets.length"
+            class="tw:grid tw:gap-2 tw:list-none tw:p-0"
+          >
+            <li
+              v-for="target in nodeSigners.targets"
+              :key="target.signer_pubkey"
+              class="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border tw:border-border-subtle tw:p-3"
+            >
+              <div class="tw:min-w-0">
+                <p class="tw:text-sm tw:font-semibold tw:text-foreground">
+                  {{ target.label || 'Remote signer' }}
+                </p>
+                <p class="tw:break-all tw:font-mono tw:text-xs tw:opacity-70">
+                  {{ shortenKey(target.signer_pubkey) }}
+                </p>
+                <p class="tw:break-all tw:text-xs tw:opacity-60">
+                  {{ target.relays.join(', ') }}
+                </p>
+              </div>
+              <Button
+                v-if="isOwnTarget(target.signer_pubkey)"
+                variant="outline"
+                size="sm"
+                :disabled="nodeSignerBusy !== ''"
+                @click="removeNodeSigner(target.signer_pubkey)"
+                >Remove</Button
+              >
+            </li>
+          </ul>
+
+          <div class="tw:grid tw:gap-2">
+            <input
+              v-model="nodeSignerInput"
+              aria-label="Remote signer bunker URI"
+              class="tw:w-full tw:rounded-md tw:border tw:border-border-subtle tw:bg-surface tw:px-3 tw:py-2 tw:text-sm"
+              placeholder="bunker:// URI of your signer"
+              autocomplete="off"
+            />
+            <div class="tw:flex tw:flex-wrap tw:gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                :disabled="nodeSignerBusy !== '' || !nodeSignerInput.trim()"
+                @click="registerNodeSigner"
+                >{{
+                  nodeSignerBusy === 'register' ? 'Registering…' : 'Register'
+                }}</Button
+              >
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="
+                  nodeSignerBusy !== '' || pairing?.status === 'pending'
+                "
+                @click="startPairing"
+                >{{
+                  nodeSignerBusy === 'pair' ? 'Starting…' : 'Pair with QR'
+                }}</Button
+              >
+            </div>
+          </div>
+
+          <div
+            v-if="pairing"
+            class="tw:grid tw:justify-items-center tw:gap-2 tw:rounded-md tw:border tw:border-border-subtle tw:p-3"
+          >
+            <img
+              v-if="pairingQr"
+              :src="pairingQr"
+              alt="Scan this QR code with your signer app"
+              class="tw:h-60 tw:w-60"
+            />
+            <p class="tw:break-all tw:text-center tw:text-xs tw:opacity-70">
+              {{ pairing.uri }}
+            </p>
+            <p class="tw:text-xs tw:text-muted-foreground">
+              Status: <span class="tw:font-semibold">{{ pairing.status }}</span>
+              <template v-if="pairing.error"> — {{ pairing.error }}</template>
+            </p>
+            <Button variant="outline" size="sm" @click="cancelPairing"
+              >Cancel</Button
             >
           </div>
         </CardContent>

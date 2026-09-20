@@ -81,9 +81,7 @@ async function load() {
     controlRelay.value = state.control_relay.url
   } catch (cause) {
     error.value =
-      cause instanceof Error
-        ? cause.message
-        : 'Could not load Nostr network settings.'
+      cause instanceof Error ? cause.message : 'Could not load Nostr settings.'
   } finally {
     busy.value = false
   }
@@ -147,7 +145,7 @@ async function apply() {
       await load()
       return
     }
-    message.value = 'Nostr network defaults were updated.'
+    message.value = 'Nostr settings were updated.'
     plan.value = null
     await load()
   } catch (cause) {
@@ -170,8 +168,8 @@ void load()
   <PageLayout>
     <PageHeader
       eyebrow="Nostr"
-      title="Nostr network"
-      description="Choose the public relays and file-storage servers NostrHost uses by default. Most servers only need these two lists."
+      title="Nostr settings"
+      description="Configure how this server connects to Nostr, including relays, discovery and file storage."
     />
 
     <p
@@ -191,7 +189,7 @@ void load()
 
     <template v-if="configuration">
       <RuledSection
-        title="Public connections"
+        title="Connections"
         description="These defaults are used unless a particular site or specialist tool has its own setting."
       >
         <div class="tw:grid tw:gap-7 tw:lg:grid-cols-2">
@@ -217,7 +215,7 @@ void load()
       </RuledSection>
 
       <RuledSection
-        title="Advanced"
+        title="Relay roles"
         description="Use separate relay lists only when a service has different trust, privacy, or availability requirements."
       >
         <button
@@ -275,28 +273,31 @@ void load()
               scheme="wss"
             />
           </div>
-          <UrlListEditor
-            v-model="configuration.additional_discovery_relays"
-            label="Additional discovery relays"
-            scheme="wss"
-          />
-          <details class="tw:border-t tw:border-border-subtle tw:pt-4">
-            <summary class="tw:cursor-pointer tw:text-sm tw:font-semibold">
-              Technical details
-            </summary>
-            <p class="tw:text-sm tw:text-muted-foreground">
-              The private control relay carries signed approvals and machine
-              events. It is intentionally separate and cannot be changed here.
-            </p>
-            <code class="tw:font-mono tw:text-xs">{{ controlRelay }}</code>
-          </details>
         </div>
+      </RuledSection>
+
+      <RuledSection
+        title="Discovery"
+        description="Extra relays consulted when searching for public Nostr information."
+      >
+        <UrlListEditor
+          v-model="configuration.additional_discovery_relays"
+          label="Additional discovery relays"
+          scheme="wss"
+        />
+      </RuledSection>
+
+      <RuledSection
+        title="Control plane"
+        description="The private control relay carries signed approvals and machine events. It is intentionally separate from the public relays and cannot be changed here."
+      >
+        <code class="tw:font-mono tw:text-xs">{{ controlRelay }}</code>
       </RuledSection>
 
       <ChangeLedger
         v-if="plan"
         ref="ledger"
-        title="Review Nostr network change"
+        title="Review Nostr settings change"
         :digest="plan.plan_sha256"
         :operations="
           plan.affected_services.map((service) => ({

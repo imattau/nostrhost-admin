@@ -83,10 +83,15 @@ const routes: RouteRecordRaw[] = [
     meta: { nav: { label: 'Sites', group: 'Main' } },
   },
   {
-    name: 'native-nostr-network',
+    name: 'native-nostr-settings',
+    path: '/nostr-settings',
+    component: () => import('@/views/native/NostrSettingsView.vue'),
+    meta: { nav: { label: 'Nostr settings', group: 'Main' } },
+  },
+  {
+    // Compatibility redirect for the pre-rename route.
     path: '/nostr-network',
-    component: () => import('@/views/native/NostrNetworkView.vue'),
-    meta: { nav: { label: 'Nostr network', group: 'Main' } },
+    redirect: '/nostr-settings',
   },
   {
     name: 'native-firewall',

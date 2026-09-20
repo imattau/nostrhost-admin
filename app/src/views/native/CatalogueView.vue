@@ -32,6 +32,7 @@ import {
   registerNsite,
   type NsiteDiscoveredSite,
 } from '@/api/nativeNsites'
+import CollectionsSection from '@/views/native/nsites/CollectionsSection.vue'
 import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -76,11 +77,12 @@ const search = ref('')
 const category = ref('all')
 const busyAppId = ref('')
 const { run: runBusyAppId } = useActionRunner(busyAppId, '')
-const browseKind = ref<'all' | 'apps' | 'nsites'>('all')
+const browseKind = ref<'all' | 'apps' | 'nsites' | 'collections'>('all')
 const KIND_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'apps', label: 'Apps' },
   { id: 'nsites', label: 'Nsites' },
+  { id: 'collections', label: 'Collections' },
 ] as const
 const discoveredSites = ref<NsiteDiscoveredSite[] | null>(null)
 const sitesLoading = ref(false)
@@ -109,6 +111,7 @@ type BrowseCard =
   | { type: 'nsite'; site: NsiteDiscoveredSite }
 
 const visibleCards = computed<BrowseCard[]>(() => {
+  if (browseKind.value === 'collections') return []
   const needle = search.value.trim().toLocaleLowerCase()
   const cards: BrowseCard[] = []
   if (browseKind.value !== 'nsites') {
@@ -140,6 +143,9 @@ const visibleCards = computed<BrowseCard[]>(() => {
 })
 
 const summaryText = computed(() => {
+  if (browseKind.value === 'collections') {
+    return 'user-authored curated kind-30004 lists from external relays'
+  }
   if (browseKind.value === 'nsites') {
     return `${visibleCards.value.length} of ${discoveredSites.value?.length ?? 0} discovered site(s)`
   }
@@ -599,7 +605,10 @@ watch(publicKey, (key) => {
         {{ reverifyResult.error }}
       </Alert>
 
-      <div v-if="hasBrowseContent" class="tw:flex tw:flex-wrap tw:gap-2">
+      <div
+        v-if="hasBrowseContent && browseKind !== 'collections'"
+        class="tw:flex tw:flex-wrap tw:gap-2"
+      >
         <label class="tw:sr-only" for="catalogue-search"
           >Search catalogue</label
         >
@@ -645,6 +654,8 @@ watch(publicKey, (key) => {
         v-else-if="visibleCards.length === 0 && hasBrowseContent"
         title="Nothing matches this search or category"
       />
+
+      <CollectionsSection v-if="browseKind === 'collections'" />
 
       <div
         v-if="visibleCards.length"

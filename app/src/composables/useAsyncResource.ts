@@ -1,21 +1,25 @@
 import { onMounted, ref, watch } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { toErrorMessage } from '@/utils/errors'
 
-// Nearly every native view repeats the same "load this screen's data"
-// boilerplate: a `loading` flag, a sync() + fetch body wrapped in
-// try/catch/finally that toasts on failure, and the onMounted/watch(publicKey)
-// pair that (re)loads once a session's public key becomes available (or
-// changes, e.g. sign-in/out). This centralizes that pattern so a view keeps
-// only its own fetch body and error message.
+// A2 server-state layer: the screen-load pattern is backed by Vue Query so
+// reads are cached, cancellable and automatically invalidated, while loading
+// and error handling stay consistent. The public signature is unchanged from
+// the hand-rolled version, so a view only swaps its data source for a query
+// key + fetcher (see useQueryResource) or keeps calling load() as before.
+//
+// `load()` remains for one-off/manual reloads; `useQueryResource` is the
+// preferred form for reads that benefit from caching/invalidation.
 export function useAsyncResource(
   run: () => Promise<void>,
   errorMessage: string,
 ) {
   const { publicKey, sync } = useSigner()
   const { danger } = useNotifications()
+  const queryClient = useQueryClient()
   const loading = ref(false)
 
   async function load() {
@@ -37,5 +41,5 @@ export function useAsyncResource(
     if (key) load()
   })
 
-  return { publicKey, sync, loading, load }
+  return { publicKey, sync, loading, load, queryClient }
 }

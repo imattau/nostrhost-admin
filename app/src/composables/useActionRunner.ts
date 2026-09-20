@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/vue-query'
+import { getCurrentInstance } from 'vue'
 import { useNotifications } from '@/composables/useNotifications'
 import { toErrorMessage } from '@/utils/errors'
 import type { Ref } from 'vue'
@@ -10,8 +12,24 @@ import type { Ref } from 'vue'
 // like `busy.value = 'save'`, or a boolean ref for a single-purpose flag), so
 // call sites keep their existing template bindings (`busy === 'save'`,
 // `:disabled="busy"`) unchanged -- only the handler body changes.
-export function useActionRunner<B>(busy: Ref<B>, idle: B) {
+//
+// A2: after a successful action, any Vue Query keys passed via
+// `invalidate` (e.g. [queryKeys.users()]) are invalidated so cached reads in
+// the same domain refresh without an explicit reload.
+export function useActionRunner<B>(
+  busy: Ref<B>,
+  idle: B,
+  invalidate?: () => readonly unknown[][],
+) {
   const { danger } = useNotifications()
+  // Vue Query may be absent in isolated unit tests (no plugin installed);
+  // invalidation is a best-effort convenience, never a hard dependency.
+  let queryClient: ReturnType<typeof useQueryClient> | null = null
+  try {
+    if (getCurrentInstance()) queryClient = useQueryClient()
+  } catch {
+    queryClient = null
+  }
 
   async function run(
     busyValue: B,
@@ -27,6 +45,11 @@ export function useActionRunner<B>(busy: Ref<B>, idle: B) {
     busy.value = busyValue
     try {
       await action()
+      if (queryClient && invalidate) {
+        for (const key of invalidate()) {
+          void queryClient.invalidateQueries({ queryKey: key })
+        }
+      }
     } catch (cause) {
       if (typeof onError === 'function') onError(cause)
       else danger(toErrorMessage(cause, onError))

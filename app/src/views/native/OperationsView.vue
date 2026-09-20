@@ -9,7 +9,6 @@ import {
   getOperation,
   getRejectionTemplate,
   listNotifySigners,
-  listOperations,
   registerNotifySigner,
   rejectOperation,
   removeNotifySigner,
@@ -29,6 +28,7 @@ import EmptyState from '@/components/native/EmptyState.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 import { useAsyncResource } from '@/composables/useAsyncResource'
+import { useOperationsList } from '@/composables/useOperationsList'
 import {
   renderNostrConnectQr,
   useBunkerSigner,
@@ -176,29 +176,12 @@ function cancelPairing() {
   pairingQr.value = ''
 }
 
-let pollTimer: ReturnType<typeof setInterval> | undefined
-
-// Keep the list live while the page is open: approvals may be pushed to a
-// signer and executed by the node without any interaction in this tab.
-async function refreshQuietly() {
-  if (document.visibilityState !== 'visible' || busy.value) return
-  try {
-    operations.value = await listOperations(200)
-  } catch {
-    // transient; the next tick or an explicit Refresh retries
-  }
-}
-
 onMounted(() => {
   tryReconnectSaved()
-  pollTimer = setInterval(refreshQuietly, 15000)
-  document.addEventListener('visibilitychange', refreshQuietly)
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
   stopPairingPoll()
-  document.removeEventListener('visibilitychange', refreshQuietly)
 })
 
 async function connectBunker() {
@@ -237,7 +220,6 @@ async function signDecision(
   return (await signTemplate(template)) as SignedEvent
 }
 
-const operations = ref<OperationEntry[] | null>(null)
 const filter = ref<'all' | 'pending' | OperationState>('all')
 const busy = ref('')
 const { run } = useActionRunner(busy, '')
@@ -257,12 +239,23 @@ const nodeSignerStatus = computed(() => {
 
 const { publicKey, sync, loading, load } = useAsyncResource(async () => {
   await loadNodeSigners()
-  operations.value = await listOperations(200)
+  await refetch()
   const requested = route.query.operation
   if (typeof requested === 'string' && expanded.value !== requested) {
     await toggleExpanded(requested)
   }
 }, 'Failed to load operations.')
+
+// A2: the live operations list is polled server-state via Vue Query. The
+// interval (15s) pauses when the tab is hidden (refetchIntervalInBackground
+// is off), replacing the old setInterval + visibilitychange plumbing below.
+const {
+  operations: operationsQuery,
+  refetch,
+  isRefetching,
+} = useOperationsList()
+
+const operations = operationsQuery
 
 const filteredOperations = computed(() => {
   const all = operations.value ?? []

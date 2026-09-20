@@ -4,7 +4,10 @@ import { request } from '@/api/client'
 import {
   configureNsiteGateway,
   disableNsiteGateway,
+  discoverCollections,
   enableNsiteGateway,
+  getCollection,
+  getCollectionPlan,
   getNsiteGatewayStatus,
   getNsiteInspect,
   getNsiteList,
@@ -12,9 +15,11 @@ import {
   nsiteBlockList,
   nsiteBlockRemove,
   planNsitePublish,
+  publishCollection,
   publishNsite,
   registerNsite,
   unregisterNsite,
+  validateCollection,
 } from '@/api/nativeNsites'
 
 vi.mock('@/api/client', () => ({
@@ -269,6 +274,88 @@ describe('nsite blocklist', () => {
       '/package/nsite/block/remove',
       'POST',
       JSON.stringify({ pubkey: 'pk1' }),
+    )
+  })
+})
+
+describe('curated collection client (kind 30004)', () => {
+  it('discovers collections via GET /package/nsite/collection/discover', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      collections: [],
+      relays_queried: ['wss://x'],
+      count: 0,
+      truncated: false,
+      cached: false,
+      cached_at: null,
+    })
+    await discoverCollections(true)
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/collection/discover?refresh=1',
+      'GET',
+    )
+  })
+
+  it('resolves one coordinate with relay hints', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      found: true,
+      relays_queried: ['wss://a'],
+      entries: [],
+    })
+    await getCollection({
+      coordinate: '30004:pk:indie-web',
+      relays: ['wss://a', 'wss://b'],
+    })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/collection/get?coordinate=30004%3Apk%3Aindie-web&relays=wss%3A%2F%2Fa%2Cwss%3A%2F%2Fb',
+      'GET',
+    )
+  })
+
+  it('validates a collection event via POST', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ valid: true, errors: [] })
+    await validateCollection({ kind: 30004 })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/collection/validate',
+      'POST',
+      JSON.stringify({ event: { kind: 30004 } }),
+    )
+  })
+
+  it('builds a collection plan via POST /package/nsite/collection/publish/plan', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ plan: { plan_sha256: 'd' } })
+    await getCollectionPlan({
+      pubkey: 'pk',
+      d: 'indie-web',
+      title: 't',
+      entries: [{ kind: 'live-root', ref: '15128:pk:', relay: '' }],
+    })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/collection/publish/plan',
+      'POST',
+      JSON.stringify({
+        pubkey: 'pk',
+        d: 'indie-web',
+        title: 't',
+        description: undefined,
+        image: undefined,
+        entries: [{ kind: 'live-root', ref: '15128:pk:', relay: '' }],
+        relays: undefined,
+        copy_of: undefined,
+      }),
+    )
+  })
+
+  it('publishes a signed collection via POST', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true, result: {} })
+    await publishCollection({ event: { kind: 30004 }, plan_sha256: 'd' })
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/collection/publish',
+      'POST',
+      JSON.stringify({
+        event: { kind: 30004 },
+        plan_sha256: 'd',
+        relays: undefined,
+      }),
     )
   })
 })

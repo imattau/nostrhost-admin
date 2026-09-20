@@ -405,3 +405,149 @@ export function detachNsiteDomain(input: { fqdn: string }) {
     JSON.stringify(input),
   )
 }
+
+// -- curated collections (kind 30004, NSITES-CURATED-LISTS.md) -------------
+
+export type CollectionEntry = {
+  kind: 'live-root' | 'live-named' | 'pinned'
+  ref: string
+  relay: string
+}
+
+export type NsiteCollection = {
+  coordinate: string
+  pubkey: string
+  d: string
+  title: string
+  description: string
+  image: string
+  event_id: string
+  created_at: number
+  entries: number
+}
+
+export type NsiteCollectionDiscoverEnvelope = {
+  collections: NsiteCollection[]
+  relays_queried: string[]
+  count: number
+  truncated: boolean
+  cached: boolean
+  cached_at: number | null
+}
+
+export type ResolvedCollectionEntry = CollectionEntry & {
+  site?: {
+    event_id: string
+    pubkey: string
+    kind: number
+    d: string
+    label: string
+    aggregate_hash: string
+    paths: [string, string][]
+  } | null
+  available: boolean
+}
+
+export type NsiteCollectionGetEnvelope = {
+  found: boolean
+  relays_queried: string[]
+  coordinate?: string
+  d?: string
+  pubkey?: string
+  event_id?: string
+  title?: string
+  description?: string
+  image?: string
+  created_at?: number
+  entries?: ResolvedCollectionEntry[]
+  entries_total?: number
+  blocked?: boolean
+  collection?: NsiteCollection | null
+}
+
+export type NsiteCollectionPlanEnvelope = {
+  plan: {
+    pubkey: string
+    d: string
+    title: string
+    description: string
+    image: string
+    entries: CollectionEntry[]
+    relays: string[]
+    copy_of: string
+    unsigned_event: {
+      kind: number
+      pubkey: string
+      created_at: number
+      tags: string[][]
+      content: string
+    }
+    plan_sha256: string
+  }
+}
+
+export type NsiteCollectionValidateEnvelope = {
+  valid: boolean
+  errors: string[]
+  coordinate?: string | null
+  d?: string | null
+  entries?: CollectionEntry[]
+}
+
+export function discoverCollections(refresh = false) {
+  return request<NsiteCollectionDiscoverEnvelope>(
+    `/package/nsite/collection/discover${refresh ? '?refresh=1' : ''}`,
+    'GET',
+  )
+}
+
+export function getCollection(input: {
+  coordinate: string
+  relays?: string[]
+  limit?: number
+}) {
+  const params = new URLSearchParams({ coordinate: input.coordinate })
+  if (input.relays?.length) params.set('relays', input.relays.join(','))
+  if (input.limit) params.set('limit', String(input.limit))
+  return request<NsiteCollectionGetEnvelope>(
+    `/package/nsite/collection/get?${params}`,
+    'GET',
+  )
+}
+
+export function validateCollection(event: unknown) {
+  return request<NsiteCollectionValidateEnvelope>(
+    '/package/nsite/collection/validate',
+    'POST',
+    JSON.stringify({ event }),
+  )
+}
+
+export function getCollectionPlan(input: {
+  pubkey: string
+  d: string
+  title?: string
+  description?: string
+  image?: string
+  entries?: CollectionEntry[]
+  relays?: string[]
+  copy_of?: string
+}) {
+  return request<NsiteCollectionPlanEnvelope>(
+    '/package/nsite/collection/publish/plan',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function publishCollection(input: {
+  event: unknown
+  plan_sha256: string
+  relays?: string[]
+}) {
+  return request<LifecycleOperation>(
+    '/package/nsite/collection/publish',
+    'POST',
+    JSON.stringify(input),
+  )
+}

@@ -1,0 +1,6795 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "FastAPI",
+  "version": "0.1.0"
+ },
+ "paths": {
+  "/package/system/version": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_system_version_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package System Version Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/status": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_system_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package System Status Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/projections": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_projections_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Projections Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/service/configs": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_service_configs_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Service Configs Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/updates": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_system_updates_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package System Updates Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_domain_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Domain List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/{domain}/inspect": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_domain__domain__inspect_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Domain  Domain  Inspect Get"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "domain",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
+  "/package/nsite/gateway/status": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_nsite_gateway_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Nsite Gateway Status Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_nsite_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Nsite List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/domain/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_nsite_domain_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Nsite Domain List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/dns/plan/{domain}": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_dns_plan__domain__get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Dns Plan  Domain  Get"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "domain",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
+  "/package/dns/verify/{domain}": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_dns_verify__domain__get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Dns Verify  Domain  Get"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "domain",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
+  "/package/dns/watch": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_dns_watch_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Dns Watch Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/dns/subscriptions": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_dns_subscriptions_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Dns Subscriptions Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/network/public-ip": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_network_public_ip_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Network Public Ip Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/credential/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_credential_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Credential List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/diagnosis/ignored": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_diagnosis_ignored_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Diagnosis Ignored Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/get/{app_id}": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_catalog_get__app_id__get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Catalog Get  App Id  Get"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
+  "/package/catalog/candidates": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_catalog_candidates_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Catalog Candidates Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/history": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_catalog_history_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Catalog History Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/profile": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_catalog_profile_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Catalog Profile Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Catalog Profile Set",
+    "operationId": "catalog_profile_set_package_catalog_profile_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Profile Set Package Catalog Profile Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+         },
+         "about": {
+          "default": "",
+          "title": "About",
+          "type": "string"
+         },
+         "picture": {
+          "default": "",
+          "title": "Picture",
+          "type": "string"
+         },
+         "nip05": {
+          "default": "",
+          "title": "Nip05",
+          "type": "string"
+         },
+         "website": {
+          "default": "",
+          "title": "Website",
+          "type": "string"
+         },
+         "relays": {
+          "default": "",
+          "title": "Relays",
+          "type": "string"
+         }
+        },
+        "title": "CatalogProfileSetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/announcements": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_catalog_announcements_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Catalog Announcements Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_app_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package App List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_user_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package User List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/group/list": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_user_group_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package User Group List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/permission/info/{permission}": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_user_permission_info__permission__get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package User Permission Info  Permission  Get"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "permission",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
+  "/package/settings/get/{key}": {
+   "get": {
+    "summary": "Handler",
+    "operationId": "handler_package_settings_get__key__get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Handler Package Settings Get  Key  Get"
+        }
+       }
+      }
+     }
+    },
+    "parameters": [
+     {
+      "name": "key",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ]
+   }
+  },
+  "/package/healthz": {
+   "get": {
+    "summary": "Healthz",
+    "operationId": "healthz_package_healthz_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Healthz Package Healthz Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/session": {
+   "get": {
+    "summary": "Session",
+    "description": "Public session probe for the admin SPA: whether a portal session\nexists, who it is, and whether that identity is an admin.\n\nUnlike every other route this is intentionally NOT admin-gated: the\nconsole uses it to decide whether to show the console, redirect to the\nportal login, or refuse non-admin access. It never leaks secrets \u2014\nonly the session user's username + admin flag, plus the per-session\nCSRF token the console must echo on cookie-authenticated requests\n(H4). The token is only useful same-origin (no CORS for other\norigins), so exposing it here does not weaken the CSRF protection.",
+    "operationId": "session_package_session_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Session Package Session Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/events/{request_id}": {
+   "get": {
+    "summary": "Events",
+    "description": "Server-Sent Events: live progress/result for one operation.",
+    "operationId": "events_package_events__request_id__get",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Events Package Events  Request Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/updates/refresh": {
+   "post": {
+    "summary": "System Updates Refresh",
+    "operationId": "system_updates_refresh_package_system_updates_refresh_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response System Updates Refresh Package System Updates Refresh Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "target": {
+          "default": "apps",
+          "title": "Target",
+          "type": "string"
+         }
+        },
+        "title": "UpdatesRefreshBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/updates/apply": {
+   "post": {
+    "summary": "System Updates Apply",
+    "description": "Apply pending apt/app upgrades. High-risk/require-approval: routed\nthrough the signed operation chain (owner co-signature), not _run_tool.",
+    "operationId": "system_updates_apply_package_system_updates_apply_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response System Updates Apply Package System Updates Apply Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "target": {
+          "default": "system",
+          "title": "Target",
+          "type": "string"
+         }
+        },
+        "title": "UpdatesApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/migrations": {
+   "get": {
+    "summary": "System Migrations",
+    "operationId": "system_migrations_package_system_migrations_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response System Migrations Package System Migrations Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/migrate": {
+   "post": {
+    "summary": "System Migrate",
+    "description": "Run/skip/force-rerun migrations. High-risk/irreversible: routed\nthrough the signed operation chain (owner co-signature), not _run_tool.",
+    "operationId": "system_migrate_package_system_migrate_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response System Migrate Package System Migrate Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/add": {
+   "post": {
+    "summary": "Domain Add",
+    "description": "Register a native domain: plan DNS, apply, stand up Caddy routes,\nrecord state. High-risk: routed through the signed operation chain\n(owner co-signature), not _run_tool.",
+    "operationId": "domain_add_package_domain_add_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Domain Add Package Domain Add Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "domain": {
+          "default": "",
+          "title": "Domain",
+          "type": "string"
+         },
+         "provider_type": {
+          "default": "manual",
+          "title": "Provider Type",
+          "type": "string"
+         },
+         "provider_zone": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Provider Zone"
+         },
+         "credential": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Credential"
+         },
+         "primary": {
+          "default": false,
+          "title": "Primary",
+          "type": "boolean"
+         },
+         "ipv4": {
+          "default": true,
+          "title": "Ipv4",
+          "type": "boolean"
+         },
+         "ipv6": {
+          "default": true,
+          "title": "Ipv6",
+          "type": "boolean"
+         },
+         "wildcard": {
+          "default": true,
+          "title": "Wildcard",
+          "type": "boolean"
+         },
+         "nip05": {
+          "default": false,
+          "title": "Nip05",
+          "type": "boolean"
+         },
+         "tls_caa": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Tls Caa"
+         },
+         "apply_dns": {
+          "default": true,
+          "title": "Apply Dns",
+          "type": "boolean"
+         },
+         "verify": {
+          "default": true,
+          "title": "Verify",
+          "type": "boolean"
+         }
+        },
+        "title": "DomainAddBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/remove": {
+   "post": {
+    "summary": "Domain Remove",
+    "description": "Remove a native domain (blocks while apps use it; deletes owned\nDNS only). High-risk: routed through the signed operation chain.",
+    "operationId": "domain_remove_package_domain_remove_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Domain Remove Package Domain Remove Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "domain": {
+          "default": "",
+          "title": "Domain",
+          "type": "string"
+         },
+         "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+         }
+        },
+        "title": "DomainRemoveBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/gateway/enable": {
+   "post": {
+    "summary": "Nsite Gateway Enable",
+    "description": "Enable the nsite gateway on a dedicated registered domain.",
+    "operationId": "nsite_gateway_enable_package_nsite_gateway_enable_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Gateway Enable Package Nsite Gateway Enable Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "domain": {
+          "default": "",
+          "title": "Domain",
+          "type": "string"
+         },
+         "lookup_relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Lookup Relays"
+         },
+         "extra_relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Extra Relays"
+         },
+         "fallback_servers": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Fallback Servers"
+         },
+         "allow_http": {
+          "default": false,
+          "title": "Allow Http",
+          "type": "boolean"
+         },
+         "max_blob_bytes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Max Blob Bytes"
+         },
+         "cache_quota_bytes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Cache Quota Bytes"
+         }
+        },
+        "title": "NsiteGatewayBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/gateway/disable": {
+   "post": {
+    "summary": "Nsite Gateway Disable",
+    "description": "Disable the nsite gateway: stop the unit, remove the Caddy route.",
+    "operationId": "nsite_gateway_disable_package_nsite_gateway_disable_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Gateway Disable Package Nsite Gateway Disable Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/gateway/configure": {
+   "post": {
+    "summary": "Nsite Gateway Configure",
+    "description": "Update the nsite gateway config and reload.",
+    "operationId": "nsite_gateway_configure_package_nsite_gateway_configure_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Gateway Configure Package Nsite Gateway Configure Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "domain": {
+          "default": "",
+          "title": "Domain",
+          "type": "string"
+         },
+         "lookup_relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Lookup Relays"
+         },
+         "extra_relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Extra Relays"
+         },
+         "fallback_servers": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Fallback Servers"
+         },
+         "allow_http": {
+          "default": false,
+          "title": "Allow Http",
+          "type": "boolean"
+         },
+         "max_blob_bytes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Max Blob Bytes"
+         },
+         "cache_quota_bytes": {
+          "anyOf": [
+           {
+            "type": "integer"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Cache Quota Bytes"
+         }
+        },
+        "title": "NsiteGatewayBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/inspect": {
+   "get": {
+    "summary": "Nsite Inspect",
+    "description": "One registered site record.",
+    "operationId": "nsite_inspect_package_nsite_inspect_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Inspect Package Nsite Inspect Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/resolve": {
+   "get": {
+    "summary": "Nsite Resolve",
+    "description": "Fetch the current manifest for a label/pubkey from public relays\n(read only, bounded).",
+    "operationId": "nsite_resolve_package_nsite_resolve_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Resolve Package Nsite Resolve Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/validate": {
+   "post": {
+    "summary": "Nsite Validate Manifest",
+    "description": "Validate a candidate manifest event; no network.",
+    "operationId": "nsite_validate_manifest_package_nsite_validate_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Validate Manifest Package Nsite Validate Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "default": null,
+          "title": "Event"
+         }
+        },
+        "title": "NsiteValidateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/reachability": {
+   "post": {
+    "summary": "Nsite Reachability",
+    "description": "Relay/server reachability probes (bounded).",
+    "operationId": "nsite_reachability_package_nsite_reachability_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Reachability Package Nsite Reachability Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         },
+         "servers": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Servers"
+         },
+         "timeout": {
+          "default": 5.0,
+          "title": "Timeout",
+          "type": "number"
+         }
+        },
+        "title": "NsiteReachabilityBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/publish/plan": {
+   "post": {
+    "summary": "Nsite Publish Plan",
+    "description": "Blob inventory to an unsigned manifest + plan_sha256 (D7), or a\ncopy plan from a source site (Phase 5, ``copy_of``).",
+    "operationId": "nsite_publish_plan_package_nsite_publish_plan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Publish Plan Package Nsite Publish Plan Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "kind": {
+          "default": 15128,
+          "title": "Kind",
+          "type": "integer"
+         },
+         "d": {
+          "default": "",
+          "title": "D",
+          "type": "string"
+         },
+         "items": {
+          "anyOf": [
+           {
+            "items": {
+             "additionalProperties": {
+              "type": "string"
+             },
+             "type": "object"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Items"
+         },
+         "site": {
+          "default": "",
+          "title": "Site",
+          "type": "string"
+         },
+         "servers": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Servers"
+         },
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         },
+         "copy_of": {
+          "default": "",
+          "title": "Copy Of",
+          "type": "string"
+         }
+        },
+        "title": "NsitePublishPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/register": {
+   "post": {
+    "summary": "Nsite Register",
+    "description": "Add a hosted-mode allowlist entry. Approval-gated.",
+    "operationId": "nsite_register_package_nsite_register_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Register Package Nsite Register Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "kind": {
+          "default": 15128,
+          "title": "Kind",
+          "type": "integer"
+         },
+         "d": {
+          "default": "",
+          "title": "D",
+          "type": "string"
+         },
+         "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+         }
+        },
+        "title": "NsiteRegisterBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/unregister": {
+   "post": {
+    "summary": "Nsite Unregister",
+    "description": "Remove a hosted-mode allowlist entry. Approval-gated.",
+    "operationId": "nsite_unregister_package_nsite_unregister_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Unregister Package Nsite Unregister Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "d": {
+          "default": "",
+          "title": "D",
+          "type": "string"
+         }
+        },
+        "title": "NsiteUnregisterBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/discover": {
+   "get": {
+    "summary": "Nsite Discover",
+    "description": "Validated nsite manifests on the catalogue + lookup relays.\n\n``?refresh=1`` bypasses the 5-minute server-side cache and forces a\nlive relay scan (the Browse tab's Refresh button).",
+    "operationId": "nsite_discover_package_nsite_discover_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Discover Package Nsite Discover Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/block/list": {
+   "get": {
+    "summary": "Nsite Block List",
+    "description": "The operator's mute list (blocked npub pubkeys).",
+    "operationId": "nsite_block_list_package_nsite_block_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Block List Package Nsite Block List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/block/add": {
+   "post": {
+    "summary": "Nsite Block Add",
+    "description": "Add one npub to the operator's mute list. Approval-gated.",
+    "operationId": "nsite_block_add_package_nsite_block_add_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Block Add Package Nsite Block Add Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         }
+        },
+        "title": "NsiteBlockAddBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/block/remove": {
+   "post": {
+    "summary": "Nsite Block Remove",
+    "description": "Remove one npub from the operator's mute list. Approval-gated.",
+    "operationId": "nsite_block_remove_package_nsite_block_remove_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Block Remove Package Nsite Block Remove Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         }
+        },
+        "title": "NsiteBlockRemoveBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/block/set": {
+   "post": {
+    "summary": "Nsite Block Set",
+    "description": "Replace the operator's mute list. Approval-gated.",
+    "operationId": "nsite_block_set_package_nsite_block_set_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Block Set Package Nsite Block Set Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkeys": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Pubkeys",
+          "type": "array"
+         }
+        },
+        "title": "NsiteBlockSetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/publish": {
+   "post": {
+    "summary": "Nsite Publish",
+    "description": "Verify a signed manifest, broadcast to relays, record the site.\nApproval-gated.",
+    "operationId": "nsite_publish_package_nsite_publish_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Publish Package Nsite Publish Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "default": null,
+          "title": "Event"
+         },
+         "plan_sha256": {
+          "default": "",
+          "title": "Plan Sha256",
+          "type": "string"
+         },
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         }
+        },
+        "title": "NsitePublishBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/snapshot": {
+   "post": {
+    "summary": "Nsite Snapshot",
+    "description": "Record a client-signed kind-5128 snapshot. Approval-gated.",
+    "operationId": "nsite_snapshot_package_nsite_snapshot_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Snapshot Package Nsite Snapshot Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "default": null,
+          "title": "Event"
+         },
+         "plan_sha256": {
+          "default": "",
+          "title": "Plan Sha256",
+          "type": "string"
+         },
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         }
+        },
+        "title": "NsiteSnapshotBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/mirror": {
+   "post": {
+    "summary": "Nsite Mirror",
+    "description": "Re-upload a site's missing blobs to the selected servers from the\ndraft area. Approval-gated.",
+    "operationId": "nsite_mirror_package_nsite_mirror_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Mirror Package Nsite Mirror Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "d": {
+          "default": "",
+          "title": "D",
+          "type": "string"
+         },
+         "servers": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Servers",
+          "type": "array"
+         }
+        },
+        "title": "NsiteMirrorBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/domain/attach": {
+   "post": {
+    "summary": "Nsite Domain Attach",
+    "description": "Attach a custom FQDN to a registered site (ownership proof via\nCNAME to the gateway domain or a TXT challenge). Approval-gated.",
+    "operationId": "nsite_domain_attach_package_nsite_domain_attach_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Domain Attach Package Nsite Domain Attach Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "fqdn": {
+          "default": "",
+          "title": "Fqdn",
+          "type": "string"
+         },
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "d": {
+          "default": "",
+          "title": "D",
+          "type": "string"
+         },
+         "method": {
+          "default": "cname",
+          "title": "Method",
+          "type": "string"
+         },
+         "verify": {
+          "default": true,
+          "title": "Verify",
+          "type": "boolean"
+         }
+        },
+        "title": "NsiteDomainAttachBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/domain/detach": {
+   "post": {
+    "summary": "Nsite Domain Detach",
+    "description": "Detach a custom FQDN (removes the Caddy route and marker only).\nApproval-gated.",
+    "operationId": "nsite_domain_detach_package_nsite_domain_detach_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Domain Detach Package Nsite Domain Detach Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "fqdn": {
+          "default": "",
+          "title": "Fqdn",
+          "type": "string"
+         }
+        },
+        "title": "NsiteDomainDetachBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/collection/get": {
+   "get": {
+    "summary": "Nsite Collection Get",
+    "description": "Resolve one collection coordinate and its ordered live/pinned\nentries from public relays (read only, bounded).",
+    "operationId": "nsite_collection_get_package_nsite_collection_get_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Collection Get Package Nsite Collection Get Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/collection/discover": {
+   "get": {
+    "summary": "Nsite Collection Discover",
+    "description": "Validated kind-30004 t=nsite collections on the catalogue + lookup\nrelays. ``?refresh=1`` bypasses the 5-minute server-side cache.",
+    "operationId": "nsite_collection_discover_package_nsite_collection_discover_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Collection Discover Package Nsite Collection Discover Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/collection/validate": {
+   "post": {
+    "summary": "Nsite Collection Validate",
+    "description": "Validate a candidate kind-30004 collection event; no network.",
+    "operationId": "nsite_collection_validate_package_nsite_collection_validate_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Collection Validate Package Nsite Collection Validate Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "additionalProperties": true,
+          "title": "Event",
+          "type": "object"
+         }
+        },
+        "title": "NsiteCollectionValidateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/collection/publish/plan": {
+   "post": {
+    "summary": "Nsite Collection Plan",
+    "description": "Ordered entries + metadata to an unsigned collection + plan digest.",
+    "operationId": "nsite_collection_plan_package_nsite_collection_publish_plan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Collection Plan Package Nsite Collection Publish Plan Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "d": {
+          "default": "",
+          "title": "D",
+          "type": "string"
+         },
+         "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+         },
+         "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+         },
+         "image": {
+          "default": "",
+          "title": "Image",
+          "type": "string"
+         },
+         "entries": {
+          "default": null,
+          "title": "Entries"
+         },
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         },
+         "copy_of": {
+          "default": "",
+          "title": "Copy Of",
+          "type": "string"
+         }
+        },
+        "title": "NsiteCollectionPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nsite/collection/publish": {
+   "post": {
+    "summary": "Nsite Collection Publish",
+    "description": "Verify a signed collection, broadcast it, report per-relay results.\nApproval-gated.",
+    "operationId": "nsite_collection_publish_package_nsite_collection_publish_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nsite Collection Publish Package Nsite Collection Publish Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "additionalProperties": true,
+          "title": "Event",
+          "type": "object"
+         },
+         "plan_sha256": {
+          "default": "",
+          "title": "Plan Sha256",
+          "type": "string"
+         },
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         }
+        },
+        "title": "NsiteCollectionPublishBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/dns/apply": {
+   "post": {
+    "summary": "Dns Apply",
+    "description": "Apply the DNS plan for a domain through its provider. High-risk:\nrouted through the signed operation chain (owner co-signature).",
+    "operationId": "dns_apply_package_dns_apply_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Dns Apply Package Dns Apply Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "domain": {
+          "default": "",
+          "title": "Domain",
+          "type": "string"
+         }
+        },
+        "title": "DnsApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/dns/subscribe": {
+   "post": {
+    "summary": "Dns Subscribe",
+    "description": "Claim a nostr-native free hostname (identity-backed Dynette).\nHigh-risk: routed through the signed operation chain (owner\nco-signature), not _run_tool.",
+    "operationId": "dns_subscribe_package_dns_subscribe_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Dns Subscribe Package Dns Subscribe Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "hostname": {
+          "default": "",
+          "title": "Hostname",
+          "type": "string"
+         },
+         "secret": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Secret"
+         },
+         "rotate": {
+          "default": false,
+          "title": "Rotate",
+          "type": "boolean"
+         }
+        },
+        "title": "DnsSubscribeBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/dns/unsubscribe": {
+   "post": {
+    "summary": "Dns Unsubscribe",
+    "description": "Release a nostr-native free-hostname subscription and drop its\nbroker secret. High-risk: routed through the signed operation chain.",
+    "operationId": "dns_unsubscribe_package_dns_unsubscribe_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Dns Unsubscribe Package Dns Unsubscribe Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "hostname": {
+          "default": "",
+          "title": "Hostname",
+          "type": "string"
+         }
+        },
+        "title": "DnsUnsubscribeBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/credential/set": {
+   "post": {
+    "summary": "Credential Set",
+    "description": "Store a DNS provider token in the credential broker. High-risk:\nrouted through the signed operation chain (owner co-signature).",
+    "operationId": "credential_set_package_credential_set_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Credential Set Package Credential Set Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+         },
+         "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+         },
+         "value": {
+          "default": "",
+          "title": "Value",
+          "type": "string"
+         }
+        },
+        "title": "CredentialSetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/credential/remove": {
+   "post": {
+    "summary": "Credential Remove",
+    "description": "Remove a DNS provider token from the credential broker. High-risk:\nrouted through the signed operation chain (owner co-signature).",
+    "operationId": "credential_remove_package_credential_remove_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Credential Remove Package Credential Remove Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "provider": {
+          "default": "",
+          "title": "Provider",
+          "type": "string"
+         },
+         "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+         }
+        },
+        "title": "CredentialRemoveBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/list": {
+   "get": {
+    "summary": "Backup List",
+    "operationId": "backup_list_package_backup_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup List Package Backup List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/policy": {
+   "get": {
+    "summary": "Backup Policy",
+    "operationId": "backup_policy_package_backup_policy_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Policy Package Backup Policy Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Backup Policy Set",
+    "description": "Set the Restic retention policy and scheduled-backup cadence.",
+    "operationId": "backup_policy_set_package_backup_policy_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Policy Set Package Backup Policy Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "retention": {
+          "anyOf": [
+           {
+            "additionalProperties": {
+             "type": "integer"
+            },
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Retention"
+         },
+         "schedule_enabled": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Schedule Enabled"
+         },
+         "schedule_calendar": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Schedule Calendar"
+         }
+        },
+        "title": "BackupPolicySetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/schedule": {
+   "get": {
+    "summary": "Backup Schedule",
+    "operationId": "backup_schedule_package_backup_schedule_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Schedule Package Backup Schedule Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/stats": {
+   "get": {
+    "summary": "Backup Stats",
+    "operationId": "backup_stats_package_backup_stats_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Stats Package Backup Stats Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/check": {
+   "post": {
+    "summary": "Backup Check",
+    "description": "Verify repository integrity (read-only; POST because it is slow).",
+    "operationId": "backup_check_package_backup_check_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Check Package Backup Check Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/create": {
+   "post": {
+    "summary": "Backup Create",
+    "description": "Create a Restic snapshot. Medium-risk: routed through the signed\noperation chain (admin confirmation).",
+    "operationId": "backup_create_package_backup_create_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Create Package Backup Create Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "tag": {
+          "default": "",
+          "title": "Tag",
+          "type": "string"
+         },
+         "paths": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+         },
+         "host": {
+          "default": "",
+          "title": "Host",
+          "type": "string"
+         }
+        },
+        "title": "BackupCreateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/restore": {
+   "post": {
+    "summary": "Backup Restore",
+    "description": "Restore a Restic snapshot. High-risk: routed through the signed\noperation chain (admin confirmation).",
+    "operationId": "backup_restore_package_backup_restore_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Restore Package Backup Restore Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "snapshot": {
+          "default": "",
+          "title": "Snapshot",
+          "type": "string"
+         },
+         "target": {
+          "default": "",
+          "title": "Target",
+          "type": "string"
+         },
+         "include": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Include",
+          "type": "array"
+         }
+        },
+        "title": "BackupRestoreBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/delete": {
+   "post": {
+    "summary": "Backup Delete",
+    "description": "Forget Restic snapshots / apply the retention policy. Irreversible:\nrouted through the signed operation chain (admin confirmation).",
+    "operationId": "backup_delete_package_backup_delete_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Delete Package Backup Delete Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "snapshot": {
+          "default": "",
+          "title": "Snapshot",
+          "type": "string"
+         },
+         "apply_retention": {
+          "default": false,
+          "title": "Apply Retention",
+          "type": "boolean"
+         },
+         "prune": {
+          "default": true,
+          "title": "Prune",
+          "type": "boolean"
+         }
+        },
+        "title": "BackupDeleteBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/backup/{snapshot}": {
+   "get": {
+    "summary": "Backup Info",
+    "operationId": "backup_info_package_backup__snapshot__get",
+    "parameters": [
+     {
+      "name": "snapshot",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Snapshot"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Backup Info Package Backup  Snapshot  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/status": {
+   "get": {
+    "summary": "State Status",
+    "operationId": "state_status_package_state_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Status Package State Status Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/history": {
+   "get": {
+    "summary": "State History",
+    "operationId": "state_history_package_state_history_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State History Package State History Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/diff": {
+   "get": {
+    "summary": "State Diff",
+    "operationId": "state_diff_package_state_diff_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Diff Package State Diff Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/reconcile/plan": {
+   "get": {
+    "summary": "State Reconcile Plan",
+    "operationId": "state_reconcile_plan_package_state_reconcile_plan_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Reconcile Plan Package State Reconcile Plan Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/rollback/plan": {
+   "post": {
+    "summary": "State Rollback Plan",
+    "operationId": "state_rollback_plan_package_state_rollback_plan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Rollback Plan Package State Rollback Plan Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "from": {
+          "default": "",
+          "title": "From",
+          "type": "string"
+         },
+         "to": {
+          "default": "",
+          "title": "To",
+          "type": "string"
+         },
+         "restic_snapshot": {
+          "default": "",
+          "title": "Restic Snapshot",
+          "type": "string"
+         }
+        },
+        "title": "StateRollbackPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/rollback/apply": {
+   "post": {
+    "summary": "State Rollback Apply",
+    "description": "Execute an approved rollback plan (write, admin confirmation).",
+    "operationId": "state_rollback_apply_package_state_rollback_apply_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Rollback Apply Package State Rollback Apply Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "plan": {
+          "default": null,
+          "title": "Plan"
+         }
+        },
+        "title": "RollbackApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/reconcile": {
+   "post": {
+    "summary": "State Reconcile",
+    "description": "Apply an approved bounded reconciliation plan.",
+    "operationId": "state_reconcile_package_state_reconcile_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Reconcile Package State Reconcile Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "plan": {
+          "default": null,
+          "title": "Plan"
+         }
+        },
+        "title": "StateReconcileBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/state/publish": {
+   "post": {
+    "summary": "State Publish",
+    "description": "Replicate the state repository to relays (disaster recovery).",
+    "operationId": "state_publish_package_state_publish_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response State Publish Package State Publish Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "snapshot_only": {
+          "default": false,
+          "title": "Snapshot Only",
+          "type": "boolean"
+         },
+         "relays": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Relays",
+          "type": "array"
+         }
+        },
+        "title": "StatePublishBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/diagnosis/run": {
+   "post": {
+    "summary": "Diagnosis Run",
+    "description": "Run diagnosis categories and return the cached report. No-approval,\nbut POST since it runs real checks and mutates the diagnosis cache\n(same as /package/system/updates/refresh).",
+    "operationId": "diagnosis_run_package_diagnosis_run_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Diagnosis Run Package Diagnosis Run Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "categories": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Categories",
+          "type": "array"
+         },
+         "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+         },
+         "full": {
+          "default": false,
+          "title": "Full",
+          "type": "boolean"
+         }
+        },
+        "title": "DiagnosisRunBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/diagnosis/ignore": {
+   "post": {
+    "summary": "Diagnosis Ignore",
+    "description": "Add a diagnosis ignore filter. Routed through the signed operation\nchain (owner co-signature), not _run_tool.",
+    "operationId": "diagnosis_ignore_package_diagnosis_ignore_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Diagnosis Ignore Package Diagnosis Ignore Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "filter": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Filter",
+          "type": "array"
+         }
+        },
+        "title": "DiagnosisIgnoreBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/diagnosis/unignore": {
+   "post": {
+    "summary": "Diagnosis Unignore",
+    "description": "Remove a diagnosis ignore filter. Routed through the signed\noperation chain (owner co-signature), not _run_tool.",
+    "operationId": "diagnosis_unignore_package_diagnosis_unignore_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Diagnosis Unignore Package Diagnosis Unignore Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "filter": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Filter",
+          "type": "array"
+         }
+        },
+        "title": "DiagnosisUnignoreBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/firewall/list": {
+   "get": {
+    "summary": "Firewall List",
+    "operationId": "firewall_list_package_firewall_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Firewall List Package Firewall List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/firewall/open": {
+   "post": {
+    "summary": "Firewall Open",
+    "description": "Open a firewall port. High-risk: routed through the signed\noperation chain (owner co-signature), not _run_tool.",
+    "operationId": "firewall_open_package_firewall_open_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Firewall Open Package Firewall Open Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "port": {
+          "default": "",
+          "title": "Port",
+          "type": "string"
+         },
+         "protocol": {
+          "default": "",
+          "title": "Protocol",
+          "type": "string"
+         },
+         "comment": {
+          "default": "opened via native operation",
+          "title": "Comment",
+          "type": "string"
+         },
+         "upnp": {
+          "default": false,
+          "title": "Upnp",
+          "type": "boolean"
+         }
+        },
+        "title": "FirewallOpenBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/firewall/close": {
+   "post": {
+    "summary": "Firewall Close",
+    "description": "Close a firewall port. High-risk: routed through the signed\noperation chain (owner co-signature), not _run_tool.",
+    "operationId": "firewall_close_package_firewall_close_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Firewall Close Package Firewall Close Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "port": {
+          "default": "",
+          "title": "Port",
+          "type": "string"
+         },
+         "protocol": {
+          "default": "",
+          "title": "Protocol",
+          "type": "string"
+         },
+         "upnp_only": {
+          "default": false,
+          "title": "Upnp Only",
+          "type": "boolean"
+         }
+        },
+        "title": "FirewallCloseBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/firewall/reload": {
+   "post": {
+    "summary": "Firewall Reload",
+    "description": "Re-apply the current firewall rule set. High-risk: routed through\nthe signed operation chain (owner co-signature), not _run_tool.",
+    "operationId": "firewall_reload_package_firewall_reload_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Firewall Reload Package Firewall Reload Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "skip_upnp": {
+          "default": false,
+          "title": "Skip Upnp",
+          "type": "boolean"
+         }
+        },
+        "title": "FirewallReloadBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/service/status": {
+   "get": {
+    "summary": "Service Status",
+    "operationId": "service_status_package_service_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Service Status Package Service Status Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/service/restart": {
+   "post": {
+    "summary": "Service Restart",
+    "description": "Restart one named service. A write with real consequences (a bad\nrestart can take an app or the control plane down): routed through the\nsigned operation chain (policy + approval), not _run_tool.",
+    "operationId": "service_restart_package_service_restart_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Service Restart Package Service Restart Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+         }
+        },
+        "title": "ServiceRestartBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/service/control": {
+   "post": {
+    "summary": "Service Control",
+    "description": "Start/stop/restart one named service. Same write-risk tier as\nservice.restart: routed through the signed operation chain.",
+    "operationId": "service_control_package_service_control_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Service Control Package Service Control Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+         },
+         "action": {
+          "default": "",
+          "title": "Action",
+          "type": "string"
+         }
+        },
+        "title": "ServiceControlBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/status": {
+   "get": {
+    "summary": "Agent Status",
+    "operationId": "agent_status_package_agent_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Status Package Agent Status Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/init": {
+   "post": {
+    "summary": "Agent Init",
+    "operationId": "agent_init_package_agent_init_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Init Package Agent Init Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/enable": {
+   "post": {
+    "summary": "Agent Enable",
+    "operationId": "agent_enable_package_agent_enable_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Enable Package Agent Enable Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/disable": {
+   "post": {
+    "summary": "Agent Disable",
+    "operationId": "agent_disable_package_agent_disable_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Disable Package Agent Disable Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/models/profile": {
+   "get": {
+    "summary": "Agent Models Profile",
+    "operationId": "agent_models_profile_package_agent_models_profile_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Models Profile Package Agent Models Profile Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/models/recommend": {
+   "get": {
+    "summary": "Agent Models Recommend",
+    "operationId": "agent_models_recommend_package_agent_models_recommend_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Models Recommend Package Agent Models Recommend Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/models/download": {
+   "post": {
+    "summary": "Agent Models Download",
+    "operationId": "agent_models_download_package_agent_models_download_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Models Download Package Agent Models Download Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "model_id": {
+          "default": "",
+          "title": "Model Id",
+          "type": "string"
+         },
+         "evaluation_only": {
+          "default": false,
+          "title": "Evaluation Only",
+          "type": "boolean"
+         }
+        },
+        "title": "AgentModelDownloadBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/models/select": {
+   "post": {
+    "summary": "Agent Models Select",
+    "operationId": "agent_models_select_package_agent_models_select_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Models Select Package Agent Models Select Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "model_id": {
+          "default": "",
+          "title": "Model Id",
+          "type": "string"
+         }
+        },
+        "title": "AgentModelSelectBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/models/status": {
+   "get": {
+    "summary": "Agent Models Status",
+    "operationId": "agent_models_status_package_agent_models_status_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Models Status Package Agent Models Status Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/mode": {
+   "get": {
+    "summary": "Agent Mode Get",
+    "operationId": "agent_mode_get_package_agent_mode_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Mode Get Package Agent Mode Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Agent Mode Set",
+    "operationId": "agent_mode_set_package_agent_mode_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Mode Set Package Agent Mode Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "level": {
+          "default": "",
+          "title": "Level",
+          "type": "string"
+         },
+         "confirm": {
+          "default": false,
+          "title": "Confirm",
+          "type": "boolean"
+         }
+        },
+        "title": "AgentModeSetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/export/list": {
+   "get": {
+    "summary": "Agent Export List",
+    "operationId": "agent_export_list_package_agent_export_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Export List Package Agent Export List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/export/run": {
+   "post": {
+    "summary": "Agent Export Run",
+    "operationId": "agent_export_run_package_agent_export_run_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Export Run Package Agent Export Run Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "cycle_id": {
+          "default": "",
+          "title": "Cycle Id",
+          "type": "string"
+         }
+        },
+        "title": "AgentExportRunBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/export/{candidate_file_id}": {
+   "get": {
+    "summary": "Agent Export Get",
+    "operationId": "agent_export_get_package_agent_export__candidate_file_id__get",
+    "parameters": [
+     {
+      "name": "candidate_file_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Candidate File Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Export Get Package Agent Export  Candidate File Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/contribution/settings": {
+   "get": {
+    "summary": "Agent Contribution Settings Get",
+    "operationId": "agent_contribution_settings_get_package_agent_contribution_settings_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Contribution Settings Get Package Agent Contribution Settings Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Agent Contribution Settings Set",
+    "description": "Touches contribution credentials and, via auto_submit, can flip on\nthe resident daemon submitting every completed cycle with no click\nneeded. Admin-only, and routed through the signed operation chain so\nthe toggle and its approval are audited (H5).",
+    "operationId": "agent_contribution_settings_set_package_agent_contribution_settings_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Contribution Settings Set Package Agent Contribution Settings Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "dataset_repo": {
+          "default": "",
+          "title": "Dataset Repo",
+          "type": "string"
+         },
+         "token": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Token"
+         },
+         "auto_submit": {
+          "default": false,
+          "title": "Auto Submit",
+          "type": "boolean"
+         }
+        },
+        "title": "AgentContributionSettingsSetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/contribution/submit": {
+   "post": {
+    "summary": "Agent Contribution Submit",
+    "description": "Causes real network egress of exactly one already-prepared candidate\nfile the admin explicitly chose. Admin-only, approval-gated via the\nsigned operation chain.",
+    "operationId": "agent_contribution_submit_package_agent_contribution_submit_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Contribution Submit Package Agent Contribution Submit Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "candidate_file_id": {
+          "default": "",
+          "title": "Candidate File Id",
+          "type": "string"
+         }
+        },
+        "title": "AgentContributionSubmitBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/agent/contribution/share": {
+   "post": {
+    "summary": "Agent Contribution Share",
+    "description": "Redacts and submits one completed cycle in a single call -- the\nadmin-facing \"Share\" action. Combines export/run + contribution/submit\nso the UI no longer needs a separate prepare-then-review step before\nsharing; the redaction plus the community repo's own CI validation\nare the safeguards, on this path exactly as on automatic submission.\nApproval-gated via the signed operation chain.",
+    "operationId": "agent_contribution_share_package_agent_contribution_share_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Agent Contribution Share Package Agent Contribution Share Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "cycle_id": {
+          "default": "",
+          "title": "Cycle Id",
+          "type": "string"
+         }
+        },
+        "title": "AgentContributionShareBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/list": {
+   "get": {
+    "summary": "Catalog List",
+    "operationId": "catalog_list_package_catalog_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog List Package Catalog List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/publish": {
+   "post": {
+    "summary": "Catalog Publish",
+    "operationId": "catalog_publish_package_catalog_publish_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Publish Package Catalog Publish Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "app_id": {
+          "default": "",
+          "title": "App Id",
+          "type": "string"
+         },
+         "relays": {
+          "default": "",
+          "title": "Relays",
+          "type": "string"
+         }
+        },
+        "title": "CatalogPublishBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/declare": {
+   "post": {
+    "summary": "Catalog Declare",
+    "operationId": "catalog_declare_package_catalog_declare_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Declare Package Catalog Declare Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "package": {
+          "default": null,
+          "title": "Package"
+         },
+         "repository": {
+          "default": "",
+          "title": "Repository",
+          "type": "string"
+         },
+         "relays": {
+          "default": "",
+          "title": "Relays",
+          "type": "string"
+         }
+        },
+        "title": "CatalogDeclareBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/verify": {
+   "post": {
+    "summary": "Catalog Verify",
+    "operationId": "catalog_verify_package_catalog_verify_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Verify Package Catalog Verify Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event_or_naddr": {
+          "default": "",
+          "title": "Event Or Naddr",
+          "type": "string"
+         }
+        },
+        "title": "CatalogVerifyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/attest": {
+   "post": {
+    "summary": "Catalog Attest",
+    "operationId": "catalog_attest_package_catalog_attest_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Attest Package Catalog Attest Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "app_id": {
+          "default": "",
+          "title": "App Id",
+          "type": "string"
+         },
+         "publisher": {
+          "default": "",
+          "title": "Publisher",
+          "type": "string"
+         },
+         "claim": {
+          "default": "",
+          "title": "Claim",
+          "type": "string"
+         },
+         "comment": {
+          "default": "",
+          "title": "Comment",
+          "type": "string"
+         },
+         "relays": {
+          "default": "",
+          "title": "Relays",
+          "type": "string"
+         }
+        },
+        "title": "CatalogAttestBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/trust": {
+   "get": {
+    "summary": "Catalog Trust",
+    "operationId": "catalog_trust_package_catalog_trust_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Trust Package Catalog Trust Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/reverify": {
+   "post": {
+    "summary": "Catalog Reverify",
+    "operationId": "catalog_reverify_package_catalog_reverify_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Reverify Package Catalog Reverify Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "app_id": {
+          "default": "",
+          "title": "App Id",
+          "type": "string"
+         }
+        },
+        "title": "CatalogReverifyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/catalog/announce": {
+   "post": {
+    "summary": "Catalog Announce",
+    "operationId": "catalog_announce_package_catalog_announce_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Catalog Announce Package Catalog Announce Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "app_id": {
+          "default": "",
+          "title": "App Id",
+          "type": "string"
+         },
+         "relays": {
+          "default": "",
+          "title": "Relays",
+          "type": "string"
+         }
+        },
+        "title": "CatalogAnnounceBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/management": {
+   "get": {
+    "summary": "App Management",
+    "operationId": "app_management_package_app_management_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Management Package App Management Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/settings": {
+   "get": {
+    "summary": "App Settings",
+    "operationId": "app_settings_package_app__app_id__settings_get",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Settings Package App  App Id  Settings Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/install/plan": {
+   "post": {
+    "summary": "App Install Plan",
+    "operationId": "app_install_plan_package_app__app_id__install_plan_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Install Plan Package App  App Id  Install Plan Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/install/apply": {
+   "post": {
+    "summary": "App Install Apply",
+    "operationId": "app_install_apply_package_app__app_id__install_apply_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Install Apply Package App  App Id  Install Apply Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/upgrade/plan": {
+   "post": {
+    "summary": "App Upgrade Plan",
+    "operationId": "app_upgrade_plan_package_app__app_id__upgrade_plan_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Upgrade Plan Package App  App Id  Upgrade Plan Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/upgrade/apply": {
+   "post": {
+    "summary": "App Upgrade Apply",
+    "operationId": "app_upgrade_apply_package_app__app_id__upgrade_apply_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Upgrade Apply Package App  App Id  Upgrade Apply Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/remove/plan": {
+   "post": {
+    "summary": "App Remove Plan",
+    "operationId": "app_remove_plan_package_app__app_id__remove_plan_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Remove Plan Package App  App Id  Remove Plan Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/remove/apply": {
+   "post": {
+    "summary": "App Remove Apply",
+    "operationId": "app_remove_apply_package_app__app_id__remove_apply_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Remove Apply Package App  App Id  Remove Apply Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/settings/plan": {
+   "post": {
+    "summary": "App Settings Plan",
+    "operationId": "app_settings_plan_package_app__app_id__settings_plan_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Settings Plan Package App  App Id  Settings Plan Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "values": {
+          "additionalProperties": true,
+          "title": "Values",
+          "type": "object"
+         }
+        },
+        "required": [
+         "values"
+        ],
+        "title": "AppSettingsPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/settings/apply": {
+   "post": {
+    "summary": "App Settings Apply",
+    "operationId": "app_settings_apply_package_app__app_id__settings_apply_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Settings Apply Package App  App Id  Settings Apply Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "values": {
+          "additionalProperties": true,
+          "title": "Values",
+          "type": "object"
+         },
+         "plan_sha256": {
+          "title": "Plan Sha256",
+          "type": "string"
+         }
+        },
+        "required": [
+         "values",
+         "plan_sha256"
+        ],
+        "title": "AppSettingsApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/change-url/plan": {
+   "post": {
+    "summary": "App Change Url Plan",
+    "operationId": "app_change_url_plan_package_app__app_id__change_url_plan_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Change Url Plan Package App  App Id  Change Url Plan Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "domain": {
+          "title": "Domain",
+          "type": "string"
+         },
+         "path": {
+          "title": "Path",
+          "type": "string"
+         }
+        },
+        "required": [
+         "domain",
+         "path"
+        ],
+        "title": "AppChangeUrlPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/{app_id}/change-url/apply": {
+   "post": {
+    "summary": "App Change Url Apply",
+    "operationId": "app_change_url_apply_package_app__app_id__change_url_apply_post",
+    "parameters": [
+     {
+      "name": "app_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "App Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Change Url Apply Package App  App Id  Change Url Apply Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "domain": {
+          "title": "Domain",
+          "type": "string"
+         },
+         "path": {
+          "title": "Path",
+          "type": "string"
+         },
+         "plan_sha256": {
+          "title": "Plan Sha256",
+          "type": "string"
+         }
+        },
+        "required": [
+         "domain",
+         "path",
+         "plan_sha256"
+        ],
+        "title": "AppChangeUrlApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/app/remove": {
+   "post": {
+    "summary": "App Remove",
+    "description": "Remove one installed app. Data-loss-capable (purge): routed through\nthe signed operation chain (policy + approval), not _run_tool.",
+    "operationId": "app_remove_package_app_remove_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response App Remove Package App Remove Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "app": {
+          "default": "",
+          "title": "App",
+          "type": "string"
+         },
+         "purge": {
+          "default": false,
+          "title": "Purge",
+          "type": "boolean"
+         }
+        },
+        "title": "AppRemoveBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/create": {
+   "post": {
+    "summary": "User Create",
+    "description": "Create a YunoHost user account/mailbox. Medium-risk: routed\nthrough the signed operation chain (owner co-signature), not\n_run_tool (user.create is require_approval=True in the registry).",
+    "operationId": "user_create_package_user_create_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Create Package User Create Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "username": {
+          "default": "",
+          "title": "Username",
+          "type": "string"
+         },
+         "domain": {
+          "default": "",
+          "title": "Domain",
+          "type": "string"
+         },
+         "password": {
+          "default": "",
+          "title": "Password",
+          "type": "string"
+         },
+         "fullname": {
+          "default": "",
+          "title": "Fullname",
+          "type": "string"
+         },
+         "mailbox_quota": {
+          "default": "0",
+          "title": "Mailbox Quota",
+          "type": "string"
+         },
+         "admin": {
+          "default": false,
+          "title": "Admin",
+          "type": "boolean"
+         }
+        },
+        "title": "UserCreateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/update": {
+   "post": {
+    "summary": "User Update",
+    "description": "Update an existing user. Medium-risk: routed through the signed\noperation chain (owner co-signature), not _run_tool (user.update is\nrequire_approval=True in the registry).",
+    "operationId": "user_update_package_user_update_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Update Package User Update Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "username": {
+          "default": "",
+          "title": "Username",
+          "type": "string"
+         },
+         "mail": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Mail"
+         },
+         "change_password": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Change Password"
+         },
+         "add_mailforward": {
+          "default": null,
+          "title": "Add Mailforward"
+         },
+         "remove_mailforward": {
+          "default": null,
+          "title": "Remove Mailforward"
+         },
+         "add_mailalias": {
+          "default": null,
+          "title": "Add Mailalias"
+         },
+         "remove_mailalias": {
+          "default": null,
+          "title": "Remove Mailalias"
+         },
+         "mailbox_quota": {
+          "default": null,
+          "title": "Mailbox Quota"
+         },
+         "fullname": {
+          "default": null,
+          "title": "Fullname"
+         }
+        },
+        "title": "UserUpdateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/delete": {
+   "post": {
+    "summary": "User Delete",
+    "description": "Delete a YunoHost user account. High-risk/irreversible: routed\nthrough the signed operation chain (owner co-signature), not\n_run_tool.",
+    "operationId": "user_delete_package_user_delete_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Delete Package User Delete Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "username": {
+          "default": "",
+          "title": "Username",
+          "type": "string"
+         },
+         "purge": {
+          "default": false,
+          "title": "Purge",
+          "type": "boolean"
+         },
+         "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+         }
+        },
+        "title": "UserDeleteBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/group/create": {
+   "post": {
+    "summary": "User Group Create",
+    "description": "Create a new user group. Medium-risk: routed through the signed\noperation chain (owner co-signature), not _run_tool.",
+    "operationId": "user_group_create_package_user_group_create_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Group Create Package User Group Create Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "groupname": {
+          "default": "",
+          "title": "Groupname",
+          "type": "string"
+         },
+         "gid": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Gid"
+         }
+        },
+        "title": "UserGroupCreateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/group/update": {
+   "post": {
+    "summary": "User Group Update",
+    "description": "Add/remove usernames from a group. Medium-risk: routed through\nthe signed operation chain (owner co-signature), not _run_tool.",
+    "operationId": "user_group_update_package_user_group_update_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Group Update Package User Group Update Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "groupname": {
+          "default": "",
+          "title": "Groupname",
+          "type": "string"
+         },
+         "add": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Add"
+         },
+         "remove": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Remove"
+         }
+        },
+        "title": "UserGroupUpdateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/group/delete": {
+   "post": {
+    "summary": "User Group Delete",
+    "description": "Delete a user group. High-risk/irreversible: routed through the\nsigned operation chain (owner co-signature), not _run_tool.",
+    "operationId": "user_group_delete_package_user_group_delete_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Group Delete Package User Group Delete Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "groupname": {
+          "default": "",
+          "title": "Groupname",
+          "type": "string"
+         },
+         "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+         }
+        },
+        "title": "UserGroupDeleteBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/permission/list": {
+   "get": {
+    "summary": "User Permission List",
+    "operationId": "user_permission_list_package_user_permission_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Permission List Package User Permission List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/permission/add": {
+   "post": {
+    "summary": "User Permission Add",
+    "description": "Grant users/groups access to a permission. Medium-risk: routed\nthrough the signed operation chain (owner co-signature), not\n_run_tool.",
+    "operationId": "user_permission_add_package_user_permission_add_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Permission Add Package User Permission Add Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "permission": {
+          "default": "",
+          "title": "Permission",
+          "type": "string"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Names",
+          "type": "array"
+         }
+        },
+        "title": "UserPermissionAddBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/permission/remove": {
+   "post": {
+    "summary": "User Permission Remove",
+    "description": "Revoke users/groups access to a permission. Medium-risk: routed\nthrough the signed operation chain (owner co-signature), not\n_run_tool.",
+    "operationId": "user_permission_remove_package_user_permission_remove_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Permission Remove Package User Permission Remove Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "permission": {
+          "default": "",
+          "title": "Permission",
+          "type": "string"
+         },
+         "names": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Names",
+          "type": "array"
+         }
+        },
+        "title": "UserPermissionRemoveBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/user/permission/update": {
+   "post": {
+    "summary": "User Permission Update",
+    "description": "Update a permission's label/tile visibility, not membership.\nMedium-risk: routed through the signed operation chain (owner\nco-signature), not _run_tool.",
+    "operationId": "user_permission_update_package_user_permission_update_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response User Permission Update Package User Permission Update Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "permission": {
+          "default": "",
+          "title": "Permission",
+          "type": "string"
+         },
+         "label": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Label"
+         },
+         "show_tile": {
+          "anyOf": [
+           {
+            "type": "boolean"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Show Tile"
+         }
+        },
+        "title": "UserPermissionUpdateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/reboot": {
+   "post": {
+    "summary": "System Reboot",
+    "description": "Reboot the host. High-risk, irreversible-ish: routed through the\nsigned operation chain (owner co-signature), not _run_tool.",
+    "operationId": "system_reboot_package_system_reboot_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response System Reboot Package System Reboot Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/system/shutdown": {
+   "post": {
+    "summary": "System Shutdown",
+    "description": "Power off the host. High-risk, requires out-of-band power-on to\nrecover: routed through the signed operation chain (owner\nco-signature), not _run_tool.",
+    "operationId": "system_shutdown_package_system_shutdown_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response System Shutdown Package System Shutdown Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nostr/connectivity": {
+   "get": {
+    "summary": "Nostr Connectivity Get",
+    "operationId": "nostr_connectivity_get_package_nostr_connectivity_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nostr Connectivity Get Package Nostr Connectivity Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nostr/connectivity/check": {
+   "post": {
+    "summary": "Nostr Connectivity Check",
+    "operationId": "nostr_connectivity_check_package_nostr_connectivity_check_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nostr Connectivity Check Package Nostr Connectivity Check Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "relays": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Relays",
+          "type": "array"
+         },
+         "blossom_servers": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Blossom Servers",
+          "type": "array"
+         }
+        },
+        "required": [
+         "relays",
+         "blossom_servers"
+        ],
+        "title": "ConnectivityCheckBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nostr/connectivity/plan": {
+   "post": {
+    "summary": "Nostr Connectivity Plan",
+    "operationId": "nostr_connectivity_plan_package_nostr_connectivity_plan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nostr Connectivity Plan Package Nostr Connectivity Plan Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "configuration": {
+          "additionalProperties": true,
+          "title": "Configuration",
+          "type": "object"
+         }
+        },
+        "required": [
+         "configuration"
+        ],
+        "title": "ConnectivityPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/nostr/connectivity/apply": {
+   "post": {
+    "summary": "Nostr Connectivity Apply",
+    "operationId": "nostr_connectivity_apply_package_nostr_connectivity_apply_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Nostr Connectivity Apply Package Nostr Connectivity Apply Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "configuration": {
+          "additionalProperties": true,
+          "title": "Configuration",
+          "type": "object"
+         },
+         "plan_sha256": {
+          "title": "Plan Sha256",
+          "type": "string"
+         }
+        },
+        "required": [
+         "configuration",
+         "plan_sha256"
+        ],
+        "title": "ConnectivityApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/primary": {
+   "get": {
+    "summary": "Domain Primary Get",
+    "operationId": "domain_primary_get_package_domain_primary_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Domain Primary Get Package Domain Primary Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/primary/plan": {
+   "post": {
+    "summary": "Domain Primary Plan",
+    "operationId": "domain_primary_plan_package_domain_primary_plan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Domain Primary Plan Package Domain Primary Plan Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "domain": {
+          "title": "Domain",
+          "type": "string"
+         }
+        },
+        "required": [
+         "domain"
+        ],
+        "title": "DomainPrimaryPlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/domain/primary/apply": {
+   "post": {
+    "summary": "Domain Primary Apply",
+    "operationId": "domain_primary_apply_package_domain_primary_apply_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Domain Primary Apply Package Domain Primary Apply Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": false,
+        "properties": {
+         "domain": {
+          "title": "Domain",
+          "type": "string"
+         },
+         "plan_sha256": {
+          "title": "Plan Sha256",
+          "type": "string"
+         }
+        },
+        "required": [
+         "domain",
+         "plan_sha256"
+        ],
+        "title": "DomainPrimaryApplyBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/settings/list": {
+   "get": {
+    "summary": "Settings List",
+    "operationId": "settings_list_package_settings_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Settings List Package Settings List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/settings/set": {
+   "post": {
+    "summary": "Settings Set",
+    "description": "Set a global YunoHost setting. Medium-risk: routed through the\nsigned operation chain (owner co-signature), not _run_tool.",
+    "operationId": "settings_set_package_settings_set_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Settings Set Package Settings Set Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "key": {
+          "default": "",
+          "title": "Key",
+          "type": "string"
+         },
+         "value": {
+          "default": null,
+          "title": "Value"
+         }
+        },
+        "title": "SettingsSetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/settings/reset": {
+   "post": {
+    "summary": "Settings Reset",
+    "description": "Reset a global YunoHost setting to its default. Medium-risk:\nrouted through the signed operation chain (owner co-signature), not\n_run_tool.",
+    "operationId": "settings_reset_package_settings_reset_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Settings Reset Package Settings Reset Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "key": {
+          "default": "",
+          "title": "Key",
+          "type": "string"
+         }
+        },
+        "title": "SettingsResetBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/settings/reset_all": {
+   "post": {
+    "summary": "Settings Reset All",
+    "description": "Reset all global YunoHost settings to their defaults. High-risk:\nrouted through the signed operation chain (owner co-signature), not\n_run_tool.",
+    "operationId": "settings_reset_all_package_settings_reset_all_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Settings Reset All Package Settings Reset All Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/service/configs/reconcile": {
+   "post": {
+    "summary": "Service Configs Reconcile",
+    "description": "Re-render the generated service-config files from their authority.\nLow-risk: routed through the signed operation chain so the reconcile\n(per-file source revision, digest, reload outcome) is recorded in the\n``2200``-series audit history.",
+    "operationId": "service_configs_reconcile_package_service_configs_reconcile_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Service Configs Reconcile Package Service Configs Reconcile Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "names": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Names"
+         }
+        },
+        "title": "ServiceConfigsReconcileBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/plan": {
+   "post": {
+    "summary": "Package Plan",
+    "operationId": "package_plan_package_plan_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Plan Package Plan Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "package": {
+          "default": null,
+          "title": "Package"
+         },
+         "catalogue": {
+          "default": null,
+          "title": "Catalogue"
+         },
+         "domain": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Domain"
+         },
+         "path": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Path"
+         }
+        },
+        "title": "PackagePlanBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/authoring/fetch_manifest": {
+   "post": {
+    "summary": "Package Fetch Manifest",
+    "operationId": "package_fetch_manifest_package_authoring_fetch_manifest_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Fetch Manifest Package Authoring Fetch Manifest Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "repository": {
+          "default": "",
+          "title": "Repository",
+          "type": "string"
+         },
+         "revision": {
+          "default": "",
+          "title": "Revision",
+          "type": "string"
+         },
+         "package_path": {
+          "default": "",
+          "title": "Package Path",
+          "type": "string"
+         }
+        },
+        "title": "PackageFetchManifestBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/reconcile": {
+   "post": {
+    "summary": "Package Reconcile",
+    "operationId": "package_reconcile_package_reconcile_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Reconcile Package Reconcile Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "plan": {
+          "default": null,
+          "title": "Plan"
+         }
+        },
+        "title": "PackageReconcileBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/identity/list": {
+   "get": {
+    "summary": "Identity List",
+    "operationId": "identity_list_package_identity_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Identity List Package Identity List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/identity/resolve/{value}": {
+   "get": {
+    "summary": "Identity Resolve",
+    "operationId": "identity_resolve_package_identity_resolve__value__get",
+    "parameters": [
+     {
+      "name": "value",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Value"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Identity Resolve Package Identity Resolve  Value  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/identity/link": {
+   "post": {
+    "summary": "Identity Link",
+    "operationId": "identity_link_package_identity_link_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Identity Link Package Identity Link Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "username": {
+          "default": "",
+          "title": "Username",
+          "type": "string"
+         },
+         "pubkey_or_npub": {
+          "default": "",
+          "title": "Pubkey Or Npub",
+          "type": "string"
+         },
+         "signer_type": {
+          "default": "unknown",
+          "title": "Signer Type",
+          "type": "string"
+         },
+         "label": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Label"
+         },
+         "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+         }
+        },
+        "title": "IdentityLinkBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/identity/revoke": {
+   "post": {
+    "summary": "Identity Revoke",
+    "operationId": "identity_revoke_package_identity_revoke_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Identity Revoke Package Identity Revoke Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey_or_npub": {
+          "default": "",
+          "title": "Pubkey Or Npub",
+          "type": "string"
+         }
+        },
+        "title": "IdentityRevokeBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/capability/list": {
+   "get": {
+    "summary": "Capability List",
+    "operationId": "capability_list_package_capability_list_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Capability List Package Capability List Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/capability/grant": {
+   "post": {
+    "summary": "Capability Grant",
+    "operationId": "capability_grant_package_capability_grant_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Capability Grant Package Capability Grant Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "scopes": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Scopes",
+          "type": "array"
+         },
+         "type": {
+          "default": "agent",
+          "title": "Type",
+          "type": "string"
+         }
+        },
+        "title": "CapabilityGrantBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/capability/delegate": {
+   "post": {
+    "summary": "Capability Delegate",
+    "operationId": "capability_delegate_package_capability_delegate_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Capability Delegate Package Capability Delegate Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "pubkey": {
+          "default": "",
+          "title": "Pubkey",
+          "type": "string"
+         },
+         "scopes": {
+          "items": {
+           "type": "string"
+          },
+          "title": "Scopes",
+          "type": "array"
+         },
+         "expires_at": {
+          "default": 0,
+          "title": "Expires At",
+          "type": "integer"
+         }
+        },
+        "title": "CapabilityDelegateBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/capability/revoke": {
+   "post": {
+    "summary": "Capability Revoke",
+    "operationId": "capability_revoke_package_capability_revoke_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Capability Revoke Package Capability Revoke Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "delegation_id": {
+          "default": "",
+          "title": "Delegation Id",
+          "type": "string"
+         }
+        },
+        "title": "CapabilityRevokeBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/mcp/endpoint": {
+   "get": {
+    "summary": "Mcp Endpoint Info",
+    "operationId": "mcp_endpoint_info_package_mcp_endpoint_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Mcp Endpoint Info Package Mcp Endpoint Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Mcp Endpoint Configure",
+    "operationId": "mcp_endpoint_configure_package_mcp_endpoint_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Mcp Endpoint Configure Package Mcp Endpoint Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "domain": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Domain"
+         }
+        },
+        "title": "McpEndpointConfigureBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/mcp/ca-bundle": {
+   "get": {
+    "summary": "Mcp Ca Bundle",
+    "description": "The combined CA bundle for a remote MCP client to trust this\nnode's certificate \u2014 only meaningful when the MCP domain uses\nCaddy's internal CA (a lab/test domain); a public ACME certificate\nneeds no client-side trust change, so ``available`` is false.",
+    "operationId": "mcp_ca_bundle_package_mcp_ca_bundle_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Mcp Ca Bundle Package Mcp Ca Bundle Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/operations": {
+   "get": {
+    "summary": "Package Operations List",
+    "operationId": "package_operations_list_package_operations_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Operations List Package Operations Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/operations/{request_id}": {
+   "get": {
+    "summary": "Package Operations Get",
+    "operationId": "package_operations_get_package_operations__request_id__get",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Operations Get Package Operations  Request Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/operations/{request_id}/approval-template": {
+   "get": {
+    "summary": "Package Operations Approval Template",
+    "operationId": "package_operations_approval_template_package_operations__request_id__approval_template_get",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Operations Approval Template Package Operations  Request Id  Approval Template Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/operations/{request_id}/rejection-template": {
+   "get": {
+    "summary": "Package Operations Rejection Template",
+    "operationId": "package_operations_rejection_template_package_operations__request_id__rejection_template_get",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Operations Rejection Template Package Operations  Request Id  Rejection Template Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/operations/{request_id}/approve": {
+   "post": {
+    "summary": "Package Operations Approve",
+    "operationId": "package_operations_approve_package_operations__request_id__approve_post",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Operations Approve Package Operations  Request Id  Approve Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "anyOf": [
+           {
+            "additionalProperties": true,
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Event"
+         },
+         "note": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Note"
+         },
+         "reason": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Reason"
+         }
+        },
+        "title": "OperationDecisionBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/operations/{request_id}/reject": {
+   "post": {
+    "summary": "Package Operations Reject",
+    "operationId": "package_operations_reject_package_operations__request_id__reject_post",
+    "parameters": [
+     {
+      "name": "request_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Request Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Package Operations Reject Package Operations  Request Id  Reject Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "event": {
+          "anyOf": [
+           {
+            "additionalProperties": true,
+            "type": "object"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Event"
+         },
+         "note": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Note"
+         },
+         "reason": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Reason"
+         }
+        },
+        "title": "OperationDecisionBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/notify/signers": {
+   "get": {
+    "summary": "Notify Signers",
+    "description": "Registered remote-signer push targets (approval fan-out status).\n\nSecrets are never returned; `this_admin` says whether the authenticated\nadmin's own identity has a signer registered, and `remote` whether the\nnode pushes parked approvals to signers at all.",
+    "operationId": "notify_signers_package_notify_signers_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Notify Signers Package Notify Signers Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Notify Signers Register",
+    "description": "Register the caller's own remote signer from a ``bunker://`` URI.\n\nThe node (not this browser) then pushes parked approvals to that\nsigner, so an approval no longer depends on a particular browser\nsession. Only the authenticated admin's own identity may be\nregistered; the signer still prompts its owner for every signature.",
+    "operationId": "notify_signers_register_package_notify_signers_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Notify Signers Register Package Notify Signers Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "bunker_uri": {
+          "default": "",
+          "title": "Bunker Uri",
+          "type": "string"
+         },
+         "label": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Label"
+         }
+        },
+        "title": "NotifySignersRegisterBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/notify/signers/pair": {
+   "post": {
+    "summary": "Notify Signers Pair Start",
+    "description": "Start a node-initiated ``nostrconnect://`` pairing.\n\nReturns the URI the admin opens/scans in their signer; poll the\nreturned ``pairing_id`` at GET .../pair/{id} until it reports\n``paired``. No signer secret is ever stored - the signer authorises\nthe node's own NIP-46 client key.",
+    "operationId": "notify_signers_pair_start_package_notify_signers_pair_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Notify Signers Pair Start Package Notify Signers Pair Post"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "relays": {
+          "anyOf": [
+           {
+            "items": {
+             "type": "string"
+            },
+            "type": "array"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Relays"
+         },
+         "label": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Label"
+         }
+        },
+        "title": "NotifySignersPairStartBody",
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/notify/signers/pair/{pairing_id}": {
+   "get": {
+    "summary": "Notify Signers Pair Status",
+    "description": "Poll a pending pairing; on success the target is already saved.",
+    "operationId": "notify_signers_pair_status_package_notify_signers_pair__pairing_id__get",
+    "parameters": [
+     {
+      "name": "pairing_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pairing Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Notify Signers Pair Status Package Notify Signers Pair  Pairing Id  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/package/notify/signers/{signer_pubkey}": {
+   "delete": {
+    "summary": "Notify Signers Remove",
+    "description": "Remove the caller's own registered remote signer.",
+    "operationId": "notify_signers_remove_package_notify_signers__signer_pubkey__delete",
+    "parameters": [
+     {
+      "name": "signer_pubkey",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Signer Pubkey"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "title": "Response Notify Signers Remove Package Notify Signers  Signer Pubkey  Delete"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}

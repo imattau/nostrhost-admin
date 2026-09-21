@@ -15,6 +15,7 @@ import { sha256Hex, type InventoryItem } from './inventory'
 
 export const KIND_ROOT = 15128
 export const KIND_NAMED = 35128
+export const KIND_SNAPSHOT = 5128
 
 export type ManifestItem = { path: string; sha256: string }
 
@@ -80,6 +81,7 @@ export async function buildUnsignedManifest(params: {
   d: string
   items: ManifestItem[]
   servers: string[]
+  app?: string
 }): Promise<{ event: UnsignedManifest; aggregate: string }> {
   const sortedPaths = [...params.items]
     .map((item) => [item.path, item.sha256] as const)
@@ -87,6 +89,9 @@ export async function buildUnsignedManifest(params: {
   const tags: string[][] = []
   if (params.kind === KIND_NAMED) {
     tags.push(['d', params.d])
+  }
+  if (params.app) {
+    tags.push(['app', params.app])
   }
   for (const [path, hash] of sortedPaths) {
     tags.push(['path', path, hash])
@@ -101,6 +106,49 @@ export async function buildUnsignedManifest(params: {
   return {
     event: {
       kind: params.kind,
+      pubkey: params.pubkey,
+      created_at: 0,
+      tags,
+      content: '',
+    },
+    aggregate,
+  }
+}
+
+// Build the unsigned kind-5128 snapshot of a site's published manifest
+// (implementation plan §5). A snapshot references the site it captures with
+// an `a` tag (the same aggregate hash as the root/named manifest it derives
+// from), carries the same path inventory, and is immutable once signed —
+// the fork's `nsite.snapshot` records its event id on the site record and
+// never rewrites it.
+export async function buildUnsignedSnapshot(params: {
+  pubkey: string
+  kind: number
+  d: string
+  items: ManifestItem[]
+  servers: string[]
+}): Promise<{ event: UnsignedManifest; aggregate: string }> {
+  const sortedPaths = [...params.items]
+    .map((item) => [item.path, item.sha256] as const)
+    .sort(compareTuples)
+  const tags: string[][] = []
+  tags.push([
+    'a',
+    `${params.kind}:${params.pubkey}:${params.d}`,
+  ])
+  for (const [path, hash] of sortedPaths) {
+    tags.push(['path', path, hash])
+  }
+  for (const server of [...new Set(params.servers)].sort()) {
+    tags.push(['server', server])
+  }
+  const aggregate = await aggregateHash(
+    sortedPaths.map(([path, hash]) => [path, hash]),
+  )
+  tags.push(['x', aggregate, 'aggregate'])
+  return {
+    event: {
+      kind: KIND_SNAPSHOT,
       pubkey: params.pubkey,
       created_at: 0,
       tags,

@@ -42,6 +42,7 @@ const { run } = useActionRunner(publishBusy, '')
 const wKind = ref(String(KIND_ROOT))
 const wD = ref('')
 const wTitle = ref('')
+const wApp = ref('')
 const selectedFiles = ref<File[]>([])
 const filesByPath = new Map<string, File>()
 const inventory = ref<InventoryItem[]>([])
@@ -77,6 +78,7 @@ async function openPublish() {
   uploadProgress.value = { done: 0, total: 0, path: '' }
   reviewDigest.value = ''
   reviewEvent.value = null
+  wApp.value = ''
   signerAvailable.value = Boolean(window.nostr)
   try {
     const network = await getConnectivity()
@@ -222,6 +224,7 @@ async function doReview() {
         d: Number(wKind.value) === KIND_NAMED ? wD.value : '',
         items,
         servers,
+        app: wApp.value.trim() || undefined,
       })
       reviewDigest.value = digest
       reviewEvent.value = event
@@ -249,6 +252,7 @@ async function doPublish() {
         items,
         servers,
         relays,
+        app: wApp.value.trim() || undefined,
         signEvent: (event) => window.nostr!.signEvent(event),
         submit: (args) =>
           publishNsite({
@@ -403,6 +407,20 @@ function openSite(url: string | undefined) {
             spellcheck="false"
             autocomplete="off"
           />
+        </div>
+        <div class="tw:grid tw:gap-1.5">
+          <Label for="w-app">App link (kind-32267 address, optional)</Label>
+          <Input
+            id="w-app"
+            v-model="wApp"
+            placeholder="32267:&lt;pubkey&gt;:&lt;app-id&gt;"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+            Link this site to a catalogue app declaration so the catalogue
+            shows an "Open nsite" button. Leave empty for a standalone site.
+          </p>
         </div>
         <div class="tw:flex tw:justify-end tw:gap-2">
           <Button variant="outline" size="sm" @click="wizardStep = 1"

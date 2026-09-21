@@ -6,6 +6,7 @@ import { useSigner } from '@/composables/useSigner'
 import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 import GatewaySection from './nsites/GatewaySection.vue'
+import BlossomSection from './nsites/BlossomSection.vue'
 import SitesSection from './nsites/SitesSection.vue'
 import CustomDomainsSection from './nsites/CustomDomainsSection.vue'
 import CreateCopySection from './nsites/CreateCopySection.vue'
@@ -50,6 +51,7 @@ watch(wizardVisible, async (visible) => {
 
     <template v-if="publicKey">
       <GatewaySection />
+      <BlossomSection />
       <SitesSection
         :wizard-visible="wizardVisible"
         @toggle-wizard="wizardVisible = !wizardVisible"

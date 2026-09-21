@@ -46,6 +46,7 @@ const configSummary = computed(() => {
   if (config.relays?.lookup?.length)
     parts.push(`${config.relays.lookup.length} lookup relay(s)`)
   if (config.blossom?.allow_http) parts.push('HTTP allowed')
+  if (config.npk?.enabled) parts.push('npk bundles')
   if (config.limits?.max_blob_bytes)
     parts.push(`${Math.round(config.limits.max_blob_bytes / 1048576)} MiB/blob`)
   if (config.limits?.cache_quota_bytes)
@@ -58,10 +59,12 @@ const configSummary = computed(() => {
 // -- shared form state -----------------------------------------------------
 
 const formDomain = ref('')
+const formMode = ref<'hosted' | 'open'>('hosted')
 const formLookupRelays = ref('')
 const formExtraRelays = ref('')
 const formFallbackServers = ref('')
 const formAllowHttp = ref(false)
+const formNpkEnabled = ref(false)
 const formMaxBlobBytes = ref('')
 const formCacheQuota = ref('')
 
@@ -78,10 +81,12 @@ function toNumber(text: string): number | undefined {
 function buildInput(): GatewayInput {
   return {
     domain: formDomain.value.trim(),
+    mode: formMode.value,
     lookup_relays: toList(formLookupRelays.value),
     extra_relays: toList(formExtraRelays.value),
     fallback_servers: toList(formFallbackServers.value),
     allow_http: formAllowHttp.value,
+    npk_enabled: formNpkEnabled.value,
     max_blob_bytes: toNumber(formMaxBlobBytes.value),
     cache_quota_bytes: toNumber(formCacheQuota.value),
   }
@@ -89,10 +94,12 @@ function buildInput(): GatewayInput {
 
 function resetForm() {
   formDomain.value = ''
+  formMode.value = 'hosted'
   formLookupRelays.value = ''
   formExtraRelays.value = ''
   formFallbackServers.value = ''
   formAllowHttp.value = false
+  formNpkEnabled.value = false
   formMaxBlobBytes.value = ''
   formCacheQuota.value = ''
 }
@@ -161,12 +168,15 @@ function openConfigureForm() {
   confirmingConfigure.value = false
   const config = status.value?.config ?? {}
   formDomain.value = status.value?.domain ?? ''
+  formMode.value =
+    (status.value?.config?.mode as 'hosted' | 'open' | undefined) ?? 'hosted'
   formLookupRelays.value = (config.relays?.lookup ?? []).join(', ')
   formExtraRelays.value = (config.relays?.extra ?? []).join(', ')
   formFallbackServers.value = (config.blossom?.fallback_servers ?? []).join(
     ', ',
   )
   formAllowHttp.value = Boolean(config.blossom?.allow_http)
+  formNpkEnabled.value = Boolean(config.npk?.enabled)
   formMaxBlobBytes.value = String(config.limits?.max_blob_bytes ?? '')
   formCacheQuota.value = String(config.limits?.cache_quota_bytes ?? '')
   showConfigureForm.value = true
@@ -326,6 +336,17 @@ async function confirmConfigure() {
           another registered subdomain.
         </p>
       </div>
+      <div class="tw:grid tw:gap-1.5">
+        <Label for="enable-mode">Mode</Label>
+        <Select id="enable-mode" v-model="formMode">
+          <option value="hosted">Hosted (allowlisted sites only)</option>
+          <option value="open">Open (any decodable label; requires ACME DNS-01 token)</option>
+        </Select>
+        <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          Open mode serves any owner-signed site without a registration step;
+          the operator's ACME DNS-01 token must be configured in operator.toml.
+        </p>
+      </div>
       <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
         <div class="tw:grid tw:gap-1.5">
           <Label for="enable-lookup">Lookup relays (comma-separated)</Label>
@@ -376,6 +397,10 @@ async function confirmConfigure() {
         <Switch v-model="formAllowHttp" aria-label="Allow HTTP blob fetch" />
         Allow fetching blobs over plain HTTP
       </label>
+      <label class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
+        <Switch v-model="formNpkEnabled" aria-label="Enable npk bundles" />
+        Serve sites from their publisher's npk release bundle when available
+      </label>
       <div class="tw:flex tw:justify-end">
         <Button size="sm" :disabled="busy !== ''" @click="requestEnable">{{
           busy === 'enable' ? 'Enabling…' : 'Enable gateway'
@@ -408,6 +433,17 @@ async function confirmConfigure() {
           spellcheck="false"
           autocomplete="off"
         />
+      </div>
+      <div class="tw:grid tw:gap-1.5">
+        <Label for="configure-mode">Mode</Label>
+        <Select id="configure-mode" v-model="formMode">
+          <option value="hosted">Hosted (allowlisted sites only)</option>
+          <option value="open">Open (any decodable label; requires ACME DNS-01 token)</option>
+        </Select>
+        <p class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+          Open mode serves any owner-signed site without a registration step;
+          the operator's ACME DNS-01 token must be configured in operator.toml.
+        </p>
       </div>
       <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2">
         <div class="tw:grid tw:gap-1.5">
@@ -463,6 +499,10 @@ async function confirmConfigure() {
       <label class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
         <Switch v-model="formAllowHttp" aria-label="Allow HTTP blob fetch" />
         Allow fetching blobs over plain HTTP
+      </label>
+      <label class="tw:flex tw:items-center tw:gap-2 tw:text-sm">
+        <Switch v-model="formNpkEnabled" aria-label="Enable npk bundles" />
+        Serve sites from their publisher's npk release bundle when available
       </label>
       <div class="tw:flex tw:justify-end">
         <Button size="sm" :disabled="busy !== ''" @click="requestConfigure">{{

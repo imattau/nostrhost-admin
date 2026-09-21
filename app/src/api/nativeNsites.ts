@@ -14,6 +14,23 @@ export type GatewayRelaysConfig = {
 export type GatewayBlossomConfig = {
   fallback_servers: string[]
   allow_http: boolean
+  local?: GatewayBlossomLocalConfig
+}
+
+export type GatewayBlossomLocalConfig = {
+  enabled: boolean
+  listen: string
+  data_dir: string
+  quota_bytes: number
+  max_blob_bytes: number
+  retention_days: number
+  allow_pubkeys: string[]
+}
+
+export type GatewayNpkConfig = {
+  enabled: boolean
+  cache_path: string
+  release_ttl_seconds: number
 }
 
 export type GatewayLimitsConfig = {
@@ -35,6 +52,7 @@ export type GatewayConfig = {
   cache_path: string
   relays: GatewayRelaysConfig
   blossom: GatewayBlossomConfig
+  npk?: GatewayNpkConfig
   limits: GatewayLimitsConfig
 }
 
@@ -59,10 +77,12 @@ export type GatewayStatusEnvelope = { gateway: GatewayStatus }
 // sent, so configure() acts as a partial update.
 export type GatewayInput = {
   domain: string
+  mode?: 'hosted' | 'open'
   lookup_relays?: string[]
   extra_relays?: string[]
   fallback_servers?: string[]
   allow_http?: boolean
+  npk_enabled?: boolean
   max_blob_bytes?: number
   cache_quota_bytes?: number
 }
@@ -102,6 +122,62 @@ export function configureNsiteGateway(input: GatewayInput) {
   )
 }
 
+// -- local Blossom server (Phase 5, D4) -------------------------------------
+
+export type NsiteBlossomStatus = {
+  enabled: boolean
+  listen: string
+  data_dir: string
+  quota_bytes: number | null
+  max_blob_bytes: number | null
+  retention_days: number | null
+  allow_pubkeys: string[]
+  health: 'ok' | 'degraded'
+  health_detail: string
+}
+
+export type NsiteBlossomStatusEnvelope = { blossom: NsiteBlossomStatus }
+
+export type NsiteBlossomInput = {
+  listen?: string
+  data_dir?: string
+  quota_bytes?: number
+  max_blob_bytes?: number
+  retention_days?: number
+  allow_pubkeys?: string[]
+}
+
+export function getNsiteBlossomStatus() {
+  return request<NsiteBlossomStatusEnvelope>(
+    '/package/nsite/blossom/status',
+    'GET',
+  )
+}
+
+export function enableNsiteBlossom(input: NsiteBlossomInput) {
+  return request<LifecycleOperation>(
+    '/package/nsite/blossom/enable',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function configureNsiteBlossom(input: NsiteBlossomInput) {
+  return request<LifecycleOperation>(
+    '/package/nsite/blossom/configure',
+    'POST',
+    JSON.stringify(input),
+  )
+}
+
+export function disableNsiteBlossom() {
+  return request<LifecycleOperation>(
+    '/package/nsite/blossom/disable',
+    'POST',
+    JSON.stringify({}),
+  )
+}
+
 // -- Phase 3a: site registry + publishing ----------------------------------
 
 export type NsiteSite = {
@@ -111,6 +187,7 @@ export type NsiteSite = {
   title?: string
   last_event_id?: string
   aggregate_hash?: string
+  paths?: { path: string; sha256: string }[]
   servers?: string[]
   relays?: string[]
   snapshots?: string[]
@@ -143,6 +220,7 @@ export type NsitePlanEnvelope = {
     unsigned_event: unknown
     plan_sha256: string
   }
+  npk?: NsiteNpkPlan
 }
 
 export type NsiteResolveEnvelope = {
@@ -275,6 +353,9 @@ export function planNsitePublish(input: {
   items: { path: string; sha256: string }[]
   servers?: string[]
   relays?: string[]
+  app?: string
+  npk?: boolean
+  npk_version?: string
 }) {
   return request<NsitePlanEnvelope>(
     '/package/nsite/publish/plan',
@@ -308,6 +389,8 @@ export function publishNsite(input: {
   event: unknown
   plan_sha256: string
   relays?: string[]
+  npk_release_event?: unknown
+  npk_sha256?: string
 }) {
   return request<LifecycleOperation>(
     '/package/nsite/publish',
@@ -325,6 +408,25 @@ export type NsitePublishPlanInput = {
   servers?: string[]
   relays?: string[]
   copy_of?: string
+  app?: string
+  npk?: boolean
+  npk_version?: string
+}
+
+export type NsiteNpkPlan = {
+  name: string
+  version: string
+  artifact_sha256: string
+  kind: number
+  d: string
+  servers?: string[]
+  release_event: {
+    kind: number
+    pubkey: string
+    created_at: number
+    tags: string[][]
+    content: string
+  }
 }
 
 export type NsitePublishPlan = {
@@ -335,6 +437,7 @@ export type NsitePublishPlan = {
   servers: string[]
   relays: string[]
   copy_of: string
+  app: string
   unsigned_event: {
     kind: number
     pubkey: string

@@ -2,12 +2,16 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { request } from '@/api/client'
 import {
+  configureNsiteBlossom,
   configureNsiteGateway,
+  disableNsiteBlossom,
   disableNsiteGateway,
   discoverCollections,
+  enableNsiteBlossom,
   enableNsiteGateway,
   getCollection,
   getCollectionPlan,
+  getNsiteBlossomStatus,
   getNsiteGatewayStatus,
   getNsiteInspect,
   getNsiteList,
@@ -44,6 +48,7 @@ const statusEnvelope = {
         fallback_servers: ['https://blossom.primal.net'],
         allow_http: false,
       },
+      npk: { enabled: false, cache_path: '/var/cache/nostrhost-nsite/npk', release_ttl_seconds: 300 },
       limits: { max_blob_bytes: 33554432, cache_quota_bytes: 2147483648 },
     },
     internal: { status: 'ok', body: '{}' },
@@ -173,6 +178,68 @@ describe('Phase 3a site registry + publish client', () => {
         plan_sha256: 'digest',
         relays: ['wss://relay.test'],
       }),
+    )
+  })
+})
+
+describe('local Blossom server client (Phase 5, D4)', () => {
+  it('status returns the blossom envelope from /package/nsite/blossom/status', async () => {
+    vi.mocked(request).mockResolvedValueOnce({
+      blossom: {
+        enabled: true,
+        listen: '127.0.0.1:8197',
+        data_dir: '/var/lib/nostrhost-nsite/blossom',
+        quota_bytes: 1073741824,
+        max_blob_bytes: 33554432,
+        retention_days: 30,
+        allow_pubkeys: [],
+        health: 'ok',
+        health_detail: 'reachable',
+      },
+    })
+    const result = await getNsiteBlossomStatus()
+    expect(result.blossom.enabled).toBe(true)
+    expect(result.blossom.listen).toBe('127.0.0.1:8197')
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/blossom/status',
+      'GET',
+    )
+  })
+
+  it('enable posts the blossom contract as JSON', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true })
+    const input = {
+      listen: '127.0.0.1:8197',
+      data_dir: '/var/lib/nostrhost-nsite/blossom',
+      quota_bytes: 1073741824,
+      retention_days: 7,
+    }
+    await enableNsiteBlossom(input)
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/blossom/enable',
+      'POST',
+      JSON.stringify(input),
+    )
+  })
+
+  it('configure posts the partial contract', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true })
+    const input = { quota_bytes: 536870912, retention_days: 14 }
+    await configureNsiteBlossom(input)
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/blossom/configure',
+      'POST',
+      JSON.stringify(input),
+    )
+  })
+
+  it('disable posts an empty object', async () => {
+    vi.mocked(request).mockResolvedValueOnce({ ok: true })
+    await disableNsiteBlossom()
+    expect(request).toHaveBeenCalledWith(
+      '/package/nsite/blossom/disable',
+      'POST',
+      JSON.stringify({}),
     )
   })
 })

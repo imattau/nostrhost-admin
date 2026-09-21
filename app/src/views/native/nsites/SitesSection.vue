@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { inject, ref } from 'vue'
 
-import { unregisterNsite, type NsiteSite } from '@/api/nativeNsites'
+import {
+  snapshotNsite,
+  unregisterNsite,
+  type NsiteSite,
+} from '@/api/nativeNsites'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +15,9 @@ import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
+import { Camera } from '@lucide/vue'
 import { PackageOpen } from '@lucide/vue'
+import { signAndSubmitSnapshot } from '@/lib/nsite/publish'
 import { siteLabel } from './helpers'
 import { NSITE_STATE_KEY } from './useNsiteState'
 
@@ -25,6 +31,8 @@ const { status, sites, sitesLoading } = nsite
 
 const unregistering = ref('')
 const { run } = useActionRunner(unregistering, '')
+const snapshotting = ref('')
+const { run: runSnapshot } = useActionRunner(snapshotting, '')
 const {
   pending: confirmingUnregister,
   request: requestUnregister,
@@ -37,6 +45,41 @@ function siteKindName(site: NsiteSite): string {
     : site.kind === 15128
       ? 'root'
       : String(site.kind)
+}
+
+function canSnapshot(site: NsiteSite): boolean {
+  return site.kind === 35128 || site.kind === 15128
+}
+
+async function snapshotSite(site: NsiteSite) {
+  const items = site.paths ?? []
+  const servers = site.servers ?? []
+  if (!items.length || !servers.length) {
+    success('Snapshot needs the site manifest to have paths and servers.')
+    return
+  }
+  await runSnapshot(
+    `${site.pubkey}:${site.d}`,
+    async () => {
+      await sync()
+      await signAndSubmitSnapshot({
+        pubkey: site.pubkey,
+        kind: site.kind,
+        d: site.d,
+        items,
+        servers,
+        signEvent: (event) => window.nostr!.signEvent(event),
+        submit: (args) =>
+          snapshotNsite({
+            event: args.event,
+            plan_sha256: args.plan_sha256,
+          }),
+      })
+      success('Snapshot submitted.')
+      await nsite.loadSites()
+    },
+    'Failed to snapshot the site.',
+  )
 }
 
 async function confirmUnregister() {
@@ -114,6 +157,29 @@ async function confirmUnregister() {
               >{{ site.last_event_id.slice(0, 12) }}…</span
             >
           </template>
+          <template v-if="site.snapshots?.length">
+            <Badge variant="neutral" class="tw:gap-1" :title="site.snapshots.join('\n')"
+              ><Camera class="tw:h-3 tw:w-3" />
+              {{ site.snapshots.length }} snapshot{{
+                site.snapshots.length === 1 ? '' : 's'
+              }}</Badge
+            >
+          </template>
+          <Button
+            v-if="canSnapshot(site)"
+            variant="ghost"
+            size="sm"
+            :disabled="snapshotting !== '' || unregistering !== ''"
+            :title="
+              'Snapshot the current manifest — root/named manifests are mutable, snapshots are immutable history.'
+            "
+            @click="snapshotSite(site)"
+            >{{
+              snapshotting === site.pubkey + ':' + site.d
+                ? 'Snapshotting…'
+                : 'Snapshot'
+            }}</Button
+          >
           <Button
             variant="ghost"
             size="sm"

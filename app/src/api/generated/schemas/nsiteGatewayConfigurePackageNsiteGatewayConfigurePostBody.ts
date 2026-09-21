@@ -11,6 +11,7 @@ export type NsiteGatewayConfigurePackageNsiteGatewayConfigurePostBody = {
   extra_relays?: string[] | null;
   fallback_servers?: string[] | null;
   allow_http?: boolean;
+  npk_enabled?: boolean;
   max_blob_bytes?: number | null;
   cache_quota_bytes?: number | null;
 };

@@ -10,11 +10,13 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateHash,
   buildUnsignedManifest,
+  buildUnsignedSnapshot,
   compareTuples,
   manifestItems,
   planDigest,
-  KIND_ROOT,
   KIND_NAMED,
+  KIND_ROOT,
+  KIND_SNAPSHOT,
 } from '../manifest'
 import type { InventoryItem } from '../inventory'
 
@@ -117,6 +119,104 @@ describe('buildUnsignedManifest', () => {
     expect(aggregate).toBe(
       '11e6ec45320a826dd8ae29a94a897a85c37beda9db642e13cd45839a21394268',
     )
+  })
+
+  it('emits the optional app tag (kind-32267 address) after d', async () => {
+    const app =
+      '32267:b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732:main'
+    const { event } = await buildUnsignedManifest({
+      pubkey:
+        'b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732',
+      kind: KIND_NAMED,
+      d: 'blog',
+      items: manifestItems(
+        NAMED_PATHS.map(([path, sha256]) => ({ path, sha256, size: 10 })),
+      ),
+      servers: SERVERS,
+      app,
+    })
+    expect(event.tags[0]).toEqual(['d', 'blog'])
+    expect(event.tags[1]).toEqual(['app', app])
+    // The app tag carries no content-integrity meaning: the plan digest
+    // (which drives the stale-plan check) must be identical with or without it.
+    const withApp = await planDigest({
+      kind: KIND_NAMED,
+      d: 'blog',
+      paths: manifestItems(
+        NAMED_PATHS.map(([path, sha256]) => ({ path, sha256, size: 10 })),
+      ),
+      servers: SERVERS,
+      relays: ['wss://relay.example.org'],
+    })
+    const withoutApp = await planDigest({
+      kind: KIND_NAMED,
+      d: 'blog',
+      paths: manifestItems(
+        NAMED_PATHS.map(([path, sha256]) => ({ path, sha256, size: 10 })),
+      ),
+      servers: SERVERS,
+      relays: ['wss://relay.example.org'],
+    })
+    expect(withApp).toBe(withoutApp)
+  })
+})
+
+describe('buildUnsignedSnapshot', () => {
+  it('emits a kind-5128 event with an a tag to the site and the same aggregate', async () => {
+    const { event, aggregate } = await buildUnsignedSnapshot({
+      pubkey:
+        'b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732',
+      kind: KIND_NAMED,
+      d: 'blog',
+      items: manifestItems(
+        NAMED_PATHS.map(([path, sha256]) => ({ path, sha256, size: 10 })),
+      ),
+      servers: SERVERS,
+    })
+    expect(event.kind).toBe(KIND_SNAPSHOT)
+    expect(event.tags[0]).toEqual([
+      'a',
+      `35128:b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732:blog`,
+    ])
+    expect(event.tags.filter((tag) => tag[0] === 'path')).toHaveLength(2)
+    expect(event.tags[event.tags.length - 1]).toEqual([
+      'x',
+      aggregate,
+      'aggregate',
+    ])
+    // A snapshot of the named site keeps the same aggregate hash as the
+    // root/named manifest it derives from (identical path inventory).
+    const { aggregate: rootAggregate } = await buildUnsignedManifest({
+      pubkey:
+        'b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732',
+      kind: KIND_NAMED,
+      d: 'blog',
+      items: manifestItems(
+        NAMED_PATHS.map(([path, sha256]) => ({ path, sha256, size: 10 })),
+      ),
+      servers: SERVERS,
+    })
+    expect(aggregate).toBe(rootAggregate)
+    expect(aggregate).toBe(
+      '11e6ec45320a826dd8ae29a94a897a85c37beda9db642e13cd45839a21394268',
+    )
+  })
+
+  it('builds a root-site snapshot a tag with an empty d', async () => {
+    const { event } = await buildUnsignedSnapshot({
+      pubkey:
+        'b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732',
+      kind: KIND_ROOT,
+      d: '',
+      items: manifestItems(
+        ROOT_PATHS.map(([path, sha256]) => ({ path, sha256, size: 10 })),
+      ),
+      servers: [],
+    })
+    expect(event.tags[0]).toEqual([
+      'a',
+      `15128:b6c048759734c1ef1b3ba0acfd1cd862b394eaab1bc15b7bf6c7f357986d9732:`,
+    ])
   })
 })
 

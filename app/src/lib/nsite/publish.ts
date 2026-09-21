@@ -7,6 +7,7 @@
 
 import {
   buildUnsignedManifest,
+  buildUnsignedSnapshot,
   planDigest,
   type ManifestItem,
 } from './manifest'
@@ -29,6 +30,7 @@ export type PublishParams = {
   items: ManifestItem[]
   servers: string[]
   relays: string[]
+  app?: string
   signEvent: (event: SignRequest) => Promise<SignedEvent>
   submit: (args: {
     event: SignedEvent
@@ -46,6 +48,7 @@ export async function signAndSubmit(
     d: params.d,
     items: params.items,
     servers: params.servers,
+    app: params.app,
   })
   const digest = await planDigest({
     kind: params.kind,
@@ -62,6 +65,43 @@ export async function signAndSubmit(
     event: signed,
     plan_sha256: digest,
     relays: params.relays,
+  })
+}
+
+export type SnapshotParams = {
+  pubkey: string
+  kind: number
+  d: string
+  items: ManifestItem[]
+  servers: string[]
+  signEvent: (event: SignRequest) => Promise<SignedEvent>
+  submit: (args: {
+    event: SignedEvent
+    plan_sha256: string
+  }) => Promise<LifecycleOperation>
+}
+
+// Phase 4 snapshot: build the kind-5128 snapshot of a site's current
+// manifest inventory, sign it, and submit to `nsite.snapshot`. The fork binds
+// the snapshot to the aggregate hash it commits to (same stale-plan rejection
+// shape as publish), so `plan_sha256` here is the aggregate hash.
+export async function signAndSubmitSnapshot(
+  params: SnapshotParams,
+): Promise<LifecycleOperation> {
+  const { event, aggregate } = await buildUnsignedSnapshot({
+    pubkey: params.pubkey,
+    kind: params.kind,
+    d: params.d,
+    items: params.items,
+    servers: params.servers,
+  })
+  const signed = await params.signEvent({
+    ...event,
+    created_at: Math.floor(Date.now() / 1000),
+  })
+  return params.submit({
+    event: signed,
+    plan_sha256: aggregate,
   })
 }
 

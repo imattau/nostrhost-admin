@@ -234,3 +234,24 @@ export function announceCatalogueEntry(appId: string, relays?: string) {
     JSON.stringify({ app_id: appId, relays }),
   )
 }
+
+// WP4 operator-owned people-set: the pubkeys npack will install .npk
+// releases from without a manual override. Read is the effective projected
+// view (`/etc/nostrhost/lists.json`); publish republishes the full desired
+// membership as a signed kind-30000 people-set event.
+export const TRUSTED_PUBLISHERS_FAMILY = 'trusted-publishers'
+
+export function getTrustedPublishers() {
+  return request<{ family: string; entries: string[] }>(
+    `/package/list/${TRUSTED_PUBLISHERS_FAMILY}`,
+    'GET',
+  )
+}
+
+export function publishTrustedPublishers(values: string[]) {
+  return request<{ event_id: string }>(
+    '/package/list/publish',
+    'POST',
+    JSON.stringify({ family: TRUSTED_PUBLISHERS_FAMILY, values }),
+  )
+}

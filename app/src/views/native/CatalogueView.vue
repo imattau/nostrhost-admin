@@ -10,6 +10,8 @@ import {
   getCatalogueList,
   getCatalogueProfile,
   getCatalogueTrust,
+  getTrustedPublishers,
+  publishTrustedPublishers,
   setCatalogueProfile,
   type AttestationPolicyMode,
   type CatalogueAnnouncement,
@@ -54,6 +56,7 @@ const TABS = [
   { id: 'blocked', label: 'Blocked' },
   { id: 'attest', label: 'Attest' },
   { id: 'trust', label: 'Trust' },
+  { id: 'publishers', label: 'Trusted Publishers' },
   { id: 'profile', label: 'Profile' },
   { id: 'announce', label: 'Announcements' },
 ] as const
@@ -327,6 +330,61 @@ async function loadTrust() {
   )
 }
 
+// -- trusted publishers ------------------------------------------------------
+// WP4 operator people-set that gates which npack publishers this node will
+// install .npk releases from (nostrhost.native_ops.trusted_publisher_list).
+// An empty list means "trust this node's own publisher key only" - adding
+// entries here is how you allow another publisher's .npk releases.
+
+const HEX_PUBKEY = /^[0-9a-f]{64}$/i
+
+const trustedPublishers = ref<string[] | null>(null)
+const newPublisherPubkey = ref('')
+const publishersBusy = ref(false)
+const { run: runPublishers } = useActionRunner(publishersBusy, false)
+const removeBusyPubkey = ref('')
+const { run: runRemovePublisher } = useActionRunner(removeBusyPubkey, '')
+
+async function loadTrustedPublishers() {
+  const result = await getTrustedPublishers()
+  trustedPublishers.value = result.entries
+}
+
+async function addTrustedPublisher() {
+  await runPublishers(
+    true,
+    async () => {
+      const pubkey = newPublisherPubkey.value.trim().toLowerCase()
+      if (!HEX_PUBKEY.test(pubkey)) {
+        throw new Error('Enter a 64-character hex pubkey.')
+      }
+      const current = trustedPublishers.value || []
+      if (current.includes(pubkey)) {
+        newPublisherPubkey.value = ''
+        return
+      }
+      await publishTrustedPublishers([...current, pubkey])
+      newPublisherPubkey.value = ''
+      success('Trusted publisher added.')
+      await loadTrustedPublishers()
+    },
+    'Failed to add trusted publisher.',
+  )
+}
+
+async function removeTrustedPublisher(pubkey: string) {
+  const current = trustedPublishers.value || []
+  await runRemovePublisher(
+    pubkey,
+    async () => {
+      await publishTrustedPublishers(current.filter((p) => p !== pubkey))
+      success('Trusted publisher removed.')
+      await loadTrustedPublishers()
+    },
+    'Failed to remove trusted publisher.',
+  )
+}
+
 // -- profile -----------------------------------------------------------------
 
 const profileForm = ref<CatalogueProfile>({})
@@ -394,6 +452,7 @@ const tabLoaders: Record<TabId, () => Promise<void>> = {
   blocked: loadBlocked,
   attest: loadAttest,
   trust: loadTrust,
+  publishers: loadTrustedPublishers,
   profile: loadProfile,
   announce: loadAnnounce,
 }
@@ -1032,6 +1091,72 @@ watch(publicKey, (key) => {
           </tbody>
         </table>
       </div>
+    </template>
+
+    <!-- Trusted Publishers -->
+    <template v-if="publicKey && activeTab === 'publishers'">
+      <Card>
+        <CardHeader>
+          <CardTitle>Trusted publishers</CardTitle>
+        </CardHeader>
+        <CardContent class="tw:grid tw:gap-3">
+          <p class="tw:text-sm tw:text-muted-foreground">
+            Publishers whose signed .npk releases this node will resolve and
+            install. Your own publisher key is always trusted; add others'
+            hex pubkeys here to allow their releases too.
+          </p>
+          <div class="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
+            <div class="tw:grid tw:flex-1 tw:min-w-64 tw:gap-1.5">
+              <Label for="publisher-pubkey">Publisher pubkey (hex)</Label>
+              <Input
+                id="publisher-pubkey"
+                v-model="newPublisherPubkey"
+                placeholder="64-character hex pubkey"
+                class="tw:font-mono"
+                @keyup.enter="addTrustedPublisher"
+              />
+            </div>
+            <Button :disabled="publishersBusy" @click="addTrustedPublisher">{{
+              publishersBusy ? 'Adding…' : 'Add publisher'
+            }}</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <EmptyState
+        v-if="trustedPublishers && trustedPublishers.length === 0"
+        title="No additional trusted publishers"
+        description="This node currently trusts only its own publisher key."
+      />
+      <Card v-else>
+        <CardContent class="tw:p-0">
+          <ul>
+            <li
+              v-for="pubkey in trustedPublishers || []"
+              :key="pubkey"
+              class="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-border-subtle tw:p-3 tw:text-sm last:tw:border-b-0"
+            >
+              <span class="tw:flex tw:items-center tw:gap-2">
+                <span class="tw:font-mono tw:text-xs">{{
+                  truncatePubkey(pubkey)
+                }}</span>
+                <Badge v-if="pubkey === selfPublisher" variant="success"
+                  >You</Badge
+                >
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                :disabled="removeBusyPubkey === pubkey"
+                @click="removeTrustedPublisher(pubkey)"
+                >{{
+                  removeBusyPubkey === pubkey ? 'Removing…' : 'Remove'
+                }}</Button
+              >
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </template>
 
     <!-- Profile -->

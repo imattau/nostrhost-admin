@@ -10,10 +10,7 @@ import {
   getCatalogueList,
   getCatalogueProfile,
   getCatalogueTrust,
-  publishCatalogueEntry,
-  reverifyCatalogueEntry,
   setCatalogueProfile,
-  verifyCatalogueEvent,
   type AttestationPolicyMode,
   type CatalogueAnnouncement,
   type CatalogueCandidate,
@@ -21,7 +18,6 @@ import {
   type CatalogueEntry,
   type CatalogueHistoryRecord,
   type CatalogueProfile,
-  type CatalogueReverifyResult,
   type CatalogueTrustEntry,
 } from '@/api/nativeCatalog'
 import {
@@ -51,7 +47,7 @@ import PageHeader from '@/components/native/PageHeader.vue'
 import PageLayout from '@/components/native/PageLayout.vue'
 
 const { publicKey, sync } = useSigner()
-const { success, danger } = useNotifications()
+const { success } = useNotifications()
 
 const TABS = [
   { id: 'browse', label: 'Browse' },
@@ -60,7 +56,6 @@ const TABS = [
   { id: 'trust', label: 'Trust' },
   { id: 'profile', label: 'Profile' },
   { id: 'announce', label: 'Announcements' },
-  { id: 'verify', label: 'Verify' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
 const activeTab = ref<TabId>('browse')
@@ -75,8 +70,6 @@ const { run: runLoading } = useActionRunner(loading, false)
 const entries = ref<CatalogueEntry[] | null>(null)
 const search = ref('')
 const category = ref('all')
-const busyAppId = ref('')
-const { run: runBusyAppId } = useActionRunner(busyAppId, '')
 const browseKind = ref<'all' | 'apps' | 'nsites' | 'collections'>('all')
 const KIND_FILTERS = [
   { id: 'all', label: 'All' },
@@ -267,38 +260,6 @@ async function registerDiscoveredSite(site: NsiteDiscoveredSite) {
   )
 }
 
-async function publishUnderMyKey(appId: string) {
-  await runBusyAppId(
-    appId,
-    async () => {
-      await publishCatalogueEntry(appId)
-      success(`Published ${appId} under this node's publisher key.`)
-      await loadBrowse()
-    },
-    'Publish failed.',
-  )
-}
-
-const reverifyResult = ref<CatalogueReverifyResult | null>(null)
-
-async function reverifyEntry(appId: string) {
-  await runBusyAppId(
-    appId,
-    async () => {
-      reverifyResult.value = null
-      reverifyResult.value = await reverifyCatalogueEntry(appId)
-      if (reverifyResult.value.ok) {
-        success(
-          `${appId} reverified: repository and hashes match the declaration.`,
-        )
-      } else {
-        danger(`${appId} reverify failed: ${reverifyResult.value.error}`)
-      }
-    },
-    'Reverify failed.',
-  )
-}
-
 // -- attest --------------------------------------------------------------
 
 const candidates = ref<CatalogueCandidate[] | null>(null)
@@ -426,29 +387,6 @@ async function announceEntry(appId: string) {
   )
 }
 
-// -- verify ------------------------------------------------------------------
-
-const verifyInput = ref('')
-const verifyBusy = ref(false)
-const { run: runVerify } = useActionRunner(verifyBusy, false)
-const verifyResult = ref<{
-  valid: boolean
-  publisher: string
-  app_id: string
-  event_id: string
-} | null>(null)
-
-async function submitVerify() {
-  await runVerify(
-    true,
-    async () => {
-      verifyResult.value = null
-      verifyResult.value = await verifyCatalogueEvent(verifyInput.value)
-    },
-    'Verification failed.',
-  )
-}
-
 // -- tab loading ---------------------------------------------------------
 
 const tabLoaders: Record<TabId, () => Promise<void>> = {
@@ -458,7 +396,6 @@ const tabLoaders: Record<TabId, () => Promise<void>> = {
   trust: loadTrust,
   profile: loadProfile,
   announce: loadAnnounce,
-  verify: async () => {},
 }
 const loadedTabs = new Set<TabId>()
 
@@ -594,15 +531,6 @@ watch(publicKey, (key) => {
             ×
           </button>
         </div>
-      </Alert>
-
-      <Alert
-        v-if="reverifyResult && !reverifyResult.ok"
-        variant="warning"
-        role="status"
-      >
-        Reverify for {{ reverifyResult.app_id }} did not match:
-        {{ reverifyResult.error }}
       </Alert>
 
       <div
@@ -871,29 +799,6 @@ watch(publicKey, (key) => {
                   <span class="tw:font-mono tw:text-xs"
                     >{{ card.entry.nsite.label }} ↗</span
                   ></a
-                >
-                <Button
-                  v-if="card.entry.declaration.Publisher !== selfPublisher"
-                  variant="outline"
-                  size="sm"
-                  :disabled="busyAppId === card.entry.declaration.AppID"
-                  @click="publishUnderMyKey(card.entry.declaration.AppID)"
-                  >{{
-                    busyAppId === card.entry.declaration.AppID
-                      ? 'Publishing…'
-                      : 'Publish under my key'
-                  }}</Button
-                >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  :disabled="busyAppId === card.entry.declaration.AppID"
-                  @click="reverifyEntry(card.entry.declaration.AppID)"
-                  >{{
-                    busyAppId === card.entry.declaration.AppID
-                      ? 'Reverifying…'
-                      : 'Reverify'
-                  }}</Button
                 >
               </div>
             </CardContent>
@@ -1255,34 +1160,6 @@ watch(publicKey, (key) => {
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
-    </template>
-
-    <!-- Verify -->
-    <template v-if="publicKey && activeTab === 'verify'">
-      <Card>
-        <CardHeader>
-          <CardTitle>Verify a declaration event</CardTitle>
-        </CardHeader>
-        <CardContent class="tw:grid tw:gap-3">
-          <p class="tw:text-sm tw:text-muted-foreground">
-            Paste a signed Nostr declaration event (kind 32267 or legacy 30078)
-            to check its ID, signature, schema, and trusted-publisher
-            membership.
-          </p>
-          <Textarea
-            v-model="verifyInput"
-            class="tw:min-h-40"
-            placeholder='{"id": "...", "pubkey": "...", "kind": 32267, ...}'
-          />
-          <Button :disabled="verifyBusy" @click="submitVerify">{{
-            verifyBusy ? 'Verifying…' : 'Verify'
-          }}</Button>
-          <Alert v-if="verifyResult?.valid" variant="success" role="status">
-            Valid declaration for {{ verifyResult.app_id }}, published by
-            {{ verifyResult.publisher }}.
-          </Alert>
         </CardContent>
       </Card>
     </template>

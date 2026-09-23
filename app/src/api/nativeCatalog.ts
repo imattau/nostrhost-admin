@@ -1,11 +1,13 @@
 import { request } from '@/api/client'
 
 // The trusted native catalogue: a projection of signed Nostr declaration
-// events (kind 32267) for apps this node trusts, synced from the control
-// relay. Browsing is read-only; the functions below cover the rest of the
-// publishing/authoring surface (publish, verify, attest, trust, reverify,
-// profile, announcements) that the backend already exposes as tools but
-// this UI previously never called.
+// events (kind 32267, and kind 9900 npack releases ingested the same way)
+// for apps/releases this node trusts, synced from the control relay.
+// Browsing is read-only; the functions below cover the rest of the
+// curation surface (attest, trust, attest-release, profile, announcements)
+// the backend exposes. The git-repository authoring path (declare, publish,
+// verify, reverify, fetch_manifest) was retired - npack is now the sole
+// distribution/publishing mechanism and has no HTTP surface here.
 export type CatalogueDeclaration = {
   AppID: string
   Name: string
@@ -55,61 +57,6 @@ type PublishOutcome = {
   published: number
   failed: number
   relays: { relay: string; error?: string }[]
-}
-
-export type CataloguePublishResult = {
-  app_id: string
-  publisher_pubkey: string
-  event_id: string
-  published: PublishOutcome
-  ingested: unknown
-}
-
-export function publishCatalogueEntry(appId: string, relays?: string) {
-  return request<CataloguePublishResult>(
-    '/package/catalog/publish',
-    'POST',
-    JSON.stringify({ app_id: appId, relays }),
-  )
-}
-
-export type CatalogueDeclareResult = {
-  app_id: string
-  publisher_pubkey: string
-  event_id: string
-  published: PublishOutcome
-  ingested: unknown
-}
-
-// Declares a brand-new app in the catalogue from an authored native package
-// manifest (the package-authoring screen's "publish" step) — distinct from
-// publishCatalogueEntry, which only re-declares an *existing* trusted entry.
-export function declareCatalogueEntry(
-  packageData: Record<string, unknown>,
-  repository: string,
-  relays?: string,
-) {
-  return request<CatalogueDeclareResult>(
-    '/package/catalog/declare',
-    'POST',
-    JSON.stringify({ package: packageData, repository, relays }),
-  )
-}
-
-export type CatalogueVerifyResult = {
-  app_id: string
-  kind: number
-  publisher: string
-  event_id: string
-  valid: boolean
-}
-
-export function verifyCatalogueEvent(eventJson: string) {
-  return request<CatalogueVerifyResult>(
-    '/package/catalog/verify',
-    'POST',
-    JSON.stringify({ event_or_naddr: eventJson }),
-  )
 }
 
 export type CatalogueCandidate = {
@@ -205,22 +152,34 @@ export function getCatalogueTrust(policy?: {
   )
 }
 
-export type CatalogueReverifyResult = {
-  app_id: string
-  publisher: string
-  commit: string
-  repository: string
-  ok: boolean
-  error?: string
-  manifest?: Record<string, unknown>
-  branch?: string
-}
-
-export function reverifyCatalogueEntry(appId: string) {
-  return request<CatalogueReverifyResult>(
-    '/package/catalog/reverify',
-    'POST',
-    JSON.stringify({ app_id: appId }),
+// The npack-release counterpart to getCatalogueTrust: the trust/curation/
+// attestation picture for one npack release, fetched live from the relay
+// rather than the local relay-synced projection - used to surface trust
+// informationally at install-npk time (Phase 3a).
+export function getCatalogueAttestRelease(
+  release: { publisher: string; name: string; version: string; arch?: string },
+  policy?: {
+    mode?: AttestationPolicyMode
+    minAttestations?: number
+    requiredChecks?: string[]
+    trustedVerifiers?: string[]
+  },
+) {
+  const params = new URLSearchParams()
+  params.set('publisher', release.publisher)
+  params.set('name', release.name)
+  params.set('version', release.version)
+  if (release.arch) params.set('arch', release.arch)
+  if (policy?.mode) params.set('attestation_policy', policy.mode)
+  if (policy?.minAttestations)
+    params.set('min_attestations', String(policy.minAttestations))
+  if (policy?.requiredChecks?.length)
+    params.set('required_checks', policy.requiredChecks.join(','))
+  if (policy?.trustedVerifiers?.length)
+    params.set('trusted_verifiers', policy.trustedVerifiers.join(','))
+  return request<CatalogueTrustEntry>(
+    `/package/catalog/attest-release?${params.toString()}`,
+    'GET',
   )
 }
 

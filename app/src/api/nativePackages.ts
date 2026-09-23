@@ -78,35 +78,6 @@ export function planPackageManifest(packageData: Record<string, unknown>) {
   )
 }
 
-export type ManifestDiagnostic = {
-  code: string
-  path: Array<string | number>
-  message: string
-  hint?: string
-}
-
-export type FetchedManifest = {
-  package: Record<string, unknown>
-  valid: boolean
-  diagnostics: ManifestDiagnostic[]
-  commit: string
-}
-
-export function fetchManifestFromRepository(
-  repository: string,
-  options: { revision?: string; packagePath?: string } = {},
-) {
-  return request<FetchedManifest>(
-    '/package/authoring/fetch_manifest',
-    'POST',
-    JSON.stringify({
-      repository,
-      revision: options.revision || '',
-      package_path: options.packagePath || '',
-    }),
-  )
-}
-
 export function getAppManagement() {
   return request<AppManagement>('/package/app/management', 'GET')
 }
@@ -176,36 +147,107 @@ export function applyChangeUrl(
   )
 }
 
-export function planCatalogueApp(
-  appId: string,
-  action: 'install' | 'upgrade' | 'remove',
-) {
-  if (action === 'remove') {
-    return request<PackagePlan>(
-      `/package/app/${encodeURIComponent(appId)}/remove/plan`,
-      'POST',
-      '{}',
-    )
-  }
+export function planAppRemoval(appId: string) {
   return request<PackagePlan>(
-    `/package/app/${encodeURIComponent(appId)}/${action}/plan`,
+    `/package/app/${encodeURIComponent(appId)}/remove/plan`,
     'POST',
     '{}',
   )
 }
 
-export function applyCatalogueApp(
-  appId: string,
-  action: 'install' | 'upgrade' | 'remove',
-  plan: PackagePlan,
-) {
+export function applyAppRemoval(appId: string, plan: PackagePlan) {
   return request<{
     operation: { ok: boolean; request_id?: string; result?: unknown }
     action: string
     package: PackagePlan['package']
   }>(
-    `/package/app/${encodeURIComponent(appId)}/${action}/apply`,
+    `/package/app/${encodeURIComponent(appId)}/remove/apply`,
     'POST',
     JSON.stringify({ plan_sha256: plan.plan_sha256 }),
+  )
+}
+
+// An npack release coordinate: "<publisher>/<name>[@version]", the same
+// shape `npack stage` (and the CLI's `app install-npk`) take. Install and
+// upgrade plans are keyed by this, not by app id - the release's own
+// [app].id is only known once the release is staged and its manifest read.
+export type NpkCoordinate = string
+
+export function npkCoordinate(
+  publisher: string,
+  name: string,
+  version?: string | null,
+) {
+  return version ? `${publisher}/${name}@${version}` : `${publisher}/${name}`
+}
+
+export type NpkPlanEnvelope = {
+  coordinate: NpkCoordinate
+  envelope: PackagePlan
+  payload_root: string
+  artifact_sha256: string
+}
+
+export function planNpkInstall(
+  coordinate: NpkCoordinate,
+  options: {
+    domain?: string
+    path?: string
+    values?: Record<string, unknown>
+  } = {},
+) {
+  return request<NpkPlanEnvelope>(
+    '/package/npk/install/plan',
+    'POST',
+    JSON.stringify({
+      coordinate,
+      domain: options.domain,
+      path: options.path,
+      values: options.values,
+    }),
+  )
+}
+
+export function applyNpkInstall(coordinate: NpkCoordinate, plan: PackagePlan) {
+  return request<{
+    operation: { ok: boolean; request_id?: string; result?: unknown }
+    action: string
+    package: PackagePlan['package']
+  }>(
+    '/package/npk/install/apply',
+    'POST',
+    JSON.stringify({ coordinate, plan_sha256: plan.plan_sha256 }),
+  )
+}
+
+export function planNpkUpgrade(
+  coordinate: NpkCoordinate,
+  options: {
+    domain?: string
+    path?: string
+    values?: Record<string, unknown>
+  } = {},
+) {
+  return request<NpkPlanEnvelope>(
+    '/package/npk/upgrade/plan',
+    'POST',
+    JSON.stringify({
+      coordinate,
+      domain: options.domain,
+      path: options.path,
+      values: options.values,
+    }),
+  )
+}
+
+export function applyNpkUpgrade(coordinate: NpkCoordinate, plan: PackagePlan) {
+  return request<{
+    operation: { ok: boolean; request_id?: string; result?: unknown }
+    action: string
+    package: PackagePlan['package']
+  }>(
+    '/package/npk/upgrade/apply',
+    'POST',
+    JSON.stringify({ coordinate, plan_sha256: plan.plan_sha256 }),
   )
 }

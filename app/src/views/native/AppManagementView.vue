@@ -2,19 +2,28 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  applyCatalogueApp,
+  applyAppRemoval,
   applyChangeUrl,
   applyNativeAppSettings,
+  applyNpkInstall,
+  applyNpkUpgrade,
   getAppManagement,
   getNativeAppSettings,
-  planCatalogueApp,
+  npkCoordinate,
+  planAppRemoval,
   planChangeUrl,
   planNativeAppSettings,
+  planNpkInstall,
+  planNpkUpgrade,
   type AppManagementEntry,
   type ChangeUrlPlan,
   type NativeAppSettings,
   type PackagePlan,
 } from '@/api/nativePackages'
+import {
+  getCatalogueAttestRelease,
+  type CatalogueTrustEntry,
+} from '@/api/nativeCatalog'
 import {
   addPermission,
   getGroups,
@@ -63,6 +72,12 @@ const settings = ref<NativeAppSettings | null>(null)
 const values = ref<Record<string, unknown>>({})
 const plan = ref<PackagePlan | ChangeUrlPlan | null>(null)
 const action = ref<Action | null>(null)
+// The npack coordinate ("<publisher>/<name>@<version>") the current
+// install/upgrade plan was built from - required again to apply it, since
+// npk install/upgrade are keyed by release coordinate, not app id.
+const planCoordinate = ref('')
+const attestRelease = ref<CatalogueTrustEntry | null>(null)
+const attestReleaseError = ref('')
 const newDomain = ref('')
 const newPath = ref('')
 const domains = ref<string[]>([])
@@ -176,6 +191,9 @@ async function chooseApp(app: AppManagementEntry) {
   values.value = {}
   plan.value = null
   action.value = null
+  planCoordinate.value = ''
+  attestRelease.value = null
+  attestReleaseError.value = ''
   const current = splitDomainPath(app.domain_path)
   newDomain.value = current.domain
   newPath.value = current.path
@@ -270,6 +288,23 @@ function updateValue(key: string, event: Event, type: string) {
   else values.value[key] = target.value
 }
 
+async function loadAttestRelease(coordinate: {
+  publisher: string
+  name: string
+  version: string
+}) {
+  attestRelease.value = null
+  attestReleaseError.value = ''
+  try {
+    attestRelease.value = await getCatalogueAttestRelease(coordinate)
+  } catch (error) {
+    // Informational only (Phase 3a) - a failed live fetch must not block
+    // reviewing or applying the plan itself.
+    attestReleaseError.value =
+      error instanceof Error ? error.message : 'Could not fetch trust info.'
+  }
+}
+
 async function previewLifecycle(
   nextAction: Exclude<Action, 'settings' | 'change-url'>,
 ) {
@@ -280,9 +315,29 @@ async function previewLifecycle(
     async () => {
       plan.value = null
       action.value = null
-      plan.value = await planCatalogueApp(app.id, nextAction)
+      attestRelease.value = null
+      attestReleaseError.value = ''
+      if (nextAction === 'remove') {
+        plan.value = await planAppRemoval(app.id)
+        planCoordinate.value = ''
+        action.value = nextAction
+        await focusPlan()
+        return
+      }
+      const publisher = app.catalogue?.publisher
+      const version = app.catalogue_version
+      if (!publisher || !version)
+        throw new Error(`${app.id} has no catalogue release to ${nextAction}.`)
+      const coordinate = npkCoordinate(publisher, app.id, version)
+      const result =
+        nextAction === 'install'
+          ? await planNpkInstall(coordinate)
+          : await planNpkUpgrade(coordinate)
+      plan.value = result.envelope
+      planCoordinate.value = result.coordinate
       action.value = nextAction
       await focusPlan()
+      await loadAttestRelease({ publisher, name: app.id, version })
     },
     `Could not build ${nextAction} plan.`,
   )
@@ -342,11 +397,17 @@ async function applyPlan() {
                 newPath.value,
                 chosenPlan as ChangeUrlPlan,
               )
-            : await applyCatalogueApp(
-                app.id,
-                chosenAction,
-                chosenPlan as PackagePlan,
-              )
+            : chosenAction === 'remove'
+              ? await applyAppRemoval(app.id, chosenPlan as PackagePlan)
+              : chosenAction === 'install'
+                ? await applyNpkInstall(
+                    planCoordinate.value,
+                    chosenPlan as PackagePlan,
+                  )
+                : await applyNpkUpgrade(
+                    planCoordinate.value,
+                    chosenPlan as PackagePlan,
+                  )
       const requestId = result.operation.request_id
       const actionLabel =
         chosenAction === 'settings'
@@ -357,6 +418,9 @@ async function applyPlan() {
       success(`${actionLabel}.${requestId ? ` Operation ${requestId}` : ''}`)
       plan.value = null
       action.value = null
+      planCoordinate.value = ''
+      attestRelease.value = null
+      attestReleaseError.value = ''
       await loadApps()
       if (selected.value?.installed && selected.value.installation?.native)
         await chooseApp(selected.value)
@@ -386,6 +450,9 @@ function label(app: AppManagementEntry) {
 function cancelPlan() {
   plan.value = null
   action.value = null
+  planCoordinate.value = ''
+  attestRelease.value = null
+  attestReleaseError.value = ''
 }
 </script>
 
@@ -867,6 +934,66 @@ function cancelPlan() {
               {{ (plan as ChangeUrlPlan).url_diff.new.domain
               }}{{ (plan as ChangeUrlPlan).url_diff.new.path }}
             </p>
+            <div
+              v-if="action === 'install' || action === 'upgrade'"
+              class="tw:mt-4 tw:border-t tw:border-border-subtle tw:pt-3 tw:text-sm"
+            >
+              <h4 class="tw:m-0 tw:mb-2 tw:text-sm tw:font-semibold">
+                Release trust &amp; attestation
+              </h4>
+              <p
+                v-if="attestReleaseError"
+                class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+              >
+                Could not fetch live trust info: {{ attestReleaseError }}
+              </p>
+              <template v-else-if="attestRelease">
+                <p class="tw:m-0 tw:mb-2 tw:flex tw:items-center tw:gap-2">
+                  <Badge
+                    :variant="attestRelease.verified ? 'success' : 'warning'"
+                  >
+                    {{
+                      attestRelease.verified
+                        ? 'Provenance verified'
+                        : 'Provenance unverified'
+                    }}
+                  </Badge>
+                  <Badge
+                    :variant="attestRelease.accepted ? 'success' : 'neutral'"
+                  >
+                    {{
+                      attestRelease.accepted
+                        ? 'Meets attestation policy'
+                        : 'No attestation policy applied'
+                    }}
+                  </Badge>
+                </p>
+                <p
+                  v-if="attestRelease.attestations.length === 0"
+                  class="tw:m-0 tw:text-xs tw:text-muted-foreground"
+                >
+                  No attestations found for this release yet.
+                </p>
+                <ul
+                  v-else
+                  class="tw:m-0 tw:list-none tw:space-y-1 tw:p-0 tw:text-xs"
+                >
+                  <li
+                    v-for="(item, index) in attestRelease.attestations"
+                    :key="index"
+                    class="tw:text-muted-foreground"
+                  >
+                    <strong class="tw:text-foreground">{{
+                      item.Verifier
+                    }}</strong>
+                    · {{ item.CIProvider }} · {{ item.Result }}
+                  </li>
+                </ul>
+              </template>
+              <p v-else class="tw:m-0 tw:text-xs tw:text-muted-foreground">
+                Fetching trust info…
+              </p>
+            </div>
             <div
               class="tw:mt-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-t tw:border-border-subtle tw:pt-4"
             >

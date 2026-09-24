@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 
 import {
   applyConnectivity,
@@ -20,6 +20,11 @@ import { Button } from '@/components/ui/button'
 const configuration = ref<ConnectivityConfiguration | null>(null)
 const controlRelay = ref('')
 const plan = ref<ConnectivityPlan | null>(null)
+// The exact payload the current `plan` was computed from. Applying sends this
+// snapshot rather than the live `configuration`, so the reviewed change is
+// exactly what gets applied even if de-duplication trimmed something out or
+// the form was edited again after review (which now also clears the plan).
+let reviewedConfiguration: ConnectivityConfiguration | null = null
 const ledger = ref<InstanceType<typeof ChangeLedger> | null>(null)
 const busy = ref(false)
 const message = ref('')
@@ -87,6 +92,22 @@ async function load() {
   }
 }
 
+// Editing any relay/server list after "Review changes" would otherwise let
+// Apply either silently ignore the new edits (it sends the frozen reviewed
+// snapshot) or fail with a stale-plan error. Clearing the plan instead makes
+// the form ask for a fresh review, which is the only state where "what you
+// see" and "what Apply sends" are guaranteed to match.
+watch(
+  configuration,
+  () => {
+    if (plan.value) {
+      plan.value = null
+      reviewedConfiguration = null
+    }
+  },
+  { deep: true },
+)
+
 async function testConnections() {
   if (!configuration.value) return
   busy.value = true
@@ -116,8 +137,9 @@ async function review() {
   busy.value = true
   error.value = ''
   try {
-    configuration.value = normalised()
-    plan.value = await planConnectivity(configuration.value)
+    const payload = normalised()
+    plan.value = await planConnectivity(payload)
+    reviewedConfiguration = payload
     await nextTick()
     ledger.value?.focus()
   } catch (cause) {
@@ -129,12 +151,12 @@ async function review() {
 }
 
 async function apply() {
-  if (!configuration.value || !plan.value) return
+  if (!configuration.value || !plan.value || !reviewedConfiguration) return
   busy.value = true
   error.value = ''
   try {
     const result = await applyConnectivity(
-      configuration.value,
+      reviewedConfiguration,
       plan.value.plan_sha256,
     )
     if (!result.operation?.ok) {
@@ -142,11 +164,13 @@ async function apply() {
         result.operation?.error ??
         'The change was not applied. Reloaded the current settings.'
       plan.value = null
+      reviewedConfiguration = null
       await load()
       return
     }
     message.value = 'Nostr settings were updated.'
     plan.value = null
+    reviewedConfiguration = null
     await load()
   } catch (cause) {
     error.value =
@@ -154,6 +178,11 @@ async function apply() {
   } finally {
     busy.value = false
   }
+}
+
+function cancelReview() {
+  plan.value = null
+  reviewedConfiguration = null
 }
 
 function enableOverride(key: RelayPurpose) {
@@ -309,7 +338,7 @@ void load()
         "
       >
         <div class="tw:mt-4 tw:flex tw:justify-end tw:gap-2">
-          <Button variant="ghost" @click="plan = null">Cancel</Button>
+          <Button variant="ghost" @click="cancelReview">Cancel</Button>
           <Button :disabled="busy" @click="apply">Apply changes</Button>
         </div>
       </ChangeLedger>

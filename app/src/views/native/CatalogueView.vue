@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { decode as decodeNip19 } from 'nostr-tools/nip19'
 
 import {
   announceCatalogueEntry,
@@ -338,6 +339,28 @@ async function loadTrust() {
 
 const HEX_PUBKEY = /^[0-9a-f]{64}$/i
 
+// Accepts either a raw hex pubkey or an npub; always stores/compares hex.
+function resolvePubkeyInput(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.toLowerCase().startsWith('npub1')) {
+    let decoded
+    try {
+      decoded = decodeNip19(trimmed)
+    } catch {
+      throw new Error('Invalid npub.')
+    }
+    if (decoded.type !== 'npub') {
+      throw new Error('Invalid npub.')
+    }
+    return decoded.data
+  }
+  const hex = trimmed.toLowerCase()
+  if (!HEX_PUBKEY.test(hex)) {
+    throw new Error('Enter a 64-character hex pubkey or an npub.')
+  }
+  return hex
+}
+
 const trustedPublishers = ref<string[] | null>(null)
 const newPublisherPubkey = ref('')
 const publishersBusy = ref(false)
@@ -354,10 +377,7 @@ async function addTrustedPublisher() {
   await runPublishers(
     true,
     async () => {
-      const pubkey = newPublisherPubkey.value.trim().toLowerCase()
-      if (!HEX_PUBKEY.test(pubkey)) {
-        throw new Error('Enter a 64-character hex pubkey.')
-      }
+      const pubkey = resolvePubkeyInput(newPublisherPubkey.value)
       const current = trustedPublishers.value || []
       if (current.includes(pubkey)) {
         newPublisherPubkey.value = ''
@@ -1103,15 +1123,15 @@ watch(publicKey, (key) => {
           <p class="tw:text-sm tw:text-muted-foreground">
             Publishers whose signed .npk releases this node will resolve and
             install. Your own publisher key is always trusted; add others'
-            hex pubkeys here to allow their releases too.
+            pubkeys here to allow their releases too.
           </p>
           <div class="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
             <div class="tw:grid tw:flex-1 tw:min-w-64 tw:gap-1.5">
-              <Label for="publisher-pubkey">Publisher pubkey (hex)</Label>
+              <Label for="publisher-pubkey">Publisher pubkey (npub or hex)</Label>
               <Input
                 id="publisher-pubkey"
                 v-model="newPublisherPubkey"
-                placeholder="64-character hex pubkey"
+                placeholder="npub1… or 64-character hex pubkey"
                 class="tw:font-mono"
                 @keyup.enter="addTrustedPublisher"
               />

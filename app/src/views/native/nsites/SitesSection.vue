@@ -147,6 +147,15 @@ async function confirmUnregister() {
         >
           <code class="tw:font-mono tw:text-sm">{{ siteLabel(site) }}</code>
           <Badge variant="neutral">{{ siteKindName(site) }}</Badge>
+          <Badge
+            :variant="site.status === 'published' ? 'success' : 'warning'"
+            :title="
+              site.status === 'published'
+                ? 'A manifest has been published; the gateway is serving it.'
+                : 'Allowlisted, but no manifest has been published yet.'
+            "
+            >{{ site.status === 'published' ? 'Published' : 'Not published' }}</Badge
+          >
           <template v-if="site.title">
             <span class="tw:text-sm">{{ site.title }}</span>
           </template>

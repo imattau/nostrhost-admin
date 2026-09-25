@@ -185,6 +185,7 @@ export type NsiteSite = {
   kind: number
   d: string
   title?: string
+  status?: 'registered' | 'published'
   last_event_id?: string
   aggregate_hash?: string
   paths?: { path: string; sha256: string }[]

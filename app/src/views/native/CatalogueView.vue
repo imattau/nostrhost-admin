@@ -822,77 +822,9 @@ watch(publicKey, (key) => {
                   >v{{ card.entry.declaration.Version }}</Badge
                 >
               </CardTitle>
-              <p class="tw:font-mono tw:text-xs tw:text-muted-foreground">
-                {{ card.entry.declaration.AppID }}
-                <span v-if="card.entry.declaration.Category"
-                  >· {{ card.entry.declaration.Category }}</span
-                >
-                <Badge
-                  v-if="card.entry.declaration.Publisher === selfPublisher"
-                  variant="neutral"
-                  class="tw:ml-1"
-                  >mine</Badge
-                >
-              </p>
             </CardHeader>
             <CardContent>
-              <p
-                v-if="card.entry.declaration.Description"
-                class="tw:mb-3 tw:line-clamp-2 tw:text-xs tw:text-muted-foreground"
-              >
-                {{ card.entry.declaration.Description }}
-              </p>
-              <dl class="tw:grid tw:gap-1.5 tw:text-xs">
-                <div class="tw:grid tw:gap-0.5">
-                  <dt class="tw:text-muted-foreground">Repository</dt>
-                  <dd class="tw:truncate tw:font-mono tw:text-foreground">
-                    {{ card.entry.declaration.Repository }}
-                  </dd>
-                </div>
-                <div
-                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
-                >
-                  <dt class="tw:text-muted-foreground">Commit</dt>
-                  <dd class="tw:font-mono tw:text-foreground">
-                    {{ shortHash(card.entry.declaration.Commit) }}
-                  </dd>
-                </div>
-                <div
-                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
-                >
-                  <dt class="tw:text-muted-foreground">Manifest hash</dt>
-                  <dd class="tw:font-mono tw:text-foreground">
-                    {{ shortHash(card.entry.declaration.ManifestHash) }}
-                  </dd>
-                </div>
-                <div
-                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
-                >
-                  <dt class="tw:text-muted-foreground">Content hash</dt>
-                  <dd class="tw:font-mono tw:text-foreground">
-                    {{ shortHash(card.entry.declaration.ContentHash) }}
-                  </dd>
-                </div>
-                <div
-                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
-                >
-                  <dt class="tw:text-muted-foreground">Architectures</dt>
-                  <dd class="tw:truncate tw:text-foreground">
-                    {{
-                      (card.entry.declaration.Architectures || []).join(', ')
-                    }}
-                  </dd>
-                </div>
-                <div
-                  class="tw:flex tw:items-center tw:justify-between tw:gap-3"
-                >
-                  <dt class="tw:text-muted-foreground">Provenance event</dt>
-                  <dd class="tw:font-mono tw:text-foreground">
-                    {{ shortHash(card.entry.event_id) }}
-                  </dd>
-                </div>
-              </dl>
-              <div class="tw:mt-3 tw:flex tw:flex-wrap tw:gap-2">
+              <div class="tw:flex tw:flex-wrap tw:gap-2">
                 <RouterLink
                   :to="{
                     name: 'app-management',

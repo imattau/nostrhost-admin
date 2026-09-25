@@ -43,7 +43,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { useNotifications } from '@/composables/useNotifications'
 import { useSigner } from '@/composables/useSigner'
 import { useActionRunner } from '@/composables/useActionRunner'
+import { useConfirm } from '@/composables/useConfirm'
 import { truncatePubkey } from '@/lib/utils'
+import ConfirmDialog from '@/components/native/ConfirmDialog.vue'
 import EmptyState from '@/components/native/EmptyState.vue'
 import AppLogo from '@/components/native/AppLogo.vue'
 import PageHeader from '@/components/native/PageHeader.vue'
@@ -367,9 +369,31 @@ const publishersBusy = ref(false)
 const { run: runPublishers } = useActionRunner(publishersBusy, false)
 const removeBusyPubkey = ref('')
 const { run: runRemovePublisher } = useActionRunner(removeBusyPubkey, '')
+const {
+  pending: removePublisherPending,
+  request: askRemovePublisherConfirm,
+  cancel: cancelRemovePublisher,
+} = useConfirm<string | null>(null)
+
+// How many catalogue entries (apps) were declared by each publisher.
+// Removing a publisher this node still has entries from will make the next
+// catalogue load fail outright (the loader refuses to resurrect state from
+// an untrusted publisher) - so the UI needs to warn before that happens.
+const publisherEntryCounts = computed(() => {
+  const counts: Record<string, number> = {}
+  for (const entry of entries.value || []) {
+    const publisher = entry.declaration.Publisher
+    if (!publisher) continue
+    counts[publisher] = (counts[publisher] || 0) + 1
+  }
+  return counts
+})
 
 async function loadTrustedPublishers() {
-  const result = await getTrustedPublishers()
+  const [result] = await Promise.all([
+    getTrustedPublishers(),
+    entries.value ? Promise.resolve() : loadBrowse(),
+  ])
   trustedPublishers.value = result.entries
 }
 
@@ -392,12 +416,21 @@ async function addTrustedPublisher() {
   )
 }
 
+function askRemoveTrustedPublisher(pubkey: string) {
+  if (publisherEntryCounts.value[pubkey]) {
+    askRemovePublisherConfirm(pubkey)
+    return
+  }
+  void removeTrustedPublisher(pubkey)
+}
+
 async function removeTrustedPublisher(pubkey: string) {
   const current = trustedPublishers.value || []
   await runRemovePublisher(
     pubkey,
     async () => {
       await publishTrustedPublishers(current.filter((p) => p !== pubkey))
+      removePublisherPending.value = null
       success('Trusted publisher removed.')
       await loadTrustedPublishers()
     },
@@ -1156,19 +1189,29 @@ watch(publicKey, (key) => {
               :key="pubkey"
               class="tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-border-subtle tw:p-3 tw:text-sm last:tw:border-b-0"
             >
-              <span class="tw:flex tw:items-center tw:gap-2">
-                <span class="tw:font-mono tw:text-xs">{{
-                  truncatePubkey(pubkey)
-                }}</span>
-                <Badge v-if="pubkey === selfPublisher" variant="success"
-                  >You</Badge
+              <span class="tw:flex tw:flex-col tw:gap-0.5">
+                <span class="tw:flex tw:items-center tw:gap-2">
+                  <span class="tw:font-mono tw:text-xs">{{
+                    truncatePubkey(pubkey)
+                  }}</span>
+                  <Badge v-if="pubkey === selfPublisher" variant="success"
+                    >You</Badge
+                  >
+                </span>
+                <span
+                  v-if="publisherEntryCounts[pubkey]"
+                  class="tw:text-xs tw:text-muted-foreground"
                 >
+                  {{ publisherEntryCounts[pubkey] }} catalogue
+                  {{ publisherEntryCounts[pubkey] === 1 ? 'entry' : 'entries' }}
+                  depend on this publisher
+                </span>
               </span>
               <Button
                 size="sm"
                 variant="outline"
                 :disabled="removeBusyPubkey === pubkey"
-                @click="removeTrustedPublisher(pubkey)"
+                @click="askRemoveTrustedPublisher(pubkey)"
                 >{{
                   removeBusyPubkey === pubkey ? 'Removing…' : 'Remove'
                 }}</Button
@@ -1177,6 +1220,17 @@ watch(publicKey, (key) => {
           </ul>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        :open="removePublisherPending !== null"
+        tier="disruptive"
+        title="Remove this trusted publisher?"
+        :description="`${publisherEntryCounts[removePublisherPending ?? ''] ?? 0} catalogue ${(publisherEntryCounts[removePublisherPending ?? ''] ?? 0) === 1 ? 'entry' : 'entries'} declared by this publisher will fail to load on the next catalogue refresh once it is no longer trusted.`"
+        confirm-label="Remove anyway"
+        :busy="removeBusyPubkey === removePublisherPending"
+        @confirm="removeTrustedPublisher(removePublisherPending!)"
+        @cancel="cancelRemovePublisher"
+      />
     </template>
 
     <!-- Profile -->
